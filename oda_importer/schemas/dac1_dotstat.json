@@ -1,0 +1,152 @@
+{
+  "STRUCTURE": {
+    "name": "data_structure",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "STRUCTURE_ID": {
+    "name": "data_structure_id",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "STRUCTURE_NAME": {
+    "name": "data_structure_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "ACTION": {
+    "name": "action",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DONOR": {
+    "name": "donor_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Donor": {
+    "name": "donor_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "MEASURE": {
+    "name": "aidtype_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Measure": {
+    "name": "aid_type",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "TYING_STATUS": {
+    "name": "tying_status_code",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "Tying status": {
+    "name": "tying_status_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "FLOW_TYPE": {
+    "name": "flows_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Flow type": {
+    "name": "fund_flows",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "UNIT_MEASURE": {
+    "name": "unit_measure_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Unit of measure": {
+    "name": "unit_measure_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "PRICE_BASE": {
+    "name": "amounttype_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Price base": {
+    "name": "amount_type",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "SECTOR": {
+    "name": "sector_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Sector": {
+    "name": "sector_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "TIME_PERIOD": {
+    "name": "year",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Time period": {
+    "name": "time_period",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "OBS_VALUE": {
+    "name": "value",
+    "type": "float64[pyarrow]",
+    "keep": true
+  },
+  "Observation value": {
+    "name": "value_name",
+    "type": "float64[pyarrow]",
+    "keep": false
+  },
+  "BASE_PER": {
+    "name": "base_period",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Base period": {
+    "name": "base_period_name",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "OBS_STATUS": {
+    "name": "status",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "Observation status": {
+    "name": "status_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "UNIT_MULT": {
+    "name": "unit_multiplier",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Unit multiplier": {
+    "name": "unit_multiplier_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DECIMALS": {
+    "name": "decimals",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "Decimals": {
+    "name": "decimals_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  }
+}
