@@ -1,7 +1,12 @@
+import logging
 from io import StringIO
 
 import pandas as pd
 import requests
+
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+
+logger = logging.getLogger(__name__)
 
 
 def text_to_stringIO(response: requests.models.Response) -> StringIO:
