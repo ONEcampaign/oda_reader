@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "oda-importer"
+version = "0.1.0"
+description = "A simple package to import ODA data using the OECD Data API"
+authors = ["Jorge Rivera"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
