@@ -2,14 +2,12 @@ import json
 from pathlib import Path
 
 from oda_importer.schemas.schema_tools import keys_to_int, parse_xml
-from oda_data.logger import logger
-
-path = ""
+from oda_importer.common import logger, ImporterPaths
 
 MAPPINGS = {
-    "dac1_codes_area": f"{path}/dac1_codes_area.json",
-    "dac1_codes_prices": f"{path}/dac1_codes_prices.json",
-    "dac1_codes_flow_types": f"{path}/dac1_codes_flow_types.json",
+    "dac1_codes_area": ImporterPaths.schemas / "dac1_codes_area.json",
+    "dac1_codes_prices": ImporterPaths.schemas / "dac1_codes_prices.json",
+    "dac1_codes_flow_types": ImporterPaths.schemas / "dac1_codes_flow_types.json",
 }
 
 DAC1_TRANSLATION_SCHEMA_URL = (

@@ -1,5 +1,11 @@
-# oda-importer
+# oda_importer
 Tools to import data from the OECD DAC. 
 
-This repository is designed as a submodule to be imported into other repositories or packages.
-It is not intended to be used as a standalone package.
+This is a very simple package to make working with the Explorer API
+easier. 
+
+This package is under active development.
+
+
+It includes a basic implementation of an API call for DAC1. It also includes
+tools to translate the API response into the old .Stat schema.

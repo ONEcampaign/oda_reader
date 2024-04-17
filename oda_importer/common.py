@@ -1,12 +1,21 @@
 import logging
 from io import StringIO
+from pathlib import Path
 
 import pandas as pd
 import requests
 
-logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("oda_importer")
+
+
+class ImporterPaths:
+    """Class to store the paths to the data and output folders."""
+
+    project = Path(__file__).resolve().parent.parent
+    scripts = project / "oda_importer"
+    schemas = scripts / "schemas"
 
 
 def text_to_stringIO(response: requests.models.Response) -> StringIO:
@@ -41,6 +50,7 @@ def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Resp
         headers = {}
 
     # Fetch the data with headers
+    logger.info(f"Fetching data from {url}")
     response = requests.get(url, headers=headers)
 
     # Ensure the request was successful
@@ -49,7 +59,7 @@ def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Resp
     return response
 
 
-def df_from_api(
+def api_response_to_df(
     url: str, read_csv_options: dict = None, compressed: bool = True
 ) -> pd.DataFrame:
     """Download a CSV file from an API endpoint and return it as a DataFrame.
