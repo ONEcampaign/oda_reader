@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from oda_importer.schemas.schema_tools import keys_to_int, parse_xml
+from oda_importer.schemas.xml_tools import parse_xml, keys_to_int
 from oda_importer.common import logger, ImporterPaths
 
 MAPPINGS = {
