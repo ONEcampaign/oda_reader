@@ -11,8 +11,6 @@ from oda_importer.schemas.schema_tools import (
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
 
-DAC1_API_ENDPOINT: str = QueryBuilder(dataflow_id=DATAFLOW_ID).build_query()
-
 
 def preprocess_dac1(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
     """Preprocess the DAC1 data.
@@ -41,9 +39,17 @@ def preprocess_dac1(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
     return df
 
 
-def download_dac1() -> pd.DataFrame:
+def download_dac1(
+    start_year: int | None = None, end_year: int | None = None, pre_process: bool = True
+) -> pd.DataFrame:
     """
     Download the DAC1 data from the API.
+
+    Args:
+        start_year (int): The start year of the data to download. Optional
+        end_year (int): The end year of the data to download. Optional
+        pre_process (bool): Whether to preprocess the data. Defaults to True.
+        Preprocessing makes it comply with the .stat schema.
 
     Returns:
         pd.DataFrame: The DAC1 data.
@@ -65,11 +71,19 @@ def download_dac1() -> pd.DataFrame:
     # Inform download is about to start
     logger.info("Downloading DAC1 data. This may take a while...")
 
+    # get the url
+    url = (
+        QueryBuilder(dataflow_id=DATAFLOW_ID)
+        .set_time_period(start=start_year, end=end_year)
+        .build_query()
+    )
+
     # Get the dataframe
-    df = api_response_to_df(url=DAC1_API_ENDPOINT, read_csv_options=df_options)
+    df = api_response_to_df(url=url, read_csv_options=df_options)
 
     # Preprocess the data
-    df = preprocess_dac1(df=df, schema_translation=schema_translation)
+    if pre_process:
+        df = preprocess_dac1(df=df, schema_translation=schema_translation)
 
     # Return the dataframe
     logger.info("Data downloaded correctly.")

@@ -86,7 +86,9 @@ class QueryBuilder:
 
         return "+".join(param)
 
-    def set_time_period(self, start: int | str, end: int | str) -> "QueryBuilder":
+    def set_time_period(
+        self, start: int | str | None, end: int | str | None
+    ) -> "QueryBuilder":
         """Set the time period for the query. The time period is inclusive.
 
         Args:
@@ -97,10 +99,19 @@ class QueryBuilder:
             Self: Returns self to allow for method chaining.
         """
         if self.api_version == 2:
-            self.params["c[TIME_PERIOD]"] = f"ge:{start}+le:{end}"
+            if start and end:
+                self.params["c[TIME_PERIOD]"] = f"ge:{start}+le:{end}"
+                return self
+            if start:
+                self.params["c[TIME_PERIOD]"] = f"ge:{start}"
+            if end:
+                self.params["c[TIME_PERIOD]"] = f"ge:1950+le:{end}"
+
         else:
-            self.params["startPeriod"] = start
-            self.params["endPeriod"] = end
+            if start:
+                self.params["startTime"] = start
+            if end:
+                self.params["endPeriod"] = end
 
         return self
 
