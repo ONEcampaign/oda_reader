@@ -1,6 +1,7 @@
 import pandas as pd
 
 from oda_importer.common import api_response_to_df, logger
+from oda_importer.query_builder import QueryBuilder
 from oda_importer.schemas.schema_tools import (
     dac1_schema_translation,
     get_dtypes,
@@ -8,11 +9,9 @@ from oda_importer.schemas.schema_tools import (
     get_column_name_mapping,
 )
 
-DAC1_API_ENDPOINT: str = (
-    "https://sdmx.oecd.org/public/rest/data/"
-    "OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.1/"
-    "all?dimensionAtObservation=AllDimensions&format=csvfilewithlabels"
-)
+DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
+
+DAC1_API_ENDPOINT: str = QueryBuilder(dataflow_id=DATAFLOW_ID).build_query()
 
 
 def preprocess_dac1(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
