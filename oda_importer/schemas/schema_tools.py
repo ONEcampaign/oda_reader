@@ -109,11 +109,11 @@ def map_donor_codes(
     return df
 
 
-def map_aidtype_codes(
+def map_amount_type_codes(
     df: pd.DataFrame,
     prices_mapping: dict,
-    source_column: str = "aidtype_code",
-    target_column: str = "aidtype_code",
+    source_column: str = "amounttype_code",
+    target_column: str = "amounttype_code",
 ) -> pd.DataFrame:
     """
     Map the new aidtype codes to the old codes.
@@ -133,3 +133,36 @@ def map_aidtype_codes(
     df[target_column] = df[source_column].map(prices_mapping)
 
     return df
+
+
+def convert_unit_measure_to_amount_type(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert the unit measure to amount type. This is needed because in
+    OECD.Stat the concept of unit measure didn't exist, and all data
+    was stored under the amount type concept.
+
+    Args:
+        df: A preprocessed DataFrame.
+
+    Returns:
+        pd.DataFrame: The DataFrame with the amount type column.
+
+    """
+    non_usd = (
+        df.loc[lambda d: d["unit_measure_code"] != "USD"]
+        .drop(columns=["amounttype_code", "amount_type"])
+        .rename(
+            columns={
+                "unit_measure_code": "amounttype_code",
+                "unit_measure_name": "amount_type",
+            }
+        )
+    )
+
+    df = df.loc[lambda d: d.unit_measure_code == "USD"]
+
+    return (
+        pd.concat([df, non_usd], ignore_index=True)
+        .drop(columns=["unit_measure_code", "unit_measure_name"])
+        .drop_duplicates()  # USD can generate duplicates
+    )

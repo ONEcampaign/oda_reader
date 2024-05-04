@@ -2,11 +2,15 @@ import pandas as pd
 
 from oda_importer.common import api_response_to_df, logger
 from oda_importer.query_builder import QueryBuilder
+from oda_importer.schemas.dac1_translation import area_code_mapping, prices_mapping
 from oda_importer.schemas.schema_tools import (
     dac1_schema_translation,
     get_dtypes,
     get_columns_to_keep,
     get_column_name_mapping,
+    map_donor_codes,
+    map_amount_type_codes,
+    convert_unit_measure_to_amount_type,
 )
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
@@ -39,8 +43,28 @@ def preprocess_dac1(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
     return df
 
 
+def convert_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+    # Get the area codes
+    area_codes = area_code_mapping()
+
+    # Prices mapping
+    prices_codes = prices_mapping()
+
+    # Map the donor codes
+    df = map_donor_codes(df, area_code_mapping=area_codes)
+
+    # Map the prices codes
+    df = convert_unit_measure_to_amount_type(df)
+    df = map_amount_type_codes(df, prices_mapping=prices_codes)
+
+    return df
+
+
 def download_dac1(
-    start_year: int | None = None, end_year: int | None = None, pre_process: bool = True
+    start_year: int | None = None,
+    end_year: int | None = None,
+    pre_process: bool = True,
+    dotstat_codes: bool = True,
 ) -> pd.DataFrame:
     """
     Download the DAC1 data from the API.
@@ -50,6 +74,7 @@ def download_dac1(
         end_year (int): The end year of the data to download. Optional
         pre_process (bool): Whether to preprocess the data. Defaults to True.
         Preprocessing makes it comply with the .stat schema.
+        dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
 
     Returns:
         pd.DataFrame: The DAC1 data.
@@ -84,6 +109,11 @@ def download_dac1(
     # Preprocess the data
     if pre_process:
         df = preprocess_dac1(df=df, schema_translation=schema_translation)
+        if dotstat_codes:
+            df = convert_to_dotstat_codes(df)
+    else:
+        if dotstat_codes:
+            raise ValueError("Cannot convert to dotstat codes without preprocessing.")
 
     # Return the dataframe
     logger.info("Data downloaded correctly.")
