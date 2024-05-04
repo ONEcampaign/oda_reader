@@ -1,4 +1,4 @@
-# oda_importer
+# oda_reader
 Tools to import data from the OECD DAC. 
 
 This is a very simple package to make working with the Explorer API
