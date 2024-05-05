@@ -40,12 +40,12 @@ def area_code_mapping() -> dict:
     )
 
 
-def convert_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+def convert_dac2a_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
     # Get the area codes
     area_codes = area_code_mapping()
 
     # Prices mapping
-    prices_codes = {v: k for k, v in prices_mapping().items()}
+    prices_codes = prices_mapping()
 
     # Map the donor codes
     df = map_area_codes(df, area_code_mapping=area_codes)

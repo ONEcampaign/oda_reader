@@ -80,7 +80,7 @@ def flow_types_mapping() -> dict:
     )
 
 
-def convert_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+def convert_dac1_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
     # Get the area codes
     area_codes = area_code_mapping()
 
