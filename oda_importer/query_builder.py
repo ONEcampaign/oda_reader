@@ -23,7 +23,7 @@ class QueryBuilder:
         self,
         dataflow_id: str,
         dataflow_version: str = None,
-        api_version: int = 2,
+        api_version: int = 1,
     ) -> None:
         """
         Initialize the QueryBuilder with specific settings for the API and data flow.
@@ -109,7 +109,7 @@ class QueryBuilder:
 
         else:
             if start:
-                self.params["startTime"] = start
+                self.params["startPeriod"] = start
             if end:
                 self.params["endPeriod"] = end
 

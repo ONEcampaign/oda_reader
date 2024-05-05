@@ -5,9 +5,12 @@ import pandas as pd
 from oda_importer.common import logger, ImporterPaths
 
 
-def dac1_schema_translation() -> dict:
+def read_schema_translation(version: str = "dac1") -> dict:
     """
-    Reads the schema translation to map the DAC1 API response to the .stat schema.
+    Reads the schema translation to map the API response to the .stat schema.
+
+    Args:
+        version:
 
     Returns:
         dict: The schema translation.
@@ -15,7 +18,7 @@ def dac1_schema_translation() -> dict:
     logger.info("Reading the DAC1 schema translation")
 
     # Load the schema translation
-    with open(ImporterPaths.schemas / "dac1_dotstat.json", "r") as f:
+    with open(ImporterPaths.schemas / f"{version}_dotstat.json", "r") as f:
         mapping = json.load(f)
 
     return mapping
@@ -80,7 +83,7 @@ def get_columns_to_keep(schema: dict) -> list:
     return columns_to_keep
 
 
-def map_donor_codes(
+def map_area_codes(
     df: pd.DataFrame,
     area_code_mapping: dict,
     source_column: str = "donor_code",
@@ -166,3 +169,30 @@ def convert_unit_measure_to_amount_type(df: pd.DataFrame) -> pd.DataFrame:
         .drop(columns=["unit_measure_code", "unit_measure_name"])
         .drop_duplicates()  # USD can generate duplicates
     )
+
+
+def preprocess(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
+    """Preprocess the DAC1 data.
+
+    Args:
+        df (pd.DataFrame): The raw DAC1 data, as returned by the API.
+        schema_translation (dict): The schema translation to map the DAC1 API
+        response to the .stat schema.
+
+    Returns:
+        pd.DataFrame: The preprocessed DAC1 data.
+
+    """
+    # Preprocess the data
+    logger.info("Preprocessing the data")
+
+    # Get columns to keep
+    to_keep = get_columns_to_keep(schema=schema_translation)
+
+    # Get column name mapping
+    name_mapping = get_column_name_mapping(schema=schema_translation)
+
+    # keep only selected columns, rename them
+    df = df.filter(items=to_keep).rename(columns=name_mapping)
+
+    return df

@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import requests
@@ -102,3 +104,78 @@ def keys_to_int(dictionary: dict) -> dict:
 
     """
     return {int(k): v for k, v in dictionary.items() if k.isdigit()}
+
+
+def save_dict_to_json(dictionary: dict, filename: str) -> None:
+    """Saves a dictionary to a JSON file."""
+    # Save the mapping to a JSON file
+    with open(rf"{filename}", "w") as f:
+        f.write(json.dumps(dictionary, indent=4))
+
+
+def extract_representation_mapping(xml_dict: dict, index: int) -> list:
+    """Extracts the representation mapping from the XML file."""
+    return xml_dict["RepresentationMaps"]["RepresentationMap"][index][
+        "RepresentationMapping"
+    ]
+
+
+def representation_mapping_to_dict(representation_mapping: list) -> dict:
+    """Converts the representation mapping to a dictionary."""
+    return {
+        code["SourceValue"]["#text"]: code["TargetValue"]["#text"]
+        for code in representation_mapping
+    }
+
+
+def representation_to_json(xml_dict, index: int, filename: str) -> None:
+    """Pipeline to extract and save a representation mapping to a JSON file."""
+    # Get the codes from the XML dictionary
+    codes = extract_representation_mapping(xml_dict, index=index)
+
+    # Loop through the codes and add them to the mapping dictionary
+    mapping = representation_mapping_to_dict(codes)
+
+    # Save the mapping to a JSON file
+    save_dict_to_json(mapping, filename=rf"{filename}")
+
+    # Log the result
+    logger.info(f"Saved {filename} to disk.")
+
+
+def extract_dac_to_area_codes(xml_dict: dict, filename: str) -> None:
+    """Extracts the DAC1 codes to Area codes from the XML file."""
+
+    # Convert the representation to a JSON file
+    representation_to_json(xml_dict, index=0, filename=filename)
+
+
+def extract_datatypes_to_prices_codes(xml_dict: dict, filename: str) -> None:
+    """Extracts the Datatypes to Prices codes from the XML file."""
+
+    # Convert the representation to a JSON file
+    representation_to_json(xml_dict, index=1, filename=filename)
+
+
+def extract_flowtype_to_flowtype_codes(xml_dict: dict, filename: str) -> None:
+    """Extracts the Flowtype to Flowtype codes from the XML file."""
+
+    # Convert the representation to a JSON file
+    representation_to_json(xml_dict, index=2, filename=filename)
+
+
+def read_mapping(mapping_path: str, keys_as_int: bool, update: callable) -> dict:
+    # Read the mapping from a JSON file. If it doesn't exist, create it.
+
+    if not Path(mapping_path).exists():
+        logger.info(f"Not found, downloading.")
+        update()
+
+    with open(mapping_path, "r") as f:
+        mapping = json.load(f)
+
+    # Convert keys to integers (if required)
+    if keys_as_int:
+        mapping = keys_to_int(mapping)
+
+    return mapping

@@ -53,6 +53,9 @@ def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Resp
     logger.info(f"Fetching data from {url}")
     response = requests.get(url, headers=headers)
 
+    if (response.status_code == 404) and (response.text == "NoRecordsFound"):
+        raise ConnectionError("No data found for the selected parameters.")
+
     # Ensure the request was successful
     response.raise_for_status()
 
