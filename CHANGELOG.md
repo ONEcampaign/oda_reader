@@ -1,4 +1,4 @@
-# Changelog for oda_importer
+# Changelog for oda_reader
 
 ## 0.1.0 (2024-04-17)
 - Initial release. It includes a basic implementation of an API call for DAC1.

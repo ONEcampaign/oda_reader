@@ -1,12 +1,12 @@
 import pandas as pd
 
-from oda_importer.common import ImporterPaths
-from oda_importer.schemas.schema_tools import (
+from oda_reader.common import ImporterPaths
+from oda_reader.schemas.schema_tools import (
     map_area_codes,
     convert_unit_measure_to_amount_type,
     map_amount_type_codes,
 )
-from oda_importer.schemas.xml_tools import (
+from oda_reader.schemas.xml_tools import (
     parse_xml,
     extract_dac_to_area_codes,
     extract_datatypes_to_prices_codes,

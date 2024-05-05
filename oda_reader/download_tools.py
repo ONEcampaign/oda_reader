@@ -1,10 +1,10 @@
 import pandas as pd
 
-from oda_importer.common import api_response_to_df, logger
-from oda_importer.query_builder import QueryBuilder
-from oda_importer.schemas.dac1_translation import convert_dac1_to_dotstat_codes
-from oda_importer.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
-from oda_importer.schemas.schema_tools import (
+from oda_reader.common import api_response_to_df, logger
+from oda_reader.query_builder import QueryBuilder
+from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
+from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
+from oda_reader.schemas.schema_tools import (
     read_schema_translation,
     get_dtypes,
     preprocess,

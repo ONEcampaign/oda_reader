@@ -1,5 +1,5 @@
 """ A module for constructing SDMX API queries for the OECD data. """
-from oda_importer.common import logger
+from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
 V2_BASE_URL: str = "https://sdmx.oecd.org/public/rest/v2/data/dataflow/"

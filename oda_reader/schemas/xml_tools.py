@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 
 import requests
 
-from oda_importer.common import logger
+from oda_reader.common import logger
 
 
 def download_xml(xml_url: str) -> requests.models.Response:

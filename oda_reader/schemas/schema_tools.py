@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from oda_importer.common import logger, ImporterPaths
+from oda_reader.common import logger, ImporterPaths
 
 
 def read_schema_translation(version: str = "dac1") -> dict:
