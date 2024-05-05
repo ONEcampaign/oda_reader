@@ -17,4 +17,7 @@ message = "Bump version: {current_version} → {new_version}"
 commit_args = ""
 
 [[tool.bumpversion.files]]
-filenames = ["pyproject.toml"]
+filename = "./pyproject.toml"
+
+[[tool.bumpversion.files]]
+filename = "./oda_reader/__init__.py"
