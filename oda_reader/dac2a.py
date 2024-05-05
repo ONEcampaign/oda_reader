@@ -14,7 +14,7 @@ def download_dac2a(
     dotstat_codes: bool = True,
 ) -> pd.DataFrame:
     """
-    Download the DAC1 data from the API.
+    Download the DAC2a data from the API.
 
     Args:
         start_year (int): The start year of the data to download. Optional
@@ -25,7 +25,7 @@ def download_dac2a(
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
 
     Returns:
-        pd.DataFrame: The DAC1 data.
+        pd.DataFrame: The DAC2a data.
 
     """
 
