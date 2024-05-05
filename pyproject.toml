@@ -12,9 +12,8 @@ requests = "^2.31.0"
 pandas = "^2.2.2"
 pyarrow = ">=16.0.0"
 
-
 [tool.poetry.group.dev.dependencies]
-bump2version = "^1.0.1"
+bump-my-version = "^0.21.0"
 
 [build-system]
 requires = ["poetry-core"]
