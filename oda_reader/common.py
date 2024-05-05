@@ -14,7 +14,7 @@ class ImporterPaths:
     """Class to store the paths to the data and output folders."""
 
     project = Path(__file__).resolve().parent.parent
-    scripts = project / "oda_importer"
+    scripts = project / "oda_reader"
     schemas = scripts / "schemas"
 
 

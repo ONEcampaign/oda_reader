@@ -123,6 +123,22 @@ class QueryBuilder:
         unit_measure: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
     ) -> str:
+        """Build the filter string for the DAC1 dataflow.
+
+        The allowed filter follows the pattern:
+        {donor}.{measure}.{untied}.{flow_type}.{unit_measure}.{price_base}.{period}
+
+        Args:
+            donor (str | list[str] | None): The donor country code(s).
+            measure (str | list[str] | None): The measure code(s).
+            flow_type (str | list[str] | None): The flow type code(s).
+            unit_measure (str | list[str] | None): The unit of measure code(s).
+            price_base (str | list[str] | None): The price base code(s).
+
+        Returns:
+            str: The filter string for the query.
+        """
+
         # if any of the parameters are None, set them to the default value
         donor = self._to_filter_str(donor)
         measure = self._to_filter_str(measure)
@@ -135,6 +151,39 @@ class QueryBuilder:
         return ".".join(
             [donor, measure, untied, flow_type, unit_measure, price_base, period]
         )
+
+    def build_dac2a_filter(
+        self,
+        donor: str | list[str] | None = None,
+        recipient: str | list[str] | None = None,
+        measure: int | list[int] | None = None,
+        unit_measure: str | list[str] | None = None,
+        price_base: str | list[str] | None = None,
+    ) -> str:
+        """Build the filter string for the DAC2A dataflow.
+
+        The allowed filter follows the pattern:
+        {donor}.{recipient}.{measure}.{unit_measure}.{price_base}
+
+        Args:
+            donor (str | list[str] | None): The donor country code(s).
+            recipient (str | list[str] | None): The recipient country code(s).
+            measure (int | list[int] | None): The measure code(s).
+            unit_measure (str | list[str] | None): The unit of measure code(s).
+            price_base (str | list[str] | None): The price base code(s).
+
+        Returns:
+            str: The filter string for the query.
+
+        """
+        # if any of the parameters are None, set them to the default value
+        donor = self._to_filter_str(donor)
+        recipient = self._to_filter_str(recipient)
+        measure = self._to_filter_str(measure)
+        unit_measure = self._to_filter_str(unit_measure)
+        price_base = self._to_filter_str(price_base)
+
+        return ".".join([donor, recipient, measure, unit_measure, price_base])
 
     def set_filter(self, filter_string: str) -> "QueryBuilder":
         """Set the dimensions parameter for the query.

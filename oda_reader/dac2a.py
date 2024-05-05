@@ -33,7 +33,7 @@ def download_dac2a(
     logger.info("Downloading DAC2A data. This may take a while...")
 
     df = download(
-        version="dac1",
+        version="dac2a",
         dataflow_id=DATAFLOW_ID,
         start_year=start_year,
         end_year=end_year,
