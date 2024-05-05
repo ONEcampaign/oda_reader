@@ -1,3 +1,6 @@
+[![pypi](https://img.shields.io/pypi/v/oda_reader.svg)](https://pypi.org/project/oda_reader/)
+[![python](https://img.shields.io/pypi/pyversions/oda_reader.svg)](https://pypi.org/project/oda_reader/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 # oda_reader
 Tools to import data from the OECD DAC. 
 
