@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.10"
 requests = "^2.31.0"
 pandas = "^2.2.2"
-pyarrow = "^16.0.0"
+pyarrow = ">=16.0.0"
 
 
 [build-system]
