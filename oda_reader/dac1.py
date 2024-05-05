@@ -1,7 +1,7 @@
 import pandas as pd
 
 from oda_reader.common import logger
-from oda_reader.download_tools import download
+from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
 

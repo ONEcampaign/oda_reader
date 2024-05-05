@@ -15,11 +15,11 @@ from oda_reader.schemas.xml_tools import (
 )
 
 MAPPINGS = {
-    "dac1_codes_area": ImporterPaths.schemas / "dac1_codes_area.json",
-    "area_code_corrections": ImporterPaths.schemas / "area_code_corrections.json",
-    "dac1_codes_prices": ImporterPaths.schemas / "dac1_codes_prices.json",
-    "prices_corrections": ImporterPaths.schemas / "code_prices_corrections.json",
-    "dac1_codes_flow_types": ImporterPaths.schemas / "dac1_codes_flow_types.json",
+    "dac1_codes_area": ImporterPaths.mappings / "dac1_codes_area.json",
+    "area_code_corrections": ImporterPaths.mappings / "area_code_corrections.json",
+    "dac1_codes_prices": ImporterPaths.mappings / "dac1_codes_prices.json",
+    "prices_corrections": ImporterPaths.mappings / "code_prices_corrections.json",
+    "dac1_codes_flow_types": ImporterPaths.mappings / "dac1_codes_flow_types.json",
 }
 
 DAC1_TRANSLATION_SCHEMA_URL = (

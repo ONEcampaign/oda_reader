@@ -14,13 +14,13 @@ DAC2_TRANSLATION_SCHEMA_URL = (
 )
 
 MAPPINGS = {
-    "dac2_codes_area": ImporterPaths.schemas / "dac2_codes_area.json",
-    "area_code_corrections": ImporterPaths.schemas / "area_code_corrections.json",
+    "dac2_codes_area": ImporterPaths.mappings / "dac2_codes_area.json",
+    "area_code_corrections": ImporterPaths.mappings / "area_code_corrections.json",
 }
 
 
 def update_dac2_translation_mappings():
-    """Pipeline to update the DAC1 translation mappings"""
+    """Pipeline to update the DAC2A translation mappings"""
     xml_data = parse_xml(xml_url=DAC2_TRANSLATION_SCHEMA_URL)["Structures"]
 
     # oecd dac donor codes to area codes
@@ -41,6 +41,13 @@ def area_code_mapping() -> dict:
 
 
 def convert_dac2a_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert the DAC2A data to the .stat schema.
+    Args:
+        df (pd.DataFrame): The DAC2A data.
+
+    Returns:
+        pd.DataFrame: The DAC2A data in the .stat schema.
+    """
     # Get the area codes
     area_codes = area_code_mapping()
 

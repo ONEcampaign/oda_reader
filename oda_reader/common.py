@@ -16,6 +16,7 @@ class ImporterPaths:
     project = Path(__file__).resolve().parent.parent
     scripts = project / "oda_reader"
     schemas = scripts / "schemas"
+    mappings = schemas / "mappings"
 
 
 def text_to_stringIO(response: requests.models.Response) -> StringIO:

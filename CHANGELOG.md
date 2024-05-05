@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 0.2.1 (2024-05-05)
+- Allows for direct imports of `download_dac1`, `download_dac2a` and `QueryBuilder` as
+`from oda_reader import download_dac1, download_dac2a, QueryBuilder`.
+
 
 ## 0.2.0 (2024-05-05)
 - Fixes a bug with `download_dac2a` which meant filters were not applied properly

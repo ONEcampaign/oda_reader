@@ -10,15 +10,15 @@ def read_schema_translation(version: str = "dac1") -> dict:
     Reads the schema translation to map the API response to the .stat schema.
 
     Args:
-        version:
+        version: The version of the schema to read. Defaults to "dac1".
 
     Returns:
         dict: The schema translation.
     """
-    logger.info("Reading the DAC1 schema translation")
+    logger.info(f"Reading the {version} schema translation")
 
     # Load the schema translation
-    with open(ImporterPaths.schemas / f"{version}_dotstat.json", "r") as f:
+    with open(ImporterPaths.mappings / f"{version}_dotstat.json", "r") as f:
         mapping = json.load(f)
 
     return mapping
