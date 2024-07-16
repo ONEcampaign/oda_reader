@@ -10,5 +10,5 @@ easier.
 This package is under active development.
 
 
-It includes a basic implementation of an API call for DAC1. It also includes
+It includes a basic implementation of an API call for DAC1 and DAC2a. It also includes
 tools to translate the API response into the old .Stat schema.
