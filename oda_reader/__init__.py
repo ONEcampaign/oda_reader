@@ -8,6 +8,7 @@ __version__ = "0.2.2"
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import download_dac2a
+from oda_reader.crs import download_crs
 
 
-__all__ = ["QueryBuilder", "download_dac1", "download_dac2a"]
+__all__ = ["QueryBuilder", "download_dac1", "download_dac2a", "download_crs"]

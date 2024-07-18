@@ -1,4 +1,5 @@
 """ A module for constructing SDMX API queries for the OECD data. """
+
 from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
@@ -184,6 +185,74 @@ class QueryBuilder:
         price_base = self._to_filter_str(price_base)
 
         return ".".join([donor, recipient, measure, unit_measure, price_base])
+
+    def build_crs_filter(
+        self,
+        donor: str | list[str] | None = None,
+        recipient: str | list[str] | None = None,
+        sector: int | list[int] | None = None,
+        measure: int | list[int] | None = None,
+        channel: str | list[str] | None = None,
+        modality: str | list[str] | None = None,
+        flow_type: str | list[str] | None = None,
+        price_base: str | list[str] | None = None,
+        unit_measure: str | list[str] | None = None,
+        microdata: bool = True,
+    ) -> str:
+        """Build the filter string for the CRS dataflow.
+
+        The allowed filter follows the pattern:
+        {donor}.{recipient}.{sector}.{measure}.{channel}.
+        {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}
+
+        Args:
+            donor (str | list[str] | None): The donor country code(s).
+            recipient (str | list[str] | None): The recipient country code(s).
+            sector (int | list[int] | None): The sector code(s).
+            measure (int | list[int] | None): The measure code(s).
+            channel (str | list[str] | None): The channel code(s).
+            modality (str | list[str] | None): The modality code(s).
+            flow_type (str | list[str] | None): The flow type code(s).
+            unit_measure (str | list[str] | None): The unit of measure code(s).
+            price_base (str | list[str] | None): The price base code(s).
+            microdata (bool): Whether to get microdata or summary data.
+
+        Returns:
+            str: The filter string for the query.
+
+        """
+        # if any of the parameters are None, set them to the default value
+        donor = self._to_filter_str(donor)
+        recipient = self._to_filter_str(recipient)
+        sector = self._to_filter_str(sector)
+        measure = self._to_filter_str(measure)
+        channel = self._to_filter_str(channel)
+        modality = self._to_filter_str(modality)
+        flow_type = self._to_filter_str(flow_type)
+        price_base = self._to_filter_str(price_base)
+        unit_measure = self._to_filter_str(unit_measure)
+        md_id = self._to_filter_str(None)
+
+        if microdata:
+            md_dim = "DD"
+        else:
+            md_dim = "_T"
+
+        return ".".join(
+            [
+                donor,
+                recipient,
+                sector,
+                measure,
+                channel,
+                modality,
+                flow_type,
+                price_base,
+                md_dim,
+                md_id,
+                unit_measure,
+            ]
+        )
 
     def set_filter(self, filter_string: str) -> "QueryBuilder":
         """Set the dimensions parameter for the query.

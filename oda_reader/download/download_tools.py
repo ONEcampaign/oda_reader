@@ -2,6 +2,7 @@ import pandas as pd
 
 from oda_reader.common import api_response_to_df, logger
 from oda_reader.download.query_builder import QueryBuilder
+from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
 from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
 from oda_reader.schemas.schema_tools import (
@@ -60,6 +61,9 @@ def download(
     elif version == "dac2a":
         filter_builder = qb.build_dac2a_filter
         convert_func = convert_dac2a_to_dotstat_codes
+    elif version == "crs":
+        filter_builder = qb.build_crs_filter
+        convert_func = convert_crs_to_dotstat_codes
     else:
         raise ValueError("Version must be either 'dac1' or 'dac2a'.")
 
@@ -70,6 +74,10 @@ def download(
 
     # Get the url
     url = qb.set_time_period(start=start_year, end=end_year).build_query()
+
+    # Fix CRS url
+    if version == "crs":
+        url = url.replace("public", "dcd-public")
 
     # Get the dataframe
     df = api_response_to_df(url=url, read_csv_options=df_options)
