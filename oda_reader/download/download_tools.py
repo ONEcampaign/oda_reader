@@ -14,6 +14,7 @@ from oda_reader.schemas.schema_tools import (
 def download(
     version: str,
     dataflow_id: str,
+    dataflow_version: str = None,
     start_year: int | None = None,
     end_year: int | None = None,
     filters: dict | None = None,
@@ -26,6 +27,7 @@ def download(
     Args:
         version (str): The version of the data to download.
         dataflow_id (str): The dataflow id of the data to download.
+        dataflow_version (str): The version of the dataflow. Optional
         start_year (int): The start year of the data to download. Optional
         end_year (int): The end year of the data to download. Optional
         filters (dict): Optional filters to pass to the download.
@@ -51,7 +53,7 @@ def download(
     }
 
     # instantiate the query builder
-    qb = QueryBuilder(dataflow_id=dataflow_id)
+    qb = QueryBuilder(dataflow_id=dataflow_id, dataflow_version=dataflow_version)
 
     # Select right filter builder and dotstat codes
     if version == "dac1":

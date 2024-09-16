@@ -1,4 +1,5 @@
 """ A module for constructing SDMX API queries for the OECD data. """
+
 from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
@@ -35,7 +36,8 @@ class QueryBuilder:
         """
 
         # If dataflow_version is not provided, use the latest version
-        dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
+        if dataflow_version is None:
+            dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
         # Set the base URL and separator based on the API version
         base_url = V2_BASE_URL if api_version == 2 else V1_BASE_URL
