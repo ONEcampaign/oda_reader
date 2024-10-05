@@ -1,4 +1,8 @@
+import io
+import zipfile
+
 import pandas as pd
+import requests
 
 from oda_reader.common import api_response_to_df, logger
 from oda_reader.download.query_builder import QueryBuilder
@@ -9,6 +13,8 @@ from oda_reader.schemas.schema_tools import (
     get_dtypes,
     preprocess,
 )
+
+BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
 
 
 def download(
@@ -87,5 +93,63 @@ def download(
 
     # Return the dataframe
     logger.info("Data downloaded correctly.")
+
+    return df
+
+
+def _extract_parquet_files_from_content(
+    response: requests.Response,
+) -> list[pd.DataFrame]:
+    # Open the content as a zip file and extract the parquet files
+    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+        # Find all parquet files in the zip archive
+        parquet_filenames = [name for name in z.namelist() if name.endswith(".parquet")]
+
+        # List to store the DataFrames
+        files = []
+
+        # Loop over the parquet files
+        for file in parquet_filenames:
+            # Extract and load the Parquet file into a DataFrame
+            logger.info(f"Extracting and loading {file}")
+            with z.open(file) as f:
+                df = pd.read_parquet(f)
+                files.append(df)
+
+    return files
+
+
+def bulk_download_parquet(file_id: str) -> pd.DataFrame:
+    """Download data from the stats.oecd.org file download service.
+
+    Certain data files are available as a bulk download in parquet format. This function
+    downloads the parquet files and returns a single DataFrame.
+
+    Args:
+        file_id (str): The ID of the file to download.
+
+    Returns:
+        pd.DataFrame: The data.
+    """
+
+    # Construct the URL
+    file_url = BULK_DOWNLOAD_URL + file_id
+
+    # Inform download is about to start
+    logger.info("Downloading parquet file. This may take a while...")
+
+    # Get the file
+    response = requests.get(file_url)
+
+    # Check if the request was successful
+    response.raise_for_status()
+
+    # Read the parquet file
+    files = _extract_parquet_files_from_content(response)
+
+    df = pd.concat(files, ignore_index=True)
+
+    # Inform download is complete
+    logger.info("Parquet file downloaded correctly.")
 
     return df
