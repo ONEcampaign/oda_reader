@@ -1,18 +1,47 @@
 from pathlib import Path
 
-from oda_reader.download.download_tools import get_bulk_file_id, bulk_download_parquet
+from oda_reader.download.download_tools import (
+    get_bulk_file_id,
+    bulk_download_parquet,
+    CRS_FLOW_URL,
+)
 
 
 def get_full_crs_parquet_id():
-    return get_bulk_file_id(search_string="CRS-Parquet|")
+    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-Parquet|")
 
 
 def get_reduced_crs_parquet_id():
-    return get_bulk_file_id(search_string="CRS-reduced-parquet|")
+    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-reduced-parquet|")
 
 
 def get_year_crs_zip_id(year: int):
-    return get_bulk_file_id(search_string=f"CRS {year} (dotStat format)|")
+    return get_bulk_file_id(
+        flow_url=CRS_FLOW_URL, search_string=f"CRS {year} (dotStat format)|"
+    )
+
+
+def download_crs_file(year: int, save_to_path: Path | str | None = None):
+    """
+    Download a year of CRS data from the bulk download service. The file is large.
+    It is therefore strongly recommended to save it to disk. If save_to_path is not
+    provided, the function will return a DataFrame.
+
+    Args:
+        year: The year of CRS data to download.
+        save_to_path: The path to save the file to. Optional. If not provided, a
+        DataFrame is returned.
+
+    Returns:
+        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+
+    """
+
+    file_id = get_year_crs_zip_id(year=year)
+
+    return bulk_download_parquet(
+        file_id=file_id, save_to_path=save_to_path, is_txt=True
+    )
 
 
 def download_crs(save_to_path: Path | str | None = None, reduced_version: bool = False):
