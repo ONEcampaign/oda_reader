@@ -1,10 +1,16 @@
 from pathlib import Path
 
+import pandas as pd
+
+from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     get_bulk_file_id,
     MULTI_FLOW_URL,
     bulk_download_parquet,
+    download,
 )
+
+DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
 
 
 def get_full_multisystem_id():
@@ -36,5 +42,51 @@ def download_multisystem_file(save_to_path: Path | str | None = None):
     )
 
 
-if __name__ == "__main__":
-    df = download_multisystem_file()
+def download_multisystem(
+    start_year: int | None = None,
+    end_year: int | None = None,
+    filters: dict | None = None,
+    pre_process: bool = True,
+    dotstat_codes: bool = True,
+    dataflow_version: str | None = None,
+) -> pd.DataFrame:
+    """
+    Download Multisystem data from the API.
+
+    Args:
+        start_year (int): The start year of the data to download. Optional
+        end_year (int): The end year of the data to download. Optional
+        filters (dict): Optional filters to pass to the download.
+        pre_process (bool): Whether to preprocess the data. Defaults to True.
+        Preprocessing makes it comply with the .stat schema.
+        dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
+        dataflow_version (str): The version of the dataflow. Optional
+
+    Returns:
+        pd.DataFrame: The multisystem data.
+
+    """
+
+    # Inform download is about to start
+    logger.info("Downloading Multisystem data. This may take a while...")
+
+    # Inform of the dataflow being downloaded
+    if dataflow_version is None:
+        dataflow_version = "1.1"
+    logger.info(f"Downloading dataflow version {dataflow_version}")
+
+    if not filters:
+        filters = {}
+
+    df = download(
+        version="multisystem",
+        dataflow_id=DATAFLOW_ID,
+        start_year=start_year,
+        end_year=end_year,
+        filters=filters,
+        pre_process=pre_process,
+        dotstat_codes=dotstat_codes,
+        dataflow_version=dataflow_version,
+    )
+
+    return df

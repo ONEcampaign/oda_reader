@@ -10,6 +10,9 @@ from oda_reader.common import api_response_to_df, logger
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
 from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
+from oda_reader.schemas.multisystem_translation import (
+    convert_multisystem_to_dotstat_codes,
+)
 from oda_reader.schemas.schema_tools import (
     read_schema_translation,
     get_dtypes,
@@ -79,6 +82,10 @@ def download(
             "filter_builder": qb.build_dac2a_filter,
             "convert_func": convert_dac2a_to_dotstat_codes,
         },
+        "multisystem": {
+            "filter_builder": qb.build_multisystem_filter,
+            "convert_func": convert_multisystem_to_dotstat_codes,
+        },
     }
 
     try:
@@ -90,7 +97,7 @@ def download(
         )
 
     # Optionally set filters
-    if filters:
+    if isinstance(filters, dict):
         filter_str = filter_builder(**filters)
         qb.set_filter(filter_str)
 
