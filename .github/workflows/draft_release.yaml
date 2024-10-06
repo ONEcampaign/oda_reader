@@ -28,30 +28,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install poetry
+          pip install poetry git-changelog
           poetry install
+          poetry shell
 
       - name: Build the package
         run: poetry build
 
-      - name: Install Ruby
-        run: |
-          sudo apt-get update
-          sudo apt-get install ruby-full
-
-      - name: Install changelog generator (Ruby gem) with user-level permissions
-        run: |
-          gem install github_changelog_generator --user-install
-
-      - name: Add gem user directory to PATH
-        run: |
-          echo 'export PATH="$HOME/.gem/ruby/$(ls ~/.gem/ruby)/bin:$PATH"' >> $GITHUB_ENV
-
       - name: Generate changelog
-        run: |
-          github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }} --token ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git-changelog > CHANGELOG.md
 
       - name: Create Draft GitHub Release
         id: create_release
