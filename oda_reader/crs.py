@@ -35,7 +35,7 @@ def get_year_crs_zip_id(year: int):
     )
 
 
-def download_crs_file(year: int, save_to_path: Path | str | None = None):
+def download_crs_file(year: int | str, save_to_path: Path | str | None = None):
     """
     Download a year of CRS data from the bulk download service. The file is large.
     It is therefore strongly recommended to save it to disk. If save_to_path is not

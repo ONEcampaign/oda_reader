@@ -19,7 +19,7 @@ def get_full_multisystem_id():
     )
 
 
-def download_multisystem_file(save_to_path: Path | str | None = None):
+def bulk_download_multisystem(save_to_path: Path | str | None = None):
     """
     Download the Multisystem data from the bulk download service. The file is very large.
     It is therefore strongly recommended to save it to disk. If save_to_path is not
