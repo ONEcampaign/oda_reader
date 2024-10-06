@@ -1,5 +1,13 @@
 # Changelog for oda_reader
 
+## 1.0.0 (2024-10-06)
+- Major release marking version 1.0.0.
+- Adds API support for the CRS and Multisystem datasets.
+- Adds support for bulk downloading of the CRS and Multisystem datasets in parquet format.
+- Improves filtering options for all datasets (DAC1, DAC2a, CRS, Multisystem).
+- Enhanced performance and stability for large dataset queries and downloads.
+- General codebase improvements and documentation updates.
+
 ## 0.2.3 (2024-09-16)
 - Fixes an error returned when making an API call to DAC1 without specifying the dataflow version.
 - An option to specify the dataflow version is now provided
