@@ -19,9 +19,10 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 1. [Getting Started](#getting-started)
 2. [Features](#features)
 3. [Installation](#installation)
-4. [Basic Usage](#basic-usage)
-5. [DAC1](#1-downloading-dac1-data)
-6. [DAC2a](#2-downloading-dac2a-data)
+4. [DAC1](#downloading-dac1-data)
+5. [DAC2a](#downloading-dac2a-data)
+6. [CRS](#downloading-crs-data)
+7. [Multisystem](#downloading-multisystem-data)
 
 ## Getting Started
 
@@ -48,10 +49,10 @@ pip install oda-reader
 
 ## Basic Usage
 
-### 1. Downloading DAC1 Data
+### Downloading DAC1 Data
 
-The `download_dac1()` function allows you to download DAC1 data. It accepts a few different
-arguments:
+The `download_dac1()` function allows you to download DAC1 data from the data-explorer API.
+It accepts a few different arguments:
 
 - `start_year`: An integer like `2018`, specifying the starting year for the data.
   This parameter is optional - if not provided, the starting date for the dataset is used.
@@ -119,10 +120,10 @@ from oda_reader import download_dac1
 dac1_data = download_dac1(pre_process=True, dotstat_codes=False)
 ```
 
-### 2. Downloading DAC2a Data
+### Downloading DAC2a Data
 
-The `download_dac2a()` function allows you to download DAC2a data. It accepts a few different
-arguments:
+The `download_dac2a()` function allows you to download DAC2a data from the data-explorer API.
+It accepts a few different arguments:
 
 - `start_year`: An integer like `2018`, specifying the starting year for the data.
   This parameter is optional - if not provided, the starting date for the dataset is used.
@@ -187,4 +188,318 @@ Pre-processing converts column names to distinct machine-readable names, and it 
 from oda_reader import download_dac2a
 
 dac2_data = download_dac2a(pre_process=True, dotstat_codes=False)
+```
+
+### Downloading CRS Data
+
+The `download_crs()` function allows you to download CRS data from the data-explorer API.
+It accepts a few different arguments:
+
+- `start_year`: An integer like `2018`, specifying the starting year for the data.
+  This parameter is optional - if not provided, the starting date for the dataset is used.
+- `end_year`: An integer like `2022`, specifying the end year for the data.
+  This parameter is optional - if not provided, the returned data goes up to the most recent year.
+- `filters`: An optional dictionary containing additional filters to include in the API call.
+  See the _Using Filters_ section for more details.
+- `pre_process`: A boolean to specify if light cleaning of the data should be performed.
+  If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
+- `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.For this to work, `pre_process` must be true.
+- `as_grant_equivalent`: A boolean to specify whether the 'flows' or 'grant equivalent' version of the CRS should be returned.
+- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
+  This is an advanced parameter and should be used only if necessary to override the default.
+
+**Note** the `download_crs` function defaults to getting 'microdata'. That means project-level data. This is different from the approach taken by the data-explorer online, which shows semi-aggregated data. In order to view semi-aggregates, you can add `microdata: False` to the filters.
+
+This API is quite slow, and the data can quickly get quite large. It is recommended to use filters to limit the data returned, or to use the bulk download feature (`bulk_download_crs`) to avoid repeated, slow calls to the API.
+
+This basic example will get all available data (all donors, all recipients, indicators, etc) from 2018 to 2022. It will return 'flows' data.
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(start_year=2018, end_year=2022)
+```
+
+The same example as grant equivalents would be:
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(start_year=2018, end_year=2022, as_grant_equivalent=True)
+```
+
+You can also use filters to, for example, only get data for specific donors and recipients:
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(
+  start_year=2018, end_year=2022, filters={"donor": "DEU", "recipient": ["TGO", "NGA"]}
+)
+```
+
+The filtering can get quite specific. For example, the following
+query gets disbursements for ODA grants from Germany to Nigeria for
+primary education, provided through multilateral organisations, in 
+constant prices:
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(
+  start_year=2022,
+  end_year=2022,
+  filters={
+    "donor": "DEU",
+    "recipient": "NGA",
+    "sector": "11220",
+    "measure":"11",
+    "channel": "40000",
+    "price_base": "Q",
+  },
+)
+```
+
+The data-explorer API can also return semi-aggregates, built from the CRS microdata. 
+That is the data that is shown online through the data-explorer. 
+
+You can get that view of the data using the ODA Reader package. However, the filters must
+be used to avoid double counting.
+
+For example, to get all ODA from the United States to Liberia in 2019. In this case
+`channel` and `modality` are set to `_T` (which stands for total). Alternatively, it can
+be set to specific channels or modalities to get semi-aggregates for specific channels
+or modalities.
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(
+  start_year=2019,
+  end_year=2019,
+  filters={
+    "donor": "USA",
+    "recipient": "LBR",
+    "sector": "1000",
+    "measure":"100",
+    "channel": "_T",
+    "modality": "_T",
+    "flow_type": "C",
+    "price_base": "V",
+    "microdata": False,
+  },
+)
+```
+
+By default, ODA Reader performs basic preprocessing of the returned data, and it converts the response to the OECD.Stat schema. These options can be turned off to get the data exactly as returned by the API.
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(pre_process=False, dotstat_codes=False)
+```
+
+Pre-processing converts column names to distinct machine-readable names, and it sets the right data types for further analysis with Pandas. The data can also be pre-processed without translating to the OECD.Stat schema.
+
+```python
+from oda_reader import download_crs
+
+crs_data = download_crs(pre_process=True, dotstat_codes=False)
+```
+
+#### Bulk downloading CRS data
+
+In many situations, downloading the full CRS may be the most efficient way to conduct analysis. For example, when requesting a lot of data, or when all the project information is needed.
+
+For those cases, ODA Reader provides tools for getting the bulk download files provided by the OECD.
+The entire CRS is provided as a parquet file (just over 1GB in size). They also provide a 'reduced'
+version which does not include certain columns in order to result in a smaller file.
+
+The `bulk_download_crs()` function allows you to download the full CRS data (as a parquet file)
+It accepts a few different arguments:
+
+- `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
+saved. If not provided, `bulk_download_crs` will return a Pandas DataFrame.
+- `reduced_version`: A boolean which defaults to `False`. If `True` smaller file (removing certain
+columns) is downloaded and saved/returned instead.
+
+**Note** that the files provided by the OECD follow the .Stat schema.
+
+To save the full parquet file to `example-folder`:
+
+```python
+from oda_reader import bulk_download_crs
+
+bulk_download_crs(save_to_path="./example-folder/")
+```
+
+To keep the full file in memory as a Pandas DataFrame:
+
+```python
+from oda_reader import bulk_download_crs
+
+full_crs = bulk_download_crs()
+```
+
+To download the smaller file to `example-folder`:
+
+```python
+from oda_reader import bulk_download_crs
+
+bulk_download_crs(save_to_path="./example-folder/", reduced_version=True)
+```
+
+To keep the smaller file in memory as a Pandas DataFrame:
+```python
+from oda_reader import bulk_download_crs
+
+full_crs = bulk_download_crs(reduced_version=True)
+```
+
+The `download_crs_file()` function allows you to download the CRS data for a specific year
+(as a parquet file). It accepts a few different arguments:
+
+- `year`: An integer specifying the year needed (e.g 2019).
+- `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
+  saved. If not provided, `download_crs_file` will return a Pandas DataFrame.
+
+**Note** that the files provided by the OECD follow the .Stat schema.
+
+To save the full parquet file to `example-folder`:
+
+```python
+from oda_reader import download_crs_file
+
+download_crs_file(year=2022, save_to_path="./example-folder/")
+```
+
+For older years, the years are grouped in a single file. For example:
+- 2004-05
+- 2002-03
+- 2000-01
+- 1995-99
+- 1973-94
+
+In those cases, the year string can be passed as `year` to download the file.
+For example, for 1995-1999:
+
+```python
+from oda_reader import download_crs_file
+
+download_crs_file(year="1995-99", save_to_path="./example-folder/")
+```
+
+To keep the file in memory as a Pandas DataFrame, for 2017 for example:
+
+```python
+from oda_reader import download_crs_file
+
+crs_data = download_crs_file(year=2017)
+```
+
+
+### Downloading Multisystem Data
+
+The `download_multisystem()` function allows you to download _Members total use of the
+multilateral system (Multisystem)_ data from the data-explorer API.
+
+It accepts a few different arguments:
+
+- `start_year`: An integer like `2018`, specifying the starting year for the data.
+  This parameter is optional - if not provided, the starting date for the dataset is used.
+- `end_year`: An integer like `2022`, specifying the end year for the data.
+  This parameter is optional - if not provided, the returned data goes up to the most recent year.
+- `filters`: An optional dictionary containing additional filters to include in the API call.
+  See the _Using Filters_ section for more details.
+- `pre_process`: A boolean to specify if light cleaning of the data should be performed.
+  If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
+- `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema. For this to work, `pre_process` must be true.
+- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
+  This is an advanced parameter and should be used only if necessary to override the default.
+
+This API is quite slow, and the data can quickly get quite large. It is recommended to use filters to limit the data returned, or to use the bulk download feature (`bulk_download_multisystem`) to avoid repeated, slow calls to the API.
+
+This basic example will get all available data (all donors, all recipients, indicators, etc) from 2018 to 2022.
+
+```python
+from oda_reader import download_multisystem
+
+multisystem = download_multisystem(start_year=2018, end_year=2022)
+```
+
+You can also use filters to, for example, only get data for specific donors and recipients:
+
+```python
+from oda_reader import download_multisystem
+
+multisystem = download_multisystem(
+  start_year=2018, end_year=2022, filters={"donor": "ITA", "recipient": ["TGO", "NGA"]}
+)
+```
+
+The filtering can get quite specific. For example, the following
+query gets core multilateral contributions from Canada to the World Bank International
+Development Association (IDA), as disbursements in current prices.
+
+```python
+from oda_reader import download_multisystem
+
+multisystem = download_multisystem(
+  start_year=2015,
+  end_year=2015,
+  filters={
+    "donor": "CAN",
+    "channel": "44002",
+    "flow_type": "D",
+    "price_base": "Q"
+  },
+)
+```
+
+By default, ODA Reader performs basic preprocessing of the returned data, and it converts the response to the OECD.Stat schema. These options can be turned off to get the data exactly as returned by the API.
+
+```python
+from oda_reader import download_multisystem
+
+multisystem = download_multisystem(pre_process=False, dotstat_codes=False)
+```
+
+Pre-processing converts column names to distinct machine-readable names, and it sets the right data types for further analysis with Pandas. The data can also be pre-processed without translating to the OECD.Stat schema.
+
+```python
+from oda_reader import download_multisystem
+
+multisystem = download_multisystem(pre_process=True, dotstat_codes=False)
+```
+
+#### Bulk downloading Multisystem data
+
+In many situations, downloading the full Multisystem data may be the most efficient way to conduct analysis. For example, when requesting a lot of data, or when all the project information is needed.
+
+For those cases, ODA Reader provides tools for getting the bulk download files provided by the OECD.
+The entire Multisystem dataset is provided as a parquet file.
+
+The `bulk_download_multisystem()` function allows you to download the full CRS data (as a parquet file).
+
+It accepts a single argument:
+
+- `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
+  saved. If not provided, `bulk_download_multisystem` will return a Pandas DataFrame.
+
+**Note** that the files provided by the OECD follow the .Stat schema.
+
+To save the full parquet file to `example-folder`:
+
+```python
+from oda_reader import bulk_download_multisystem
+
+bulk_download_multisystem(save_to_path="./example-folder/")
+```
+
+To keep the full file in memory as a Pandas DataFrame:
+
+```python
+from oda_reader import bulk_download_multisystem
+
+full_multisystem = bulk_download_multisystem()
 ```
