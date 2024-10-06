@@ -1,4 +1,4 @@
-name: release & publish
+name: Draft Release
 
 on:
   push:
@@ -31,23 +31,27 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Build the package
+        run: poetry build
+
       - name: Install Ruby
         run: |
           sudo apt-get update
           sudo apt-get install ruby-full
 
-      - name: Install changelog generator (Ruby gem)
+      - name: Install changelog generator (Ruby gem) with user-level permissions
         run: |
-          gem install github_changelog_generator
+          gem install github_changelog_generator --user-install
+
+      - name: Add gem user directory to PATH
+        run: |
+          echo 'export PATH="$HOME/.gem/ruby/$(ls ~/.gem/ruby)/bin:$PATH"' >> $GITHUB_ENV
 
       - name: Generate changelog
         run: |
           github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }} --token ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build the package
-        run: poetry build
 
       - name: Create Draft GitHub Release
         id: create_release
@@ -59,12 +63,3 @@ jobs:
           draft: true  # Set to true to make it a draft release
           prerelease: false
           body_path: CHANGELOG.md  # Automatically include changelog
-
-      - name: Publish to PyPI (Only after review)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: pypa/gh-action-pypi-publish@v1.10.3
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip_existing: true
-          verify_metadata: true
