@@ -8,7 +8,19 @@ __version__ = "0.2.3"
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import download_dac2a
-from oda_reader.crs import download_crs
+from oda_reader.multisystem import download_multisystem, download_multisystem_file
+from oda_reader.crs import download_crs, bulk_download_crs, download_crs_file
+from oda_reader.tools import get_available_filters
 
 
-__all__ = ["QueryBuilder", "download_dac1", "download_dac2a", "download_crs"]
+__all__ = [
+    "QueryBuilder",
+    "download_dac1",
+    "download_dac2a",
+    "download_multisystem",
+    "download_multisystem_file",
+    "download_crs",
+    "bulk_download_crs",
+    "download_crs_file",
+    "get_available_filters",
+]
