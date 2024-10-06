@@ -30,13 +30,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry git-changelog
           poetry install
-          poetry shell
 
       - name: Build the package
-        run: poetry build
+        run: poetry run poetry build
 
       - name: Generate changelog
-        run: git-changelog > CHANGELOG.md
+        run: poetry run git-changelog > CHANGELOG.md
 
       - name: Create Draft GitHub Release
         id: create_release
