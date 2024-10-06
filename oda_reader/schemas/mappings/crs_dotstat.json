@@ -244,6 +244,11 @@
     "type": "int32[pyarrow]",
     "keep": true
   },
+  "CHANNELDELIVERY_CODE": {
+    "name": "channel_delivery_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
   "Channel of delivery code": {
     "name": "channel_delivery_code_name",
     "type": "string[pyarrow]",
