@@ -31,9 +31,14 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Install changelog generator
+      - name: Install Ruby
         run: |
-          pip install github-changelog-generator
+          sudo apt-get update
+          sudo apt-get install ruby-full
+
+      - name: Install changelog generator (Ruby gem)
+        run: |
+          gem install github_changelog_generator
 
       - name: Generate changelog
         run: |
