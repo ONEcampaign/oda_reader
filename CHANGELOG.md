@@ -1,5 +1,10 @@
 # Changelog for oda_reader
 
+## 0.2.3 (2024-09-16)
+- Fixes an error returned when making an API call to DAC1 without specifying the dataflow version.
+- An option to specify the dataflow version is now provided
+- This release pins dac1 dataflow to 1.2
+
 ## 0.2.2 (2024-06-28)
 - The schema provided by the OECD identifies the EU institutions under a code with no data. This update matches the right new code to the old 918.
 - The schema provided by the OECD does not correctly identify the donor code for DAC EU countries + EU Institutions. This update correctly matches it.

@@ -192,6 +192,8 @@ def preprocess(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
     # Get column name mapping
     name_mapping = get_column_name_mapping(schema=schema_translation)
 
+    logger.debug(f"Removing columns: {set(df.columns) - set(to_keep)}")
+
     # keep only selected columns, rename them
     df = df.filter(items=to_keep).rename(columns=name_mapping)
 

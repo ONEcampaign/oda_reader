@@ -58,6 +58,10 @@ def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Resp
     if (response.status_code == 404) and (response.text == "NoRecordsFound"):
         raise ConnectionError("No data found for the selected parameters.")
 
+    if (response.status_code == 500) and (response.text.find("not set to") > 0):
+        url = url.replace("public", "dcd-public")
+        response = requests.get(url, headers=headers)
+
     # Ensure the request was successful
     response.raise_for_status()
 

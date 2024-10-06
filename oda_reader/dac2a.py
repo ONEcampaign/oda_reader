@@ -12,6 +12,7 @@ def download_dac2a(
     filters: dict | None = None,
     pre_process: bool = True,
     dotstat_codes: bool = True,
+    dataflow_version: str | None = None,
 ) -> pd.DataFrame:
     """
     Download the DAC2a data from the API.
@@ -23,6 +24,7 @@ def download_dac2a(
         pre_process (bool): Whether to preprocess the data. Defaults to True.
         Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
+        dataflow_version (str): The version of the data. Optional
 
     Returns:
         pd.DataFrame: The DAC2a data.
@@ -32,6 +34,12 @@ def download_dac2a(
     # Inform download is about to start
     logger.info("Downloading DAC2A data. This may take a while...")
 
+    # Inform of the dataflow being downloaded
+    if dataflow_version is None:
+        logger.info(f"Downloading dataflow latest version")
+    else:
+        logger.info(f"Downloading dataflow version {dataflow_version}")
+
     df = download(
         version="dac2a",
         dataflow_id=DATAFLOW_ID,
@@ -40,6 +48,7 @@ def download_dac2a(
         filters=filters,
         pre_process=pre_process,
         dotstat_codes=dotstat_codes,
+        dataflow_version=dataflow_version,
     )
 
     return df

@@ -36,7 +36,8 @@ class QueryBuilder:
         """
 
         # If dataflow_version is not provided, use the latest version
-        dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
+        if dataflow_version is None:
+            dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
         # Set the base URL and separator based on the API version
         base_url = V2_BASE_URL if api_version == 2 else V1_BASE_URL
@@ -186,57 +187,46 @@ class QueryBuilder:
 
         return ".".join([donor, recipient, measure, unit_measure, price_base])
 
-    def build_crs_filter(
+    def build_multisystem_filter(
         self,
         donor: str | list[str] | None = None,
         recipient: str | list[str] | None = None,
         sector: int | list[int] | None = None,
         measure: int | list[int] | None = None,
-        channel: str | list[str] | None = None,
-        modality: str | list[str] | None = None,
+        channel: int | list[int] | None = None,
         flow_type: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
-        unit_measure: str | list[str] | None = None,
-        microdata: bool = True,
-    ) -> str:
-        """Build the filter string for the CRS dataflow.
+    ):
+        """Build the filter string for the Multisystem dataflow.
 
         The allowed filter follows the pattern:
-        {donor}.{recipient}.{sector}.{measure}.{channel}.
-        {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}
+        {donor}.{recipient}.{sector}.{measure}.{channel}.{flow_type}.{price_base}.{MD_DIM}
+        .{MD_ID}.{UNIT_MEASURE}
 
         Args:
             donor (str | list[str] | None): The donor country code(s).
             recipient (str | list[str] | None): The recipient country code(s).
             sector (int | list[int] | None): The sector code(s).
             measure (int | list[int] | None): The measure code(s).
-            channel (str | list[str] | None): The channel code(s).
-            modality (str | list[str] | None): The modality code(s).
+            channel (int | list[int] | None): The channel code(s).
             flow_type (str | list[str] | None): The flow type code(s).
-            unit_measure (str | list[str] | None): The unit of measure code(s).
             price_base (str | list[str] | None): The price base code(s).
-            microdata (bool): Whether to get microdata or summary data.
 
         Returns:
             str: The filter string for the query.
-
         """
+
         # if any of the parameters are None, set them to the default value
         donor = self._to_filter_str(donor)
         recipient = self._to_filter_str(recipient)
         sector = self._to_filter_str(sector)
         measure = self._to_filter_str(measure)
         channel = self._to_filter_str(channel)
-        modality = self._to_filter_str(modality)
         flow_type = self._to_filter_str(flow_type)
         price_base = self._to_filter_str(price_base)
-        unit_measure = self._to_filter_str(unit_measure)
+        md_dim = self._to_filter_str("_T")
         md_id = self._to_filter_str(None)
-
-        if microdata:
-            md_dim = "DD"
-        else:
-            md_dim = "_T"
+        unit_measure = self._to_filter_str(None)
 
         return ".".join(
             [
@@ -245,7 +235,6 @@ class QueryBuilder:
                 sector,
                 measure,
                 channel,
-                modality,
                 flow_type,
                 price_base,
                 md_dim,
