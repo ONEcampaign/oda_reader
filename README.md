@@ -2,15 +2,17 @@
 [![python](https://img.shields.io/pypi/pyversions/oda_reader.svg)](https://pypi.org/project/oda_reader/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-# ODA Reader - OECD DAC Data Importer
+# ODA Reader
+The OECD DAC Data Importer
 
 **ODA Reader** is a Python package that simplifies access to the **OECD DAC data**, leveraging
 the **OECD data explorer API** and bulk downloads.
 
-It allows for easy, programmatic access to OECD DAC data in python.
+It allows for easy, programmatic access to OECD DAC data in python. It is designed for policy
+analysts, data analysts, researchers and students who need easy and programmatic access to 
+OECD DAC data.
 
-This documentation will walk you through how to set up and use ODA Reader, explaining its core features,
-available modules, and providing examples of its use.
+This documentation will walk you through how to set up and use ODA Reader.
 
 ODA Reader is a project created and maintained by The ONE Campaign.
 
@@ -23,6 +25,8 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 5. [DAC2a](#downloading-dac2a-data)
 6. [CRS](#downloading-crs-data)
 7. [Multisystem](#downloading-multisystem-data)
+8. [Using filters](#using-filters)
+9. [Contribute](#contributing-to-oda-reader)
 
 ## Getting Started
 
@@ -59,7 +63,7 @@ It accepts a few different arguments:
 - `end_year`: An integer like `2022`, specifying the end year for the data.
   This parameter is optional - if not provided, the returned data goes up to the most recent year.
 - `filters`: An optional dictionary containing additional filters to include in the API call.
-  See the _Using Filters_ section for more details.
+  See the [Using filters](#using-filters) section for more details.
 - `pre_process`: A boolean to specify if light cleaning of the data should be performed.
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
@@ -130,7 +134,7 @@ It accepts a few different arguments:
 - `end_year`: An integer like `2022`, specifying the end year for the data.
   This parameter is optional - if not provided, the returned data goes up to the most recent year.
 - `filters`: An optional dictionary containing additional filters to include in the API call.
-  See the _Using Filters_ section for more details.
+  See the [Using filters](#using-filters) section for more details.
 - `pre_process`: A boolean to specify if light cleaning of the data should be performed.
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
@@ -200,7 +204,7 @@ It accepts a few different arguments:
 - `end_year`: An integer like `2022`, specifying the end year for the data.
   This parameter is optional - if not provided, the returned data goes up to the most recent year.
 - `filters`: An optional dictionary containing additional filters to include in the API call.
-  See the _Using Filters_ section for more details.
+  See the [Using filters](#using-filters) section for more details.
 - `pre_process`: A boolean to specify if light cleaning of the data should be performed.
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.For this to work, `pre_process` must be true.
@@ -410,7 +414,7 @@ It accepts a few different arguments:
 - `end_year`: An integer like `2022`, specifying the end year for the data.
   This parameter is optional - if not provided, the returned data goes up to the most recent year.
 - `filters`: An optional dictionary containing additional filters to include in the API call.
-  See the _Using Filters_ section for more details.
+  See the [Using filters](#using-filters) section for more details.
 - `pre_process`: A boolean to specify if light cleaning of the data should be performed.
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema. For this to work, `pre_process` must be true.
@@ -503,3 +507,58 @@ from oda_reader import bulk_download_multisystem
 
 full_multisystem = bulk_download_multisystem()
 ```
+
+## Using filters
+When using ODA Reader, you can apply filters to refine the data you retrieve from the API. This applies to all tools except for the bulk download functions.
+
+Filters allow you to specify subsets of data, making it easy to focus on the information that is most relevant to your needs.
+
+Filters are specified as a dictionary, with keys representing the filter categories (such as donor, recipient, sector, etc.) and values representing the criteria to match, provided as single values (like a year, or a code), or lists of values (like multiple donors or multiple sectors). 
+
+You can use the `get_available_filters()` function to see the available filter parameters that
+can be used for a specific dataset. Note that (for now) all filter values must be provided using
+the data-explorer schema.
+
+For example, to get the available filters for DAC1:
+
+```python
+from oda_reader import get_available_filters
+
+dac1_filters = get_available_filters(source="dac1")
+```
+
+By default, the dictionary is also printed. To only return the object without printing,
+you can set `quiet` as `True`.
+
+```python
+from oda_reader import get_available_filters
+
+dac1_filters = get_available_filters(source="dac1", quiet=True)
+```
+
+The same applies to other sources:
+
+```python
+from oda_reader import get_available_filters
+
+dac2a_filters = get_available_filters(source="dac2a")
+crs_filters = get_available_filters(source="crs")
+multisystem_filters = get_available_filters(source="multisystem")
+```
+
+
+## Contributing to ODA Reader
+
+Thank you for your interest in contributing to ODA Reader. We welcome contributions from everyone to help improve this project.
+
+Note that this project is not associated with, or maintained by, the OECD.
+
+### Submitting Ideas and Reporting Issues
+
+If you have an idea for a new feature, additional functionality, or if you have encountered a bug, please feel free to submit an issue to initiate a discussion. This helps ensure alignment and prevents duplicated efforts.
+
+### Contributing Code
+
+To contribute code, you can fork the repository, implement your changes, and then open a pull request (PR). Please ensure that you submit an issue beforehand to discuss your proposed changes.
+
+Your contributions are invaluable in making ODA Reader better for everyone.
