@@ -551,7 +551,7 @@ multisystem_filters = get_available_filters(source="multisystem")
 
 Thank you for your interest in contributing to ODA Reader. We welcome contributions from everyone to help improve this project.
 
-Note that this project is not associated with, or maintained by, the OECD.
+Note that this project is not associated with, nor maintained by, the OECD.
 
 ### Submitting Ideas and Reporting Issues
 
