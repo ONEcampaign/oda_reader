@@ -1,4 +1,5 @@
 import logging
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 
@@ -96,4 +97,11 @@ def api_response_to_df(
     data = text_to_stringIO(response)
 
     # Return the data as a DataFrame
-    return pd.read_csv(data, **read_csv_options)
+    try:
+        d_ = deepcopy(data)
+        return pd.read_csv(d_, **read_csv_options)
+    except ValueError:
+        read_csv_options["dtype"]["CHANNEL"] = "string[pyarrow]"
+        read_csv_options["dtype"]["MODALITY"] = "string[pyarrow]"
+        read_csv_options["dtype"]["MD_DIM"] = "string[pyarrow]"
+        return pd.read_csv(data, **read_csv_options)

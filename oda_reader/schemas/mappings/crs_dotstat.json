@@ -1,0 +1,509 @@
+{
+  "STRUCTURE": {
+    "name": "data_structure",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "STRUCTURE_ID": {
+    "name": "data_structure_id",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "STRUCTURE_NAME": {
+    "name": "data_structure_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "ACTION": {
+    "name": "action",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DONOR": {
+    "name": "donor_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Donor": {
+    "name": "donor_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "RECIPIENT": {
+    "name": "recipient_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Recipient": {
+    "name": "recipient_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "SECTOR": {
+    "name": "sector_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Sector": {
+    "name": "sector_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "MEASURE": {
+    "name": "measure_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Measure": {
+    "name": "measure_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "CHANNEL": {
+    "name": "channel_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Channel": {
+    "name": "channel_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "MODALITY": {
+    "name": "flow_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Modality": {
+    "name": "flow_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "FLOW_TYPE": {
+    "name": "flow_type_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Flow type": {
+    "name": "flow_type_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "PRICE_BASE": {
+    "name": "data_type_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Price base": {
+    "name": "amount_type",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "MD_DIM": {
+    "name": "md_dim_code",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "Drilldown dimension": {
+    "name": "md_dim_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "MD_ID": {
+    "name": "md_id",
+    "type": "int64[pyarrow]",
+    "keep": true
+  },
+  "Microdata ID": {
+    "name": "md_id_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "UNIT_MEASURE": {
+    "name": "unit_measure_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Unit of measure": {
+    "name": "unit_measure_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "TIME_PERIOD": {
+    "name": "year",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Time period": {
+    "name": "time_period",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "OBS_VALUE": {
+    "name": "value",
+    "type": "float64[pyarrow]",
+    "keep": true
+  },
+  "Observation value": {
+    "name": "value_name",
+    "type": "float64[pyarrow]",
+    "keep": false
+  },
+  "BASE_PER": {
+    "name": "base_period",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Base period": {
+    "name": "base_period_name",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "OBS_STATUS": {
+    "name": "status",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "Observation status": {
+    "name": "status_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "UNIT_MULT": {
+    "name": "unit_multiplier",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Unit multiplier": {
+    "name": "unit_multiplier_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DECIMALS": {
+    "name": "decimals",
+    "type": "int32[pyarrow]",
+    "keep": false
+  },
+  "Decimals": {
+    "name": "decimals_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DONOR_AGENCY": {
+    "name": "donor_agency_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Donor agency": {
+    "name": "donor_agency_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "OECD_ID": {
+    "name": "crs_id",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "OECD ID": {
+    "name": "crs_id_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DONOR_PROJECT_ID": {
+    "name": "project_id",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Donor project ID": {
+    "name": "project_id_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "REGION": {
+    "name": "region_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Region": {
+    "name": "region_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "INCOME_GROUP": {
+    "name": "income_group_code",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Income group": {
+    "name": "income_group_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "CHANNEL_DELIVERY_CODE": {
+    "name": "channel_delivery_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "CHANNELDELIVERY_CODE": {
+    "name": "channel_delivery_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Channel of delivery code": {
+    "name": "channel_delivery_code_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "CHANNELDELIVERY_NAME": {
+    "name": "channel_delivery_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Channel of delivery name": {
+    "name": "channel_delivery_name_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "CATEGORY_CODE": {
+    "name": "category_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Category code": {
+    "name": "category_code_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "CATEGORY_NAME": {
+    "name": "category_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Category name": {
+    "name": "category_name_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "FINANCETYPE_CODE": {
+    "name": "finance_type_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "FinanceType code": {
+    "name": "finance_type_code_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "FINANCETYPE_NAME": {
+    "name": "finance_type_name",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "FinanceType name": {
+    "name": "finance_type_name_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "BIMULTI_CODE": {
+    "name": "bi_multi_code",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "BiMulti code": {
+    "name": "bi_multi_code_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "SHORT_DESCRIPTION": {
+    "name": "short_description",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Short description": {
+    "name": "short_description_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "PROJECT_TITLE": {
+    "name": "project_title",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Project title": {
+    "name": "project_title_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "LONG_DESCRIPTION": {
+    "name": "long_description",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "Long description": {
+    "name": "long_description_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "SDG_FOCUS": {
+    "name": "sdg_focus",
+    "type": "string[pyarrow]",
+    "keep": true
+  },
+  "SDG focus": {
+    "name": "sdg_focus_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "GENDER_EQUALITY": {
+    "name": "gender_equality",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Gender equality": {
+    "name": "gender_equality_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "ENVIRONMENT": {
+    "name": "environment",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Environment": {
+    "name": "environment_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "GOVERNANCE": {
+    "name": "governance",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Governance": {
+    "name": "governance_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "RMNCH": {
+    "name": "rmnch",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "RMNCH.1": {
+    "name": "rmnch_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DRR": {
+    "name": "drr",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "DRR.1": {
+    "name": "drr_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "NUTRITION": {
+    "name": "nutrition",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Nutrition": {
+    "name": "nutrition_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DISABILITY": {
+    "name": "disability",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Disability": {
+    "name": "disability_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "BIODIVERSITY": {
+    "name": "biodiversity",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Biodiversity": {
+    "name": "biodiversity_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "CLIMATE_MITIGATION": {
+    "name": "climate_mitigation",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Climate mitigation": {
+    "name": "climate_mitigation_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "CLIMATE_ADAPTATION": {
+    "name": "climate_adaptation",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Climate adaptation": {
+    "name": "climate_adaptation_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "DESERTIFICATION": {
+    "name": "desertification",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Desertification": {
+    "name": "desertification_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  },
+  "AMOUNT_TIED": {
+    "name": "amount_tied",
+    "type": "float64[pyarrow]",
+    "keep": true
+  },
+  "Amount tied": {
+    "name": "amount_tied_name",
+    "type": "float64[pyarrow]",
+    "keep": false
+  },
+  "AMOUNT_UNTIED": {
+    "name": "amount_untied",
+    "type": "float64[pyarrow]",
+    "keep": true
+  },
+  "Amount untied": {
+    "name": "amount_untied_name",
+    "type": "float64[pyarrow]",
+    "keep": false
+  },
+  "AMOUNT_PARTLY_UNTIED": {
+    "name": "amount_partly_untied",
+    "type": "float64[pyarrow]",
+    "keep": true
+  },
+  "Amount partly untied": {
+    "name": "amount_partly_untied_name",
+    "type": "float64[pyarrow]",
+    "keep": false
+  },
+  "NATURE_OF_SUBMISSION": {
+    "name": "nature_of_submission",
+    "type": "int32[pyarrow]",
+    "keep": true
+  },
+  "Nature of submission": {
+    "name": "nature_of_submission_name",
+    "type": "string[pyarrow]",
+    "keep": false
+  }
+}
+
+

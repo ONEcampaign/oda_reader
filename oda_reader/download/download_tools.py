@@ -8,6 +8,7 @@ import requests
 
 from oda_reader.common import api_response_to_df, logger
 from oda_reader.download.query_builder import QueryBuilder
+from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
 from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
 from oda_reader.schemas.multisystem_translation import (
@@ -85,6 +86,10 @@ def download(
         "multisystem": {
             "filter_builder": qb.build_multisystem_filter,
             "convert_func": convert_multisystem_to_dotstat_codes,
+        },
+        "crs": {
+            "filter_builder": qb.build_crs_filter,
+            "convert_func": convert_crs_to_dotstat_codes,
         },
     }
 
