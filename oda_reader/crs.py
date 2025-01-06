@@ -22,16 +22,16 @@ DATAFLOW_VERSION: str = "1.3"
 
 
 def get_full_crs_parquet_id():
-    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-Parquet|")
+    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-Parquet")
 
 
 def get_reduced_crs_parquet_id():
-    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-reduced-parquet|")
+    return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-reduced-parquet")
 
 
 def get_year_crs_zip_id(year: int):
     return get_bulk_file_id(
-        flow_url=CRS_FLOW_URL, search_string=f"CRS {year} (dotStat format)|"
+        flow_url=CRS_FLOW_URL, search_string=f"CRS {year} (dotStat format)"
     )
 
 
