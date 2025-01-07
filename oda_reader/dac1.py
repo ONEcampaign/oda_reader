@@ -36,8 +36,7 @@ def download_dac1(
 
     # Inform of the dataflow being downloaded
     if dataflow_version is None:
-        dataflow_version = "1.2"
-    logger.info(f"Downloading dataflow version {dataflow_version}")
+        dataflow_version = "1.7"
 
     df = download(
         version="dac1",
