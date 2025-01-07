@@ -1,4 +1,6 @@
 # Changelog for oda_reader
+## 1.0.1 (2025-01-06)
+- Improves automatic handling of dataflows
 
 ## 1.0.0 (2024-10-06)
 - Major release marking version 1.0.0.
