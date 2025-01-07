@@ -2,6 +2,7 @@ import logging
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
+import re
 
 import pandas as pd
 import requests
@@ -9,6 +10,9 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 logger = logging.getLogger("oda_importer")
+
+FALLBACK_STEP = 0.1
+MAX_RETRIES = 5
 
 
 class ImporterPaths:
@@ -34,12 +38,29 @@ def text_to_stringIO(response: requests.models.Response) -> StringIO:
     return StringIO(response.text)
 
 
-def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Response:
+def _replace_dataflow_version(url: str, version: str) -> str:
+    """Replace the dataflow version in the URL."""
+    pattern = r",(\d+\.\d+)/"
+
+    return re.sub(pattern, f",{version}/", url)
+
+
+def _get_dataflow_version(url: str) -> str:
+    """Get the dataflow version from the URL."""
+    pattern = r",(\d+\.\d+)/"
+
+    return re.search(pattern, url).group(1)
+
+
+def get_data_from_api(
+    url: str, compressed: bool = True, retries: int = 0
+) -> requests.models.Response:
     """Download a CSV file from an API endpoint and return it as a DataFrame.
 
     Args:
         url (str): The URL of the API endpoint.
         compressed (bool): Whether the data is fetched compressed. Strongly recommended.
+        retries (int): The number of retries to attempt.
 
     Returns:
         requests.models.Response: The response object from the API.
@@ -57,6 +78,17 @@ def get_data_from_api(url: str, compressed: bool = True) -> requests.models.Resp
 
     if (response.status_code == 404) and (response.text == "NoRecordsFound"):
         raise ConnectionError("No data found for the selected parameters.")
+
+    if (response.status_code == 404) and ("Dataflow" in response.text):
+        if retries < MAX_RETRIES:
+            version = _get_dataflow_version(url)
+            new_version = str(round(float(version) - FALLBACK_STEP, 1))
+            new_url = _replace_dataflow_version(url=url, version=new_version)
+            return get_data_from_api(
+                url=new_url, compressed=compressed, retries=retries + 1
+            )
+        else:
+            raise ConnectionError("No data found for the selected parameters.")
 
     if (response.status_code == 500) and (response.text.find("not set to") > 0):
         url = url.replace("public", "dcd-public")

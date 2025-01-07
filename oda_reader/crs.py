@@ -12,7 +12,7 @@ from oda_reader.download.download_tools import (
 
 DATAFLOW_ID: str = "DSD_CRS@DF_CRS"
 DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
-DATAFLOW_VERSION: str = "1.3"
+DATAFLOW_VERSION: str = "1.7"
 
 """
 {donor}.{recipient}.{sector}.{measure}.{channel}.

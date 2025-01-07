@@ -110,6 +110,7 @@ def download(
     url = qb.set_time_period(start=start_year, end=end_year).build_query()
 
     # Get the dataframe
+
     df = api_response_to_df(url=url, read_csv_options=df_options)
 
     # Preprocess the data
