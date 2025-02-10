@@ -305,7 +305,13 @@ def get_bulk_file_id(
     match = re.search(f"{re.escape(search_string)}(.*?)</", content)
 
     if not match:
-        raise KeyError(f"The link to the bulk download file could not be found.")
+        logger.info("The link to the bulk download file could not be found.")
+        return get_bulk_file_id(
+            flow_url=flow_url,
+            search_string=search_string,
+            latest_flow=round(latest_flow - FALLBACK_STEP, 1),
+            retries=retries + 1,
+        )
 
     parquet_link = match.group(1).strip()
 
