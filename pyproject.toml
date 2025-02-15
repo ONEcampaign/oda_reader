@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oda_reader"
-version = "1.0.3"
+version = "1.0.4"
 description = "A simple package to import ODA data using the OECD Data API"
 authors = ["Jorge Rivera"]
 license = "MIT"
