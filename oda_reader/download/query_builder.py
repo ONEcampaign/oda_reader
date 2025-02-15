@@ -4,6 +4,7 @@ from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
 V2_BASE_URL: str = "https://sdmx.oecd.org/public/rest/v2/data/dataflow/"
+CRS_BASE_URL: str = "https://sdmx.oecd.org/dcd-public/rest/v2/data/dataflow/"
 AGENCY_ID: str = "OECD.DCD.FSD"
 SHAPE: str = "dimensionAtObservation=AllDimensions"
 FORMAT: str = "csvfilewithlabels"
@@ -33,6 +34,7 @@ class QueryBuilder:
             dataflow_id (str): The identifier for the dataflow.
             dataflow_version (str): The version of the dataflow
             api_version (int): The version of the API to use, default is 2.
+            crs (bool): Whether the dataflow is the CRS dataflow.
         """
 
         # If dataflow_version is not provided, use the latest version
@@ -40,7 +42,9 @@ class QueryBuilder:
             dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
         # Set the base URL and separator based on the API version
-        base_url = V2_BASE_URL if api_version == 2 else V1_BASE_URL
+        base_url = (
+            CRS_BASE_URL if "CRS" in dataflow_id else V2_BASE_URL if api_version == 2 else V1_BASE_URL
+        )
         self._separator = "/" if api_version == 2 else ","
 
         # Set the agency ID

@@ -119,6 +119,9 @@ def download_crs(
         "the full dataset instead."
     )
 
+    if filters is None:
+        filters = {}
+
     # Warn about duplicates
     if filters.get("microdata") is False:
         warning_message = "\nYou have requested aggregates.\n"

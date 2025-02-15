@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.0.3 (2025-02-15)
+- Improves automatic handling of DE CRS data.
+
 ## 1.0.2 (2025-01-06)
 - Improves automatic handling of dataflows when a dataflow exists but has no data.
 
