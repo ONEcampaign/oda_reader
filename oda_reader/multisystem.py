@@ -79,6 +79,19 @@ def download_multisystem(
     if not filters:
         filters = {}
 
+    # Warn about duplicates
+    if filters.get("microdata") is False:
+        warning_message = "\nYou have requested aggregates.\n"
+        warnings = [w for w in ("recipient", "sector") if w not in filters]
+
+        if warnings:
+            warning_message += "\n".join(
+                f"Unless you specify {w}, the data will contain duplicates."
+                for w in warnings
+            )
+
+        logger.warning(warning_message)
+
     df = download(
         version="multisystem",
         dataflow_id=DATAFLOW_ID,

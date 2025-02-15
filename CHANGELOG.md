@@ -1,6 +1,9 @@
 # Changelog for oda_reader
 
-## 1.0.4 (2025-02-15)
+## 1.0.6 (2025-02-15)
+- Improves warnings for duplicates on the multisystem dataset
+
+## 1.0.5 (2025-02-15)
 - Improves automatic handling of dataflows.
 
 ## 1.0.4 (2025-02-15)
