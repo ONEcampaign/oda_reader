@@ -42,9 +42,13 @@ class QueryBuilder:
             dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
         # Set the base URL and separator based on the API version
-        base_url = (
-            CRS_BASE_URL if "CRS" in dataflow_id else V2_BASE_URL if api_version == 2 else V1_BASE_URL
-        )
+        if "CRS" in dataflow_id or "MULTI" in dataflow_id:
+            base_url = CRS_BASE_URL
+        elif api_version == 2:
+            base_url = V2_BASE_URL
+        else:
+            base_url = V1_BASE_URL
+
         self._separator = "/" if api_version == 2 else ","
 
         # Set the agency ID

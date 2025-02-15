@@ -11,6 +11,7 @@ from oda_reader.download.download_tools import (
 )
 
 DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
+DATAFLOW_VERSION: str = "1.6"
 
 
 def get_full_multisystem_id():
@@ -72,7 +73,7 @@ def download_multisystem(
 
     # Inform of the dataflow being downloaded
     if dataflow_version is None:
-        dataflow_version = "1.1"
+        dataflow_version = DATAFLOW_VERSION
     logger.info(f"Downloading dataflow version {dataflow_version}")
 
     if not filters:

@@ -4,6 +4,7 @@ from oda_reader.common import logger
 from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
+DATAFLOW_VERSION: str = "1.6"
 
 
 def download_dac2a(
@@ -36,7 +37,7 @@ def download_dac2a(
 
     # Inform of the dataflow being downloaded
     if dataflow_version is None:
-        dataflow_version = "1.7"
+        dataflow_version = DATAFLOW_VERSION
 
     df = download(
         version="dac2a",
