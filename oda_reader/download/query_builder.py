@@ -4,7 +4,7 @@ from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
 V2_BASE_URL: str = "https://sdmx.oecd.org/public/rest/v2/data/dataflow/"
-CRS_BASE_URL: str = "https://sdmx.oecd.org/dcd-public/rest/v2/data/dataflow/"
+CRS_BASE_URL: str = "https://sdmx.oecd.org/dcd-public/rest/data/"
 AGENCY_ID: str = "OECD.DCD.FSD"
 SHAPE: str = "dimensionAtObservation=AllDimensions"
 FORMAT: str = "csvfilewithlabels"
