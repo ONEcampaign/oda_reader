@@ -1,12 +1,13 @@
 import pandas as pd
 
-from oda_reader.common import logger
+from oda_reader.common import logger, cache_info
 from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
 DATAFLOW_VERSION: str = "1.6"
 
 
+@cache_info
 def download_dac2a(
     start_year: int | None = None,
     end_year: int | None = None,

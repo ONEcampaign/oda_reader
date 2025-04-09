@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from oda_reader.common import logger
+from oda_reader.common import logger, cache_info
 from oda_reader.download.download_tools import (
     get_bulk_file_id,
     MULTI_FLOW_URL,
@@ -43,6 +43,7 @@ def bulk_download_multisystem(save_to_path: Path | str | None = None):
     )
 
 
+@cache_info
 def download_multisystem(
     start_year: int | None = None,
     end_year: int | None = None,
