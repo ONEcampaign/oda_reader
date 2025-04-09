@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from oda_reader.common import logger
+from oda_reader.common import logger, cache_info
 from oda_reader.download.download_tools import (
     get_bulk_file_id,
     bulk_download_parquet,
@@ -84,6 +84,7 @@ def bulk_download_crs(
     return bulk_download_parquet(file_id=file_id, save_to_path=save_to_path)
 
 
+@cache_info
 def download_crs(
     start_year: int | None = None,
     end_year: int | None = None,

@@ -1,5 +1,12 @@
 # Changelog for oda_reader
 
+## 1.1.0 (2025-04-9)
+- Introduces configurable and persistent caching via `joblib`. By default, the reader
+  will keep a cache on disk (up to 1GB, for up to 7 days). This is to better manage the
+  OECD's aggressive rate throttling (20 requests per minute). Entries older than 7
+  days are automatically cleared and `clear_cache` can be used to manually clear it.
+
+
 ## 1.0.6 (2025-02-15)
 - Improves warnings for duplicates on the multisystem dataset
 

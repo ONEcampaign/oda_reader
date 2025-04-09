@@ -1,8 +1,8 @@
 import logging
+import re
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
-import re
 
 import pandas as pd
 import requests
@@ -13,6 +13,9 @@ logger = logging.getLogger("oda_importer")
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
+_has_logged_cache_message = False
+
+from joblib import Memory
 
 
 class ImporterPaths:
@@ -22,20 +25,53 @@ class ImporterPaths:
     scripts = project / "oda_reader"
     schemas = scripts / "schemas"
     mappings = schemas / "mappings"
+    cache = scripts / ".cache"
 
 
-def text_to_stringIO(response: requests.models.Response) -> StringIO:
+CACHE_DIR = ImporterPaths.cache
+CACHE_DIR.mkdir(exist_ok=True)
+memory = Memory(CACHE_DIR, verbose=0)
+
+USE_CACHE = True
+
+
+def disable_cache():
+    global USE_CACHE
+    USE_CACHE = False
+
+
+def enable_cache():
+    global USE_CACHE
+    USE_CACHE = True
+
+
+def cache_info(func):
+    def wrapper(*args, **kwargs):
+        global USE_CACHE
+        if USE_CACHE and not _has_logged_cache_message:
+            logger.info(
+                f"""\n[oda-reader]  Caching is enabled (and lasts a maximum of 7 days).
+If you want to disable it, use `from oda_reader import disable_cache` and call
+it before running your query.\n"""
+            )
+        globals()['_has_logged_cache_message'] = True
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def text_to_stringIO(response_text: str) -> StringIO:
     """Convert the content of a response to bytes.
 
     Args:
-        response (requests.models.Response): The response object from the API.
+        response (str): The response text from the API.
 
     Returns:
         StringIO: The content of the response as a stringIO object.
 
     """
     # Use BytesIO to handle the binary stream data
-    return StringIO(response.text)
+    return StringIO(response_text)
 
 
 def _replace_dataflow_version(url: str, version: str) -> str:
@@ -52,9 +88,38 @@ def _get_dataflow_version(url: str) -> str:
     return re.search(pattern, url).group(1)
 
 
-def get_data_from_api(
-    url: str, compressed: bool = True, retries: int = 0
-) -> requests.models.Response:
+@memory.cache
+def _cached_get_response(url: str, headers: dict) -> tuple[int, str]:
+    """Cached GET request returning only the status code and text content.
+
+    Args:
+        url (str): The URL to fetch.
+        headers (dict): Headers to include in the request.
+
+    Returns:
+        tuple[int, str]: A tuple containing the status code and text content.
+    """
+    logger.info(f"Fetching data from {url}")
+    response = requests.get(url, headers=headers)
+    return response.status_code, response.text
+
+
+def _get_response(url: str, headers: dict) -> tuple[int, str]:
+    """Cached GET request returning only the status code and text content.
+
+    Args:
+        url (str): The URL to fetch.
+        headers (dict): Headers to include in the request.
+
+    Returns:
+        tuple[int, str]: A tuple containing the status code and text content.
+    """
+    logger.info(f"Fetching data from {url}")
+    response = requests.get(url, headers=headers)
+    return response.status_code, response.text
+
+
+def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> str:
     """Download a CSV file from an API endpoint and return it as a DataFrame.
 
     Args:
@@ -66,6 +131,8 @@ def get_data_from_api(
         requests.models.Response: The response object from the API.
     """
 
+    get = _cached_get_response if USE_CACHE else _get_response
+
     # Set the headers with gzip encoding (if required)
     if compressed:
         headers = {"Accept-Encoding": "gzip"}
@@ -73,13 +140,12 @@ def get_data_from_api(
         headers = {}
 
     # Fetch the data with headers
-    logger.info(f"Fetching data from {url}")
-    response = requests.get(url, headers=headers)
+    status_code, response = get(url, headers=headers)
 
-    if (response.status_code == 404) and (response.text == "NoRecordsFound"):
+    if (status_code == 404) and (response == "NoRecordsFound"):
         raise ConnectionError("No data found for the selected parameters.")
 
-    if (response.status_code == 404) and ("Dataflow" in response.text):
+    if (status_code == 404) and ("Dataflow" in response):
         if retries < MAX_RETRIES:
             version = _get_dataflow_version(url)
             new_version = str(round(float(version) - FALLBACK_STEP, 1))
@@ -90,12 +156,13 @@ def get_data_from_api(
         else:
             raise ConnectionError("No data found for the selected parameters.")
 
-    if (response.status_code == 500) and (response.text.find("not set to") > 0):
+    if (status_code == 500) and (response.find("not set to") > 0):
         url = url.replace("public", "dcd-public")
-        response = requests.get(url, headers=headers)
+        response = get(url, headers=headers)
 
-    # Ensure the request was successful
-    response.raise_for_status()
+    if status_code > 299:
+        logger.error(f"Error {status_code}: {response}")
+        raise ConnectionError(f"Error {status_code}: {response}")
 
     return response
 
