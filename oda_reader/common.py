@@ -54,7 +54,7 @@ def cache_info(func):
 If you want to disable it, use `from oda_reader import disable_cache` and call
 it before running your query.\n"""
             )
-        globals()['_has_logged_cache_message'] = True
+        globals()["_has_logged_cache_message"] = True
         return func(*args, **kwargs)
 
     return wrapper
@@ -142,10 +142,9 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
     # Fetch the data with headers
     status_code, response = get(url, headers=headers)
 
-    if (status_code == 404) and (response == "NoRecordsFound"):
-        raise ConnectionError("No data found for the selected parameters.")
-
-    if (status_code == 404) and ("Dataflow" in response):
+    if (status_code == 404) and (
+        ("Dataflow" in response) or (response == "NoRecordsFound")
+    ):
         if retries < MAX_RETRIES:
             version = _get_dataflow_version(url)
             new_version = str(round(float(version) - FALLBACK_STEP, 1))
