@@ -1,5 +1,12 @@
 # Changelog for oda_reader
 
+
+## 1.1.1 (2025-04-16)
+- Manages an issue created by the OECD when they are about to release new data. In that case
+certain dataflows return `NoRecordsFound`, even though the query is valid for lower dataflows. 
+This version of `oda_reader` defends against that.
+
+
 ## 1.1.0 (2025-04-9)
 - Introduces configurable and persistent caching via `joblib`. By default, the reader
   will keep a cache on disk (up to 1GB, for up to 7 days). This is to better manage the
