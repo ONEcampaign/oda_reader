@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.1.2 (2025-04-16)
+- Extends caching to bulk downloaded files.
+- Other minor tweaks to how caching works.
 
 ## 1.1.1 (2025-04-16)
 - Manages an issue created by the OECD when they are about to release new data. In that case
