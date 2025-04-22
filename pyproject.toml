@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "oda_reader"
-version = "1.1.1"
+version = "1.1.2"
 description = "A simple package to import ODA data using the OECD Data API"
 authors = ["Jorge Rivera"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10"
 requests = "^2.31.0"
 pandas = "^2.2.2"
 pyarrow = ">=16.0.0"
