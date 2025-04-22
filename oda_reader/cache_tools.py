@@ -6,7 +6,7 @@ from pathlib import Path
 
 from oda_reader.common import logger, CACHE_DIR
 
-CACHE_MAX_SIZE_MB = 1000
+CACHE_MAX_SIZE_MB = 2500
 CACHE_MAX_AGE_HOURS = 168
 
 
@@ -49,13 +49,43 @@ def enforce_cache_limits(
     max_size_mb: float = CACHE_MAX_SIZE_MB,
     max_age_hours: int = CACHE_MAX_AGE_HOURS,
 ):
-    """Clear cache entries based on age and total size."""
+    """Clear old cache entries, and if size still exceeds limit, delete oldest files until under limit."""
     clear_old_cache_entries(path, max_age_hours=max_age_hours)
 
     size_mb = get_cache_size_mb(path)
+    if size_mb <= max_size_mb:
+        return
 
-    if size_mb > max_size_mb:
-        logger.warning(f"Cache size {size_mb:.1f}MB exceeds limit of {max_size_mb}MB.")
-        logger.info("Clearing entire cache to free up space.")
-        shutil.rmtree(path)
-        path.mkdir(exist_ok=True)
+    logger.warning(f"Cache size {size_mb:.1f}MB exceeds limit of {max_size_mb}MB.")
+    logger.info("Deleting oldest cache files to reduce size...")
+
+    # Collect all files with their modified times
+    file_info = []
+    for dirpath, _, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            try:
+                mtime = os.path.getmtime(fp)
+                size = os.path.getsize(fp)
+                file_info.append((fp, mtime, size))
+            except FileNotFoundError:
+                continue
+
+    # Sort by modification time (oldest first)
+    file_info.sort(key=lambda x: x[1])
+
+    # Remove oldest files until under limit
+    removed = 0
+    for fp, _, size in file_info:
+        try:
+            os.remove(fp)
+            removed += size
+            size_mb -= size / 1_048_576
+            if size_mb <= max_size_mb:
+                break
+        except FileNotFoundError:
+            continue
+
+    logger.info(
+        f"Removed {removed / 1_048_576:.1f}MB of cache files to enforce size limit."
+    )

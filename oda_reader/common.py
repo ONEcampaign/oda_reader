@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 import requests
+from requests import Response
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -50,9 +51,7 @@ def cache_info(func):
         global USE_CACHE
         if USE_CACHE and not _has_logged_cache_message:
             logger.info(
-                f"""\n[oda-reader]  Caching is enabled (and lasts a maximum of 7 days).
-If you want to disable it, use `from oda_reader import disable_cache` and call
-it before running your query.\n"""
+                f"""\n[oda-reader]  Caching is enabled (and lasts a maximum of 7 days)."""
             )
         globals()["_has_logged_cache_message"] = True
         return func(*args, **kwargs)
@@ -89,7 +88,7 @@ def _get_dataflow_version(url: str) -> str:
 
 
 @memory.cache
-def _cached_get_response(url: str, headers: dict) -> tuple[int, str]:
+def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
     """Cached GET request returning only the status code and text content.
 
     Args:
@@ -104,7 +103,25 @@ def _cached_get_response(url: str, headers: dict) -> tuple[int, str]:
     return response.status_code, response.text
 
 
-def _get_response(url: str, headers: dict) -> tuple[int, str]:
+@memory.cache
+def _cached_get_response_content(
+    url: str, headers: dict
+) -> tuple[int, Response.content]:
+    """Cached GET request returning only the status code and text content.
+
+    Args:
+        url (str): The URL to fetch.
+        headers (dict): Headers to include in the request.
+
+    Returns:
+        tuple[int, str]: A tuple containing the status code and text content.
+    """
+    logger.info(f"Fetching data from {url}")
+    response = requests.get(url, headers=headers)
+    return response.status_code, response.content
+
+
+def _get_response_text(url: str, headers: dict) -> tuple[int, str]:
     """Cached GET request returning only the status code and text content.
 
     Args:
@@ -117,6 +134,21 @@ def _get_response(url: str, headers: dict) -> tuple[int, str]:
     logger.info(f"Fetching data from {url}")
     response = requests.get(url, headers=headers)
     return response.status_code, response.text
+
+
+def _get_response_content(url: str, headers: dict) -> tuple[int, Response.content]:
+    """Cached GET request returning only the status code and text content.
+
+    Args:
+        url (str): The URL to fetch.
+        headers (dict): Headers to include in the request.
+
+    Returns:
+        tuple[int, str]: A tuple containing the status code and text content.
+    """
+    logger.info(f"Fetching data from {url}")
+    response = requests.get(url, headers=headers)
+    return response.status_code, response.content
 
 
 def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> str:
@@ -131,7 +163,7 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
         requests.models.Response: The response object from the API.
     """
 
-    get = _cached_get_response if USE_CACHE else _get_response
+    get = _cached_get_response_text if USE_CACHE else _get_response_text
 
     # Set the headers with gzip encoding (if required)
     if compressed:
