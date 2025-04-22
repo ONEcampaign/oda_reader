@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 from requests import Response
+from oda_reader._cache import memory
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -14,9 +15,6 @@ logger = logging.getLogger("oda_importer")
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
-_has_logged_cache_message = False
-
-from joblib import Memory
 
 
 class ImporterPaths:
@@ -27,36 +25,6 @@ class ImporterPaths:
     schemas = scripts / "schemas"
     mappings = schemas / "mappings"
     cache = scripts / ".cache"
-
-
-CACHE_DIR = ImporterPaths.cache
-CACHE_DIR.mkdir(exist_ok=True)
-memory = Memory(CACHE_DIR, verbose=0)
-
-USE_CACHE = True
-
-
-def disable_cache():
-    global USE_CACHE
-    USE_CACHE = False
-
-
-def enable_cache():
-    global USE_CACHE
-    USE_CACHE = True
-
-
-def cache_info(func):
-    def wrapper(*args, **kwargs):
-        global USE_CACHE
-        if USE_CACHE and not _has_logged_cache_message:
-            logger.info(
-                f"""\n[oda-reader]  Caching is enabled (and lasts a maximum of 7 days)."""
-            )
-        globals()["_has_logged_cache_message"] = True
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 def text_to_stringIO(response_text: str) -> StringIO:
@@ -87,7 +55,7 @@ def _get_dataflow_version(url: str) -> str:
     return re.search(pattern, url).group(1)
 
 
-@memory.cache
+@memory().cache
 def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
     """Cached GET request returning only the status code and text content.
 
@@ -103,7 +71,7 @@ def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
     return response.status_code, response.text
 
 
-@memory.cache
+@memory().cache
 def _cached_get_response_content(
     url: str, headers: dict
 ) -> tuple[int, Response.content]:
@@ -163,7 +131,7 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
         requests.models.Response: The response object from the API.
     """
 
-    get = _cached_get_response_text if USE_CACHE else _get_response_text
+    get = _cached_get_response_text if memory().store_backend else _get_response_text
 
     # Set the headers with gzip encoding (if required)
     if compressed:

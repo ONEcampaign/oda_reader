@@ -6,11 +6,11 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from oda_reader._cache import memory
 from oda_reader.common import (
     api_response_to_df,
     logger,
     _cached_get_response_text,
-    USE_CACHE,
     _get_response_text,
     _cached_get_response_content,
     _get_response_content,
@@ -131,7 +131,7 @@ def download(
             raise ValueError("Cannot convert to dotstat codes without preprocessing.")
 
     # Return the dataframe
-    if not USE_CACHE:
+    if not memory().store_backend:
         logger.info("Data downloaded correctly.")
     else:
         logger.info("Data loaded from cache correctly.")

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from oda_reader.common import logger, cache_info, USE_CACHE
+from oda_reader._cache import cache_info
 from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
@@ -32,10 +32,6 @@ def download_dac1(
         pd.DataFrame: The DAC1 data.
 
     """
-
-    # Inform download is about to start
-    if not USE_CACHE:
-        logger.info("Downloading DAC1 data. This may take a while...")
 
     # Inform of the dataflow being downloaded
     if dataflow_version is None:

@@ -3,14 +3,16 @@ This oda_reader package is a simple python wrapper for the OECD explorer API,
 specifically designed to work with OECD DAC data.
 """
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
-from oda_reader.cache_tools import (
+from oda_reader._cache import (
     enforce_cache_limits,
+    enable_cache,
+    disable_cache,
     clear_cache,
-    clear_old_cache_entries,
+    set_cache_dir,
+    cache_dir,
 )
-from oda_reader.common import disable_cache, enable_cache
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import download_dac2a
@@ -35,4 +37,6 @@ __all__ = [
     "enable_cache",
     "disable_cache",
     "clear_cache",
+    "set_cache_dir",
+    "cache_dir",
 ]

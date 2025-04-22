@@ -1,6 +1,8 @@
 # Changelog for oda_reader
+## 1.1.3 (2025-04-22)
+- Small caching improvements 
 
-## 1.1.2 (2025-04-16)
+## 1.1.2 (2025-04-22)
 - Extends caching to bulk downloaded files.
 - Other minor tweaks to how caching works.
 
