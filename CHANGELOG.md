@@ -1,4 +1,7 @@
 # Changelog for oda_reader
+## 1.1.4 (2025-04-22)
+- fix small cache bug 
+
 ## 1.1.3 (2025-04-22)
 - Small caching improvements 
 
