@@ -244,7 +244,7 @@ def bulk_download_parquet(
     Returns:
         pd.DataFrame | None: The DataFrame if save_to_path is not provided.
     """
-    if USE_CACHE:
+    if memory().store_backend:
         get = _cached_get_response_content
     else:
         get = _get_response_content
@@ -308,7 +308,7 @@ def get_bulk_file_id(
     if latest_flow == 1.0:
         latest_flow = int(round(latest_flow, 0))
 
-    if USE_CACHE:
+    if memory().store_backend:
         get = _cached_get_response_text
     else:
         get = _get_response_text

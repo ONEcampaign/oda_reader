@@ -10,7 +10,6 @@ from joblib import Memory
 _DEFAULT = Path(__file__).resolve().parent / ".cache"
 _CACHE_DIR = Path(os.getenv("ODA_READER_CACHE_DIR", _DEFAULT)).expanduser()
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-USE_CACHE = True
 
 _memory_store = Memory(_CACHE_DIR, verbose=0)
 
