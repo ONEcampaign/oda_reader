@@ -226,6 +226,43 @@ def _save_or_return_parquet_files_from_txt_in_zip(
         logger.info(f"Reading {len(files)} files.")
         return [pd.read_csv(z.open(file), **oecd_txt_args) for file in files]
 
+def _save_or_return_excel_files_from_content(
+    response_content: requests.Response.content,
+    save_to_path: Path | str | None = None,
+) -> list[pd.DataFrame] | None:
+    """Extracts Excel files from a zip archive in the response content.
+
+    Args:
+        response_content (requests.Response.content): The response object.
+        save_to_path (Path | str | None): The path to save the file to. Optional. If
+        not provided, a list of DataFrames is returned.
+
+    Returns:
+        list[pd.DataFrame]: The extracted DataFrames if save_to_path is not provided.
+    """
+
+    # Convert the save_to_path to a Path object
+    save_to_path = Path(save_to_path) if save_to_path else None
+
+    # Open the content as a zip file and extract the parquet files
+    with zipfile.ZipFile(io.BytesIO(response_content)) as z:
+        # Find all Excel files in the zip archive
+        excel_files = [name for name in z.namelist() if name.endswith(".xlsx")]
+
+        # If save_to_path is provided, save the files to the path
+        if save_to_path:
+            save_to_path.mkdir(parents=True, exist_ok=True)
+            for file_name in excel_files:
+                logger.info(f"Saving {file_name}")
+                with z.open(file_name) as f_in, (save_to_path / file_name).open(
+                    "wb"
+                ) as f_out:
+                    f_out.write(f_in.read())
+            return
+
+        # If save_to_path is not provided, return the DataFrames
+        logger.info(f"Reading {len(excel_files)} Excel files.")
+        return [pd.read_excel(z.open(file)) for file in parquet_files]
 
 def bulk_download_parquet(
     file_id: str, save_to_path: Path | str | None = None, is_txt: bool = False
