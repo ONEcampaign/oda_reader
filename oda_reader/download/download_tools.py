@@ -32,6 +32,7 @@ BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
+AIDDATA_DOWNLOAD_URL = "https://docs.aiddata.org/ad4/datasets/AidDatas_Global_Chinese_Development_Finance_Dataset_Version_3_0.zip"
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
@@ -262,7 +263,7 @@ def _save_or_return_excel_files_from_content(
 
         # If save_to_path is not provided, return the DataFrames
         logger.info(f"Reading {len(excel_files)} Excel files.")
-        return [pd.read_excel(z.open(file)) for file in parquet_files]
+        return [pd.read_excel(z.open(file)) for file in excel_files]
 
 def bulk_download_parquet(
     file_id: str, save_to_path: Path | str | None = None, is_txt: bool = False
@@ -311,6 +312,55 @@ def bulk_download_parquet(
         files = _save_or_return_parquet_files_from_content(
             response_content=response, save_to_path=save_to_path
         )
+
+    if files:
+        combined_df = pd.concat(files, ignore_index=True)
+        logger.info("File downloaded / retrieved correctly.")
+        return combined_df
+
+    return None
+
+def bulk_download_aiddata(
+    save_to_path: Path | str | None = None
+) -> pd.DataFrame | None:
+    """Download data from the AidData data website.
+
+    The Global Chinese Development Finance Dataset is available directly
+    from the website as a zip file. This function downloads the zip file,
+    extract the Excel file, and returns a single DataFrame.
+
+    Args:
+        save_to_path (Path | str | None): The path to save the file to. Optional. If
+        not provided, a DataFrame is returned.
+
+    Returns:
+        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+    """
+    if memory().store_backend:
+        get = _cached_get_response_content
+    else:
+        get = _get_response_content
+
+    # Construct the URL
+    file_url = AIDDATA_DOWNLOAD_URL
+
+    # Inform the user about what the function will do (save or return)
+    if save_to_path:
+        logger.info(f"The file will be saved to {save_to_path}.")
+    else:
+        logger.info("The file will be returned as a DataFrame. ")
+
+    # Get the file
+    status, response = get(file_url, headers={"Accept-Encoding": "gzip"})
+
+    if status > 299:
+        logger.error(f"Error {status}: {response}")
+        raise ConnectionError(f"Error {status}: {response}")
+
+    # Read the Excel file
+    files = _save_or_return_excel_files_from_content(
+        response_content=response, save_to_path=save_to_path
+    )
 
     if files:
         combined_df = pd.concat(files, ignore_index=True)
