@@ -42,7 +42,7 @@ class QueryBuilder:
             dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
         # Set the base URL and separator based on the API version
-        if "CRS" in dataflow_id or "MULTI" in dataflow_id:
+        if "CRS" in dataflow_id or "MULTI" in dataflow_id or "DF_PPFD" in dataflow_id:
             base_url = CRS_BASE_URL
         elif api_version == 2:
             base_url = V2_BASE_URL
@@ -310,6 +310,53 @@ class QueryBuilder:
                 md_dim,
                 md_id,
                 unit_measure,
+            ]
+        )
+    
+    def build_private_filter(
+        self,
+        donor: str | list[str] | None = None,
+        recipient: str | list[str] | None = None,
+        sector: int | list[int] | None = None,
+        measure: int | list[int] | None = None,
+        flow_type: str | list[str] | None = None,
+        price_base: str | list[str] | None = None,
+    ):
+        """Build the filter string for the Multisystem dataflow.
+
+        The allowed filter follows the pattern:
+        {donor}.{recipient}.{sector}.{measure}.{channel}.{flow_type}.{price_base}.{MD_DIM}
+        .{MD_ID}.{UNIT_MEASURE}
+
+        Args:
+            donor (str | list[str] | None): The donor country code(s).
+            recipient (str | list[str] | None): The recipient country code(s).
+            sector (int | list[int] | None): The sector code(s).
+            measure (int | list[int] | None): The measure code(s).
+            channel (int | list[int] | None): The channel code(s).
+            flow_type (str | list[str] | None): The flow type code(s).
+            price_base (str | list[str] | None): The price base code(s).
+
+        Returns:
+            str: The filter string for the query.
+        """
+
+        # if any of the parameters are None, set them to the default value
+        donor = self._to_filter_str(donor)
+        recipient = self._to_filter_str(recipient)
+        sector = self._to_filter_str(sector)
+        measure = self._to_filter_str(measure)
+        flow_type = self._to_filter_str(flow_type)
+        price_base = self._to_filter_str(price_base)
+
+        return ".".join(
+            [
+                donor,
+                recipient,
+                sector,
+                measure,
+                flow_type,
+                price_base,
             ]
         )
 

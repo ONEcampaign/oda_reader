@@ -22,6 +22,7 @@ from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
 from oda_reader.schemas.multisystem_translation import (
     convert_multisystem_to_dotstat_codes,
 )
+from oda_reader.schemas.private_translation import convert_private_to_dotstat_codes
 from oda_reader.schemas.schema_tools import (
     read_schema_translation,
     get_dtypes,
@@ -99,6 +100,10 @@ def download(
             "filter_builder": qb.build_crs_filter,
             "convert_func": convert_crs_to_dotstat_codes,
         },
+        "private": {
+            "filter_builder": qb.build_private_filter,
+            "convert_func": convert_private_to_dotstat_codes,
+        }
     }
 
     try:
