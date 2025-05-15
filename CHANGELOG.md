@@ -1,4 +1,8 @@
 # Changelog for oda_reader
+## 1.1.5 (2025-05-15)
+- The OECD has unexpectedly (and quietly) changed the naming convention
+for the bulk Multisystem data. This is a small fix to address that.
+
 ## 1.1.4 (2025-04-22)
 - fix small cache bug 
 
