@@ -1,37 +1,32 @@
-from pathlib import Path
-
+from typing import Literal
 import pandas as pd
 
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
-
 from oda_reader.download.download_tools import (
     bulk_download_aiddata,
 )
+from oda_reader.schemas.schema_tools import read_schema_translation, get_dtypes, preprocess
+
 
 @cache_info
 def download_aiddata(
     start_year: int | None = None,
     end_year: int | None = None,
-    filters: dict | None = None,
+    year_reference: Literal["commitment", "implementation", "completion"] = "commitment",
     pre_process: bool = True,
-    dotstat_codes: bool = True,
-    as_grant_equivalent: bool = False,
 ) -> pd.DataFrame:
     """
     Download the AidData from the website.
 
     Args:
-        start_year (int): The start year of the data to download. Optional
-        end_year (int): The end year of the data to download. Optional
-        filters (dict): Optional filters to pass to the download.
+        start_year (int): The start year of the data to return. Optional
+        end_year (int): The end year of the data to return. Optional
+        year_reference (Literal["commitment", "implementation", "completion"]): Whether to filter years based on
+        commitment or implementation. Defaults to "commitment".
         pre_process (bool): Whether to preprocess the data. Defaults to True.
-        Preprocessing makes it comply with the .stat schema.
-        dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        as_grant_equivalent (bool): Whether to download the grant equivalent data
-        instead of flows.
     Returns:
-        pd.DataFrame: The CRS data.
+        pd.DataFrame: The adiData data.
 
     """
 
@@ -40,39 +35,32 @@ def download_aiddata(
         "Downloading AidData. This may take a while...\n"
     )
 
-    if filters is None:
-        filters = {}
-
-    # Warn about duplicates
-    if filters.get("microdata") is False:
-        warning_message = "\nYou have requested aggregates.\n"
-        warnings = [w for w in ("channel", "modality") if w not in filters]
-
-        if warnings:
-            warning_message += "\n".join(
-                f"Unless you specify {w}: '_T', the data will contain duplicates."
-                for w in warnings
-            )
-
-        logger.warning(warning_message)
-
     df = bulk_download_aiddata()
-    
-    # TODO: Clean data and standardize column and variable names 
-    # for interoperability with OECD data.
-    # Select years based on start_year and end_year
-	# df = clean_raw_df(df)
 
-    # download(
-    #     version="crs",
-    #     dataflow_id=DATAFLOW_ID if not as_grant_equivalent else DATAFLOW_ID_GE,
-    #     dataflow_version=dataflow_version,
-    #     start_year=start_year,
-    #     end_year=end_year,
-    #     filters=filters,
-    #     pre_process=pre_process,
-    #     dotstat_codes=dotstat_codes,
-    # )
+    year_column_map = {
+        "commitment": "Commitment Year",
+        "implementation": "Implementation Start Year",
+        "completion": "Completion Year",
+    }
+
+    if start_year is not None:
+        df = df.query(f"{year_column_map[year_reference]} >= {start_year}")
+
+    if end_year is not None:
+        df = df.query(f"{year_column_map[year_reference]} <= {end_year}")
+
+    # get scheme for dtypes and column names
+    schema = read_schema_translation(version="aidData")
+
+    # convert dtypes
+    dtypes = get_dtypes(schema=schema)
+    for col in df.columns:
+        dtype = dtypes[col]
+        df[col] = df[col].astype(dtype)
+
+    # rename/remove columns, convert bool columns
+    if pre_process:
+        df = preprocess(df, schema)
 
     # remove columns where all rows are NaN
     df = df.dropna(axis=1, how="all")
