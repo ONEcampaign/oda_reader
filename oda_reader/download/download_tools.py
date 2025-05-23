@@ -247,8 +247,13 @@ def _save_or_return_excel_files_from_content(
 
     # Open the content as a zip file and extract the parquet files
     with zipfile.ZipFile(io.BytesIO(response_content)) as z:
-        # Find all Excel files in the zip archive
-        excel_files = [name for name in z.namelist() if name.endswith(".xlsx")]
+        # Find all Excel files in the zip archive and filter out those with unreadable format
+        excel_files = [
+            name for name in z.namelist()
+            if name.endswith(".xlsx")
+               and not name.startswith("__MACOSX/")
+               and not name.split("/")[-1].startswith("._")
+        ]
 
         # If save_to_path is provided, save the files to the path
         if save_to_path:
@@ -263,7 +268,7 @@ def _save_or_return_excel_files_from_content(
 
         # If save_to_path is not provided, return the DataFrames
         logger.info(f"Reading {len(excel_files)} Excel files.")
-        return [pd.read_excel(z.open(file)) for file in excel_files]
+        return [pd.read_excel(z.open(file), sheet_name="GCDF_3.0") for file in excel_files]
 
 def bulk_download_parquet(
     file_id: str, save_to_path: Path | str | None = None, is_txt: bool = False
@@ -320,7 +325,7 @@ def bulk_download_parquet(
 
     return None
 
-def bulk_download_aiddata(
+def  bulk_download_aiddata(
     save_to_path: Path | str | None = None
 ) -> pd.DataFrame | None:
     """Download data from the AidData data website.
