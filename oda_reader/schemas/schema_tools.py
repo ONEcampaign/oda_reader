@@ -87,23 +87,18 @@ def get_columns_to_keep(schema: dict) -> list:
 
     return columns_to_keep
 
-def get_bool_columns(schema:dict) -> list:
+def get_bool_columns(schema: dict) -> list[str]:
     """
-    Get the columns bool columns from the schema.
+    Get the columns marked as boolean from the schema.
 
     Args:
-        schema: The schema.
+        schema (dict): The schema mapping column names to settings.
 
     Returns:
-        list: The bool columns.
-
+        list[str]: The list of columns where "bool" is True.
     """
-    bool_columns = []
-    for column, settings in schema.items():
-        if settings["bool"]:
-            bool_columns.append(column)
+    return [col for col, settings in schema.items() if settings.get("bool") is True]
 
-    return bool_columns
 
 
 def map_area_codes(
