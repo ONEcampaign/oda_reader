@@ -1,5 +1,6 @@
 from typing import Literal
 import pandas as pd
+from pathlib import Path
 
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
@@ -8,22 +9,20 @@ from oda_reader.download.download_tools import (
 )
 from oda_reader.schemas.schema_tools import read_schema_translation, get_dtypes, preprocess
 
-
 @cache_info
 def download_aiddata(
+    save_to_path: Path | str | None = None,
     start_year: int | None = None,
     end_year: int | None = None,
-    year_reference: Literal["commitment", "implementation", "completion"] = "commitment",
     pre_process: bool = True,
 ) -> pd.DataFrame:
     """
     Download the AidData from the website.
 
     Args:
-        start_year (int): The start year of the data to return. Optional
-        end_year (int): The end year of the data to return. Optional
-        year_reference (Literal["commitment", "implementation", "completion"]): Whether to filter years based on
-        commitment or implementation. Defaults to "commitment".
+        save_to_path (Path | str): Path to save the raw data to.
+        start_year (int): The start year of the data to return. This will filter based on commitment year. Optional
+        end_year (int): The end year of the data to return. This will filter base on commitment year. Optional
         pre_process (bool): Whether to preprocess the data. Defaults to True.
     Returns:
         pd.DataFrame: The adiData data.
@@ -35,19 +34,27 @@ def download_aiddata(
         "Downloading AidData. This may take a while...\n"
     )
 
-    df = bulk_download_aiddata()
+    df = bulk_download_aiddata(save_to_path=save_to_path)
 
-    year_column_map = {
-        "commitment": "Commitment Year",
-        "implementation": "Implementation Start Year",
-        "completion": "Completion Year",
-    }
+    available_years = df["Commitment Year"].dropna().unique()
+    years = df["Commitment Year"]
+
+    # Build year filtering mask
+    mask = pd.Series(True, index=df.index)
 
     if start_year is not None:
-        df = df.query(f"{year_column_map[year_reference]} >= {start_year}")
+        if start_year in available_years:
+            mask &= years >= start_year
+        else:
+            logger.debug(f"Ignoring start_year={start_year}; not in available years: {available_years.tolist()}")
 
     if end_year is not None:
-        df = df.query(f"{year_column_map[year_reference]} <= {end_year}")
+        if end_year in available_years:
+            mask &= years <= end_year
+        else:
+            logger.debug(f"Ignoring end_year={end_year}; not in available years: {available_years.tolist()}")
+
+    df = df[mask]
 
     # get scheme for dtypes and column names
     schema = read_schema_translation(version="aidData")
@@ -66,3 +73,6 @@ def download_aiddata(
     df = df.dropna(axis=1, how="all")
 
     return df
+
+if __name__ == "__main__":
+    df = download_aiddata(start_year=2010, end_year=2030)

@@ -228,47 +228,46 @@ def _save_or_return_parquet_files_from_txt_in_zip(
         return [pd.read_csv(z.open(file), **oecd_txt_args) for file in files]
 
 def _save_or_return_excel_files_from_content(
-    response_content: requests.Response.content,
-    save_to_path: Path | str | None = None,
-) -> list[pd.DataFrame] | None:
-    """Extracts Excel files from a zip archive in the response content.
+        response_content: bytes,
+        save_to_path: Path | str | None = None,
+) -> pd.DataFrame | None:
+    """
+    Extracts exactly one Excel file from a zip archive in the response content.
 
     Args:
-        response_content (requests.Response.content): The response object.
-        save_to_path (Path | str | None): The path to save the file to. Optional. If
-        not provided, a list of DataFrames is returned.
+        response_content (bytes): Raw content from a requests.Response.
+        save_to_path (Path | str | None): If provided, saves the file(s) to this path.
+                                          If None, returns a list of DataFrames.
 
     Returns:
-        list[pd.DataFrame]: The extracted DataFrames if save_to_path is not provided.
+        pd.DataFrame | None: The extracted DataFrame(s), or None if saving.
     """
-
-    # Convert the save_to_path to a Path object
     save_to_path = Path(save_to_path) if save_to_path else None
 
-    # Open the content as a zip file and extract the parquet files
     with zipfile.ZipFile(io.BytesIO(response_content)) as z:
-        # Find all Excel files in the zip archive and filter out those with unreadable format
         excel_files = [
-            name for name in z.namelist()
-            if name.endswith(".xlsx")
-               and not name.startswith("__MACOSX/")
-               and not name.split("/")[-1].startswith("._")
+            info.filename for info in z.infolist()
+            if info.filename.endswith(".xlsx")
+               and not info.filename.startswith("__MACOSX/")
+               and not info.filename.split("/")[-1].startswith("._")
+               and not info.is_dir()
         ]
 
-        # If save_to_path is provided, save the files to the path
+        if len(excel_files) != 1:
+            raise ValueError(f"Expected exactly 1 Excel file, found {len(excel_files)}: {excel_files}")
+
+        excel_file = excel_files[0]
+
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
-            for file_name in excel_files:
-                logger.info(f"Saving {file_name}")
-                with z.open(file_name) as f_in, (save_to_path / file_name).open(
-                    "wb"
-                ) as f_out:
-                    f_out.write(f_in.read())
-            return
+            output_file = save_to_path / Path(excel_file).name
+            logger.info(f"Saving {excel_file} to {output_file}")
+            with z.open(excel_file) as f_in, output_file.open("wb") as f_out:
+                f_out.write(f_in.read())
+            return None
 
-        # If save_to_path is not provided, return the DataFrames
-        logger.info(f"Reading {len(excel_files)} Excel files.")
-        return [pd.read_excel(z.open(file), sheet_name="GCDF_3.0") for file in excel_files]
+
+        return pd.read_excel(z.open(excel_file), sheet_name="GCDF_3.0")
 
 def bulk_download_parquet(
     file_id: str, save_to_path: Path | str | None = None, is_txt: bool = False
@@ -363,14 +362,13 @@ def  bulk_download_aiddata(
         raise ConnectionError(f"Error {status}: {response}")
 
     # Read the Excel file
-    files = _save_or_return_excel_files_from_content(
+    file = _save_or_return_excel_files_from_content(
         response_content=response, save_to_path=save_to_path
     )
 
-    if files:
-        combined_df = pd.concat(files, ignore_index=True)
+    if file is not None:
         logger.info("File downloaded / retrieved correctly.")
-        return combined_df
+        return file
 
     return None
 
@@ -431,3 +429,7 @@ def get_bulk_file_id(
     parquet_link = match.group(1).strip()
 
     return parquet_link.split("=")[-1]
+
+
+if __name__ == "__main__":
+    df = bulk_download_aiddata()
