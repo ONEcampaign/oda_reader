@@ -2,25 +2,25 @@
   "AidData Record ID": {
     "name": "aiddata_id",
     "type": "string[pyarrow]",
-    "keep": false,
+    "keep": true,
     "bool": false
   },
   "Recommended For Aggregates": {
     "name": "recommended_for_aggregates",
     "type": "string[pyarrow]",
-    "keep": false,
+    "keep": true,
     "bool": true
   },
   "AidData Parent ID": {
     "name": "aiddata_parent_id",
     "type": "string[pyarrow]",
-    "keep": false,
+    "keep": true,
     "bool": false
   },
   "Umbrella": {
     "name": "umbrella",
     "type": "string[pyarrow]",
-    "keep": false,
+    "keep": true,
     "bool": true
   },
   "Financier Country": {
@@ -96,7 +96,7 @@
     "bool": false
   },
   "Flow Type": {
-    "name": "flow_type",
+    "name": "aid_type",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
@@ -114,7 +114,7 @@
     "bool": false
   },
   "Flow Class": {
-    "name": "flow_class",
+    "name": "flow_type",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
