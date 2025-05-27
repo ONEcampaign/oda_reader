@@ -73,6 +73,3 @@ def download_aiddata(
     df = df.dropna(axis=1, how="all")
 
     return df
-
-if __name__ == "__main__":
-    df = download_aiddata(start_year=2010, end_year=2030)
