@@ -96,7 +96,7 @@
     "bool": false
   },
   "Flow Type": {
-    "name": "aid_type",
+    "name": "flow_type",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
@@ -114,7 +114,7 @@
     "bool": false
   },
   "Flow Class": {
-    "name": "flow_type",
+    "name": "flow_class",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
@@ -438,7 +438,7 @@
     "bool": false
   },
   "Insurance Fee (Nominal USD)": {
-    "name": "usd_insurance_fee",
+    "name": "insurance_fee_usd",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
