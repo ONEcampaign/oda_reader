@@ -270,19 +270,19 @@
     "bool": false
   },
   "Security Agent/Collateral Agent": {
-    "name": "collateral_agent_name`",
+    "name": "collateral_agent_name",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Security Agent/Collateral Agent Type": {
-    "name": "collateral_agent_type`",
+    "name": "collateral_agent_type",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Collateral": {
-    "name": "collateralized",
+    "name": "collateral",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": false
@@ -534,7 +534,7 @@
     "bool": true
   },
   "Lease": {
-    "name": "Lease",
+    "name": "lease",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": true
@@ -564,7 +564,7 @@
     "bool": true
   },
   "PBC": {
-    "name": "gcl",
+    "name": "pbc",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": true
@@ -738,7 +738,7 @@
     "bool": false
   },
   "Data Completeness Score": {
-    "name": "source_quality",
+    "name": "data_completeness",
     "type": "int32[pyarrow]",
     "keep": true,
     "bool": false
@@ -750,7 +750,7 @@
     "bool": false
   },
   "Loan Detail Score": {
-    "name": "implementation_detail",
+    "name": "loan_detail",
     "type": "int32[pyarrow]",
     "keep": true,
     "bool": false
