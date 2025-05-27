@@ -54,7 +54,7 @@
     "bool": false
   },
   "Implementation Start Year": {
-    "name": "implementation_start_year",
+    "name": "start_year",
     "type": "int32[pyarrow]",
     "keep": true,
     "bool": false
@@ -288,7 +288,7 @@
     "bool": false
   },
   "Amount (Original Currency)": {
-    "name": "value_original_currency",
+    "name": "commitment_original_currency",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
@@ -300,37 +300,37 @@
     "bool": false
   },
   "Amount Estimated": {
-    "name": "value_estimated",
+    "name": "amount_estimated",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": true
   },
   "Amount (Constant USD 2021)": {
-    "name": "value_constant_usd_2021",
+    "name": "usd_commitment_constant",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Amount (Nominal USD)": {
-    "name": "value_current_usd",
+    "name": "usd_commitment",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Adjusted Amount (Original Currency)": {
-    "name": "adjusted_value_original_currency",
+    "name": "adjustment_original_currency",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Adjusted Amount (Constant USD 2021)": {
-    "name": "adjusted_value_constant_usd_2021",
+    "name": "usd_adjustment_constant",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Adjusted Amount (Nominal USD)": {
-    "name": "adjusted_value_current_2021",
+    "name": "usd_adjustment",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
@@ -354,31 +354,31 @@
     "bool": true
   },
   "Planned Implementation Start Date (MM/DD/YYYY)": {
-    "name": "planned_implementation_date",
+    "name": "expected_start_date",
     "type": "date32[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Actual Implementation Start Date (MM/DD/YYYY)": {
-    "name": "actual_implementation_date",
+    "name": "actual_start_date",
     "type": "date32[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Actual Implementation Start Date Estimated": {
-    "name": "actual_implementation_date_estimated",
+    "name": "actual_start_date_estimated",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": true
   },
   "Deviation from Planned Implementation Start Date": {
-    "name": "deviation_planned_actual_implementation_date",
+    "name": "deviation_expected_actual_start_date",
     "type": "int32[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Planned Completion Date (MM/DD/YYYY)": {
-    "name": "planned_completion_date",
+    "name": "expected_completion_date",
     "type": "date32[pyarrow]",
     "keep": true,
     "bool": false
@@ -396,7 +396,7 @@
     "bool": true
   },
   "Deviation from Planned Completion Date": {
-    "name": "deviation_planned_actual_completion_date",
+    "name": "deviation_expected_actual_completion_date",
     "type": "int32[pyarrow]",
     "keep": true,
     "bool": false
@@ -438,7 +438,7 @@
     "bool": false
   },
   "Insurance Fee (Nominal USD)": {
-    "name": "insurance_fee_current_usd",
+    "name": "usd_insurance_fee",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
@@ -450,13 +450,13 @@
     "bool": false
   },
   "First Loan Repayment Date": {
-    "name": "first_loan_repayment_date",
+    "name": "repaydate1",
     "type": "date32[pyarrow]",
     "keep": true,
     "bool": false
   },
   "Last Loan Repayment Date": {
-    "name": "last_loan_repayment_date",
+    "name": "repaydate2",
     "type": "date32[pyarrow]",
     "keep": true,
     "bool": false
@@ -468,7 +468,7 @@
     "bool": false
   },
   "Grant Element (OECD Grant-Equiv)": {
-    "name": "grant_element_grant_equivalent",
+    "name": "grant_element_grant_equiv",
     "type": "float64[pyarrow]",
     "keep": true,
     "bool": false
@@ -516,7 +516,7 @@
     "bool": true
   },
   "M&A": {
-    "name": "m_a",
+    "name": "ma",
     "type": "string[pyarrow]",
     "keep": true,
     "bool": true
