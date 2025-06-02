@@ -73,7 +73,7 @@ def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
 
 @memory().cache
 def _cached_get_response_content(
-    url: str, headers: dict
+    url: str, headers: tuple
 ) -> tuple[int, Response.content]:
     """Cached GET request returning only the status code and text content.
 
@@ -85,22 +85,22 @@ def _cached_get_response_content(
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=dict(headers))
     return response.status_code, response.content
 
 
-def _get_response_text(url: str, headers: dict) -> tuple[int, str]:
-    """Cached GET request returning only the status code and text content.
+def _get_response_text(url: str, headers: tuple) -> tuple[int, str]:
+    """Uncached GET request returning only the status code and text content.
 
     Args:
         url (str): The URL to fetch.
-        headers (dict): Headers to include in the request.
+        headers (tuple): Immutable headers as tuple of key-value pairs.
 
     Returns:
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=dict(headers))
     return response.status_code, response.text
 
 

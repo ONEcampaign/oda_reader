@@ -1,4 +1,3 @@
-from typing import Literal
 import pandas as pd
 from pathlib import Path
 
@@ -28,11 +27,6 @@ def download_aiddata(
         pd.DataFrame: The adiData data.
 
     """
-
-    # Inform download is about to start
-    logger.info(
-        "Downloading AidData. This may take a while...\n"
-    )
 
     df = bulk_download_aiddata(save_to_path=save_to_path)
 
