@@ -48,6 +48,24 @@ def get_dtypes(schema: dict) -> dict:
 
     return dtypes
 
+def convert_dtypes(df: pd.DataFrame, schema: dict) -> pd.DataFrame:
+    """Convert the dtypes of a DataFrame given a schema translation.
+    Args:
+        df: DataFrame to be converted.
+        schema: The schema.
+
+    Returns:
+        df: DataFrame with converted dtypes
+
+    """
+
+    dtypes = get_dtypes(schema=schema)
+    for col in df.columns:
+        dtype = dtypes[col]
+        df[col] = df[col].astype(dtype)
+
+    return df
+
 
 def get_column_name_mapping(schema: dict) -> dict:
     """

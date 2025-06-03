@@ -6,7 +6,34 @@ from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     bulk_download_aiddata,
 )
-from oda_reader.schemas.schema_tools import read_schema_translation, get_dtypes, preprocess
+from oda_reader.schemas.schema_tools import read_schema_translation, convert_dtypes, preprocess
+
+
+def filter_years(
+        df,
+        year_range: range | None = None,
+) -> pd.DataFrame:
+    """ Filters a dataframe by year range. If the provided time range is not a subset of the available years, it returns
+    the entire dataframe.
+    Args:
+        df: the DataFrame to filter
+        year_range: time range to filter by
+
+    Returns:
+        df: the filtered DataFrame
+    """
+
+    available_years = set(df["Commitment Year"].dropna().unique())
+
+    if filter_years is not None and not set(year_range).issubset(available_years):
+        logger.warning(
+            f"Provided years %s are out of range. Will return all available years.",
+            year_range,
+        )
+        return None
+
+    return df.query("`Commitment Year` in @year_range")
+
 
 @cache_info
 def download_aiddata(
@@ -28,36 +55,17 @@ def download_aiddata(
 
     """
 
+    # Get data
     df = bulk_download_aiddata(save_to_path=save_to_path)
 
-    available_years = df["Commitment Year"].dropna().unique()
-    years = df["Commitment Year"]
-
-    # Build year filtering mask
-    mask = pd.Series(True, index=df.index)
-
-    if start_year is not None:
-        if start_year in available_years:
-            mask &= years >= start_year
-        else:
-            logger.debug(f"Ignoring start_year={start_year}; not in available years: {available_years.tolist()}")
-
-    if end_year is not None:
-        if end_year in available_years:
-            mask &= years <= end_year
-        else:
-            logger.debug(f"Ignoring end_year={end_year}; not in available years: {available_years.tolist()}")
-
-    df = df[mask]
+    # Filter years
+    df = filter_years(df, range(start_year, end_year + 1))
 
     # get scheme for dtypes and column names
     schema = read_schema_translation(version="aidData")
 
-    # convert dtypes
-    dtypes = get_dtypes(schema=schema)
-    for col in df.columns:
-        dtype = dtypes[col]
-        df[col] = df[col].astype(dtype)
+    # Convert dtypes
+    df = convert_dtypes(df, schema=schema)
 
     # rename/remove columns, convert bool columns
     if pre_process:
