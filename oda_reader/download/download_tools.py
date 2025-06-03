@@ -32,7 +32,8 @@ BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
-AIDDATA_DOWNLOAD_URL = "https://docs.aiddata.org/ad4/datasets/AidDatas_Global_Chinese_Development_Finance_Dataset_Version_3_0.zip"
+AIDDATA_VERSION="3.0"
+AIDDATA_DOWNLOAD_URL = f"https://docs.aiddata.org/ad4/datasets/AidDatas_Global_Chinese_Development_Finance_Dataset_Version_{AIDDATA_VERSION.replace('.', '_')}.zip"
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
@@ -266,7 +267,7 @@ def _save_or_return_excel_files_from_content(
                 f_out.write(f_in.read())
             return None
 
-        return pd.read_excel(z.open(excel_file), sheet_name="GCDF_3.0")
+        return pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
 
 
 def bulk_download_parquet(
@@ -421,7 +422,3 @@ def get_bulk_file_id(
     parquet_link = match.group(1).strip()
 
     return parquet_link.split("=")[-1]
-
-
-if __name__ == "__main__":
-    df = bulk_download_aiddata()
