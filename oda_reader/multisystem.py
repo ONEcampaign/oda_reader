@@ -1,3 +1,4 @@
+import typing
 from pathlib import Path
 
 import pandas as pd
@@ -21,7 +22,11 @@ def get_full_multisystem_id():
     )
 
 
-def bulk_download_multisystem(save_to_path: Path | str | None = None):
+def bulk_download_multisystem(
+    save_to_path: Path | str | None = None,
+    *,
+    as_iterator: bool = False,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Download the Multisystem data from the bulk download service. The file is very large.
     It is therefore strongly recommended to save it to disk. If save_to_path is not
@@ -30,17 +35,22 @@ def bulk_download_multisystem(save_to_path: Path | str | None = None):
     Args:
         save_to_path: The path to save the file to. Optional. If not provided, a
         DataFrame is returned.
+        as_iterator: If `True` yields `DataFrame` chunks instead of a single
+        `DataFrame`.
 
 
     Returns:
-        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+        pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
 
     file_id = get_full_multisystem_id()
 
     return bulk_download_parquet(
-        file_id=file_id, save_to_path=save_to_path, is_txt=True
+        file_id=file_id,
+        save_to_path=save_to_path,
+        is_txt=True,
+        as_iterator=as_iterator,
     )
 
 

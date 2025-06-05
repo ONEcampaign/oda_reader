@@ -56,7 +56,7 @@ def _get_dataflow_version(url: str) -> str:
 
 
 @memory().cache
-def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
+def _cached_get_response_text(url: str, headers: tuple) -> tuple[int, str]:
     """Cached GET request returning only the status code and text content.
 
     Args:
@@ -67,7 +67,7 @@ def _cached_get_response_text(url: str, headers: dict) -> tuple[int, str]:
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=dict(headers))
     return response.status_code, response.text
 
 
