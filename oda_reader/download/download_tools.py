@@ -32,6 +32,8 @@ BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
+AIDDATA_VERSION="3.0"
+AIDDATA_DOWNLOAD_URL = f"https://docs.aiddata.org/ad4/datasets/AidDatas_Global_Chinese_Development_Finance_Dataset_Version_{AIDDATA_VERSION.replace('.', '_')}.zip"
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
@@ -155,7 +157,7 @@ def _save_or_return_parquet_files_from_content(
     """
 
     # Convert the save_to_path to a Path object
-    save_to_path = Path(save_to_path) if save_to_path else None
+    save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
     # Open the content as a zip file and extract the parquet files
     with zipfile.ZipFile(io.BytesIO(response_content)) as z:
@@ -201,7 +203,7 @@ def _save_or_return_parquet_files_from_txt_in_zip(
     }
 
     # Convert the save_to_path to a Path object
-    save_to_path = Path(save_to_path) if save_to_path else None
+    save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
     # Open the content as a zip file and extract the parquet files
     with zipfile.ZipFile(io.BytesIO(response_content)) as z:
@@ -225,6 +227,47 @@ def _save_or_return_parquet_files_from_txt_in_zip(
         # If save_to_path is not provided, return the DataFrames
         logger.info(f"Reading {len(files)} files.")
         return [pd.read_csv(z.open(file), **oecd_txt_args) for file in files]
+
+
+def _save_or_return_excel_files_from_content(
+        response_content: bytes,
+        save_to_path: Path | str | None = None,
+) -> pd.DataFrame | None:
+    """
+    Extract exactly one Excel file from a zip archive in the response content.
+
+    Args:
+        response_content (bytes): Raw content from a requests.Response.
+        save_to_path (Path | str | None): If provided, saves the file to this path.
+
+    Returns:
+        pd.DataFrame | None: The extracted DataFrame if not saving, else None.
+    """
+    save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
+
+    with zipfile.ZipFile(io.BytesIO(response_content)) as z:
+        excel_files = [
+            info.filename for info in z.infolist()
+            if info.filename.endswith(".xlsx")
+               and not info.filename.startswith("__MACOSX/")
+               and not info.filename.split("/")[-1].startswith("._")
+               and not info.is_dir()
+        ]
+
+        if len(excel_files) != 1:
+            raise ValueError(f"Expected exactly 1 Excel file, found {len(excel_files)}: {excel_files}")
+
+        excel_file = excel_files[0]
+
+        if save_to_path:
+            save_to_path.mkdir(parents=True, exist_ok=True)
+            output_file = save_to_path / Path(excel_file).name
+            logger.info(f"Saving {excel_file} to {output_file}")
+            with z.open(excel_file) as f_in, output_file.open("wb") as f_out:
+                f_out.write(f_in.read())
+            return None
+
+        return pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
 
 
 def bulk_download_parquet(
@@ -259,7 +302,8 @@ def bulk_download_parquet(
         logger.info("The file will be returned as a DataFrame. ")
 
     # Get the file
-    status, response = get(file_url, headers={"Accept-Encoding": "gzip"})
+    headers = (("Accept-Encoding", "gzip"),)
+    status, response = get(file_url, headers=headers)
 
     if status > 299:
         logger.error(f"Error {status}: {response}")
@@ -279,6 +323,46 @@ def bulk_download_parquet(
         combined_df = pd.concat(files, ignore_index=True)
         logger.info("File downloaded / retrieved correctly.")
         return combined_df
+
+    return None
+
+
+@memory().cache
+def _download_aiddata_response() -> bytes:
+    logger.info("Downloading AidData. This may take a while...")
+    headers = (("Accept-Encoding", "gzip"),)
+    status, response = _cached_get_response_content(AIDDATA_DOWNLOAD_URL, headers=headers)
+    if status > 299:
+        raise ConnectionError(f"Error {status}: {response}")
+    return response
+
+
+def bulk_download_aiddata(save_to_path: Path | str | None = None) -> pd.DataFrame | None:
+    """
+    Download data from the AidData website, extract the Excel file,
+    and return as a DataFrame or save it to disk.
+
+    Args:
+        save_to_path (Path | str | None): The path to save the file to.
+
+    Returns:
+        pd.DataFrame | None: DataFrame if not saving, else None.
+    """
+    if save_to_path:
+        logger.info(f"The file will be saved to {save_to_path}.")
+    else:
+        logger.info("The file will be returned as a DataFrame.")
+
+    response = _download_aiddata_response()
+
+    file = _save_or_return_excel_files_from_content(
+        response_content=response,
+        save_to_path=save_to_path,
+    )
+
+    if file is not None:
+        logger.info("File downloaded / retrieved correctly.")
+        return file
 
     return None
 
@@ -313,9 +397,8 @@ def get_bulk_file_id(
     else:
         get = _get_response_text
 
-    status, response = get(
-        f"{flow_url}{latest_flow}", headers={"Accept-Encoding": "gzip"}
-    )
+    headers = (("Accept-Encoding", "gzip"),)
+    status, response = get(f"{flow_url}{latest_flow}", headers=headers)
 
     if status > 299:
         return get_bulk_file_id(

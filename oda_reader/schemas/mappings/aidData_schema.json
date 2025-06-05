@@ -1,0 +1,758 @@
+{
+  "AidData Record ID": {
+    "name": "aiddata_id",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Recommended For Aggregates": {
+    "name": "recommended_for_aggregates",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "AidData Parent ID": {
+    "name": "aiddata_parent_id",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Umbrella": {
+    "name": "umbrella",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Financier Country": {
+    "name": "donor_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Recipient": {
+    "name": "recipient_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Recipient ISO-3": {
+    "name": "recipient_iso3",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Recipient Region": {
+    "name": "region_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Commitment Year": {
+    "name": "commitment_year",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Implementation Start Year": {
+    "name": "start_year",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Completion Year": {
+    "name": "completion_year",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Title": {
+    "name": "project_title",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Description": {
+    "name": "long_description",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Staff Comments": {
+    "name": "staff_comments",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Status": {
+    "name": "project_status",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Intent": {
+    "name": "project_intent",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Flow Type": {
+    "name": "flow_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Flow Type Simplified": {
+    "name": "flow_type_simplified",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "OECD ODA Concessionality Threshold": {
+    "name": "oda_concessionality_threshold",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Flow Class": {
+    "name": "flow_class",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Sector Code": {
+    "name": "sector_code",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Sector Name": {
+    "name": "sector_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Infrastructure": {
+    "name": "infrastructure",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "COVID": {
+    "name": "covid",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Funding Agencies": {
+    "name": "donor_agencies_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Funding Agencies Type": {
+    "name": "donor_agencies_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Co-financed": {
+    "name": "co_financed",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Co-financing Agencies": {
+    "name": "co_financing_agencies_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Co-financing Agencies Type": {
+    "name": "co_financing_agencies_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Direct Receiving Agencies": {
+    "name": "direct_recipient_agencies_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Direct Receiving Agencies Type": {
+    "name": "direct_recipient_agencies_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Indirect Receiving Agencies": {
+    "name": "indirect_recipient_agencies_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Indirect Receiving Agencies Type": {
+    "name": "indirect_recipient_agencies_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "On-lending": {
+    "name": "on_lending",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Implementing Agencies": {
+    "name": "implementing_agencies_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Implementing Agencies Type": {
+    "name": "implementing_agencies_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Guarantee Provided": {
+    "name": "guarantee_provided",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Guarantor": {
+    "name": "guarantor_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Guarantor Agency Type": {
+    "name": "guarantor_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Insurance Provided": {
+    "name": "insurance_provided",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Insurance Provider": {
+    "name": "insurance_provider_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Insurance Provider Agency Type": {
+    "name": "insurance_provider_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Collateralized": {
+    "name": "collateralized",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Collateral Provider": {
+    "name": "collateral_provider_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Collateral Provider Agency Type": {
+    "name": "collateral_provider_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Security Agent/Collateral Agent": {
+    "name": "collateral_agent_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Security Agent/Collateral Agent Type": {
+    "name": "collateral_agent_type",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Collateral": {
+    "name": "collateral",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Amount (Original Currency)": {
+    "name": "commitment_original_currency",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Original Currency": {
+    "name": "original_currency",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Amount Estimated": {
+    "name": "amount_estimated",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Amount (Constant USD 2021)": {
+    "name": "usd_commitment_constant",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Amount (Nominal USD)": {
+    "name": "usd_commitment",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Adjusted Amount (Original Currency)": {
+    "name": "adjustment_original_currency",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Adjusted Amount (Constant USD 2021)": {
+    "name": "usd_adjustment_constant",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Adjusted Amount (Nominal USD)": {
+    "name": "usd_adjustment",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Financial Distress": {
+    "name": "financial_distress",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Commitment Date (MM/DD/YYYY)": {
+    "name": "commitment_date",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Commitment Date Estimated": {
+    "name": "commitment_date_estimated",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Planned Implementation Start Date (MM/DD/YYYY)": {
+    "name": "expected_start_date",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Actual Implementation Start Date (MM/DD/YYYY)": {
+    "name": "actual_start_date",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Actual Implementation Start Date Estimated": {
+    "name": "actual_start_date_estimated",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Deviation from Planned Implementation Start Date": {
+    "name": "deviation_expected_actual_start_date",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Planned Completion Date (MM/DD/YYYY)": {
+    "name": "expected_completion_date",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Actual Completion Date (MM/DD/YYYY)": {
+    "name": "actual_completion_date",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Actual Completion Date Estimated": {
+    "name": "actual_completion_date_estimated",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Deviation from Planned Completion Date": {
+    "name": "deviation_expected_actual_completion_date",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Maturity": {
+    "name": "maturity",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Interest Rate": {
+    "name": "interest_rate",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Grace Period": {
+    "name": "grace_period",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Management Fee": {
+    "name": "management_fee",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Commitment Fee": {
+    "name": "commitment_fee",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Insurance Fee (Percent)": {
+    "name": "insurance_fee_percent",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Insurance Fee (Nominal USD)": {
+    "name": "insurance_fee_usd",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Default Interest Rate": {
+    "name": "default_interest_rate",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "First Loan Repayment Date": {
+    "name": "repaydate1",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Last Loan Repayment Date": {
+    "name": "repaydate2",
+    "type": "date32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Grant Element (OECD Cash-Flow)": {
+    "name": "grant_element_flow",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Grant Element (OECD Grant-Equiv)": {
+    "name": "grant_element_grant_equiv",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Grant Element (IMF)": {
+    "name": "grant_element_imf",
+    "type": "float64[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Number of Lenders": {
+    "name": "number_of_lenders",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Export Buyer's Credit": {
+    "name": "export_buyers_credit",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Supplier’s Credit/Export Seller’s Credit": {
+    "name": "suppliers_credit_export_sellers_credit",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Interest-Free Loan": {
+    "name": "interest_free_loan",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Refinancing": {
+    "name": "refinancing",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Investment Project Loan": {
+    "name": "investment_project_loan",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "M&A": {
+    "name": "ma",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Working Capital": {
+    "name": "working_capital",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "EPCF": {
+    "name": "epcf",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Lease": {
+    "name": "lease",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "FXSL/BOP":  {
+    "name": "fxsl_bop",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "CC IRS": {
+    "name": "cc_irs",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "RCF": {
+    "name": "rcf",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "GCL": {
+    "name": "gcl",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "PBC": {
+    "name": "pbc",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "PxF/Commodity Prepayment": {
+    "name": "pxf_commodity_prepayment",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Inter-Bank Loan": {
+    "name": "inter_bank_loan",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Overseas Project Contracting Loan": {
+    "name": "overseas_project_contracting_loan",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "DPA": {
+    "name": "dpa",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Project Finance": {
+    "name": "project_finance",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Involving Multilateral": {
+    "name": "involving_multilateral",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Non-Chinese Financier": {
+    "name": "non_chinese_financier",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Short-Term": {
+    "name": "short_term",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Rescue": {
+    "name": "rescue",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Project JV/SPV Host Government Ownership": {
+    "name": "project_jv_spv_host_government_ownership",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Project JV/SPV Chinese Government Ownership": {
+    "name": "project_jv_spv_chinese_government_ownership",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Level of Public Liability": {
+    "name": "level_of_public_liability",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Total Source Count": {
+    "name": "total_source_count",
+    "type": "int32[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Official Source Count": {
+    "name": "official_source_count",
+    "type": "int32[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Source URLs": {
+    "name": "source_urls",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Source Titles": {
+    "name": "source_titles",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Source Publishers": {
+    "name": "source_publishers",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Source Resource Types": {
+    "name": "source_resource_types",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Contact Name": {
+    "name": "contact_name",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "Contact Position": {
+    "name": "contact_position",
+    "type": "string[pyarrow]",
+    "keep": false,
+    "bool": false
+  },
+  "ODA Eligible Recipient": {
+    "name": "oda_eligible_recipient",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "OECD ODA Income Group": {
+    "name": "income_group_name",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Location Narrative": {
+    "name": "location_narrative",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Geographic Level of Precision Available": {
+    "name": "geographic_precision_level",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "ADM1 Level Available": {
+    "name": "adm1_level_available",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "ADM2 Level Available": {
+    "name": "adm2_level_available",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Geospatial Feature Available": {
+    "name": "geospatial_feature_available",
+    "type": "string[pyarrow]",
+    "keep": true,
+    "bool": true
+  },
+  "Source Quality Score": {
+    "name": "source_quality",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Data Completeness Score": {
+    "name": "data_completeness",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Implementation Detail Score": {
+    "name": "implementation_detail",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  },
+  "Loan Detail Score": {
+    "name": "loan_detail",
+    "type": "int32[pyarrow]",
+    "keep": true,
+    "bool": false
+  }
+}

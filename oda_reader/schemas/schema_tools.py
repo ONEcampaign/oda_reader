@@ -17,8 +17,13 @@ def read_schema_translation(version: str = "dac1") -> dict:
     """
     logger.info(f"Reading the {version} schema translation")
 
+    if version == "aidData":
+        schema = "schema"
+    else:
+        schema = "dotstat"
+
     # Load the schema translation
-    with open(ImporterPaths.mappings / f"{version}_dotstat.json", "r") as f:
+    with open(ImporterPaths.mappings / f"{version}_{schema}.json", "r") as f:
         mapping = json.load(f)
 
     return mapping
@@ -42,6 +47,24 @@ def get_dtypes(schema: dict) -> dict:
         dtypes[column] = settings["type"]
 
     return dtypes
+
+def convert_dtypes(df: pd.DataFrame, schema: dict) -> pd.DataFrame:
+    """Convert the dtypes of a DataFrame given a schema translation.
+    Args:
+        df: DataFrame to be converted.
+        schema: The schema.
+
+    Returns:
+        df: DataFrame with converted dtypes
+
+    """
+
+    dtypes = get_dtypes(schema=schema)
+    for col in df.columns:
+        dtype = dtypes[col]
+        df[col] = df[col].astype(dtype)
+
+    return df
 
 
 def get_column_name_mapping(schema: dict) -> dict:
@@ -81,6 +104,19 @@ def get_columns_to_keep(schema: dict) -> list:
             columns_to_keep.append(column)
 
     return columns_to_keep
+
+def get_bool_columns(schema: dict) -> list[str]:
+    """
+    Get the columns marked as boolean from the schema.
+
+    Args:
+        schema (dict): The schema mapping column names to settings.
+
+    Returns:
+        list[str]: The list of columns where "bool" is True.
+    """
+    return [col for col, settings in schema.items() if settings.get("bool") is True]
+
 
 
 def map_area_codes(
@@ -172,19 +208,25 @@ def convert_unit_measure_to_amount_type(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def preprocess(df: pd.DataFrame, schema_translation: dict) -> pd.DataFrame:
-    """Preprocess the DAC1 data.
+    """Preprocess the DAC1 or aidData data.
 
     Args:
-        df (pd.DataFrame): The raw DAC1 data, as returned by the API.
-        schema_translation (dict): The schema translation to map the DAC1 API
-        response to the .stat schema.
+        df (pd.DataFrame): The raw data.
+        schema_translation (dict): The schema translation to map.
 
     Returns:
-        pd.DataFrame: The preprocessed DAC1 data.
+        pd.DataFrame: The preprocessed data.
 
     """
     # Preprocess the data
     logger.info("Preprocessing the data")
+
+    # Get bool columns
+    bool_columns = get_bool_columns(schema=schema_translation)
+    # Convert dtypes and
+    if bool_columns:
+        for col in bool_columns:
+            df[col] = df[col].map({"Yes": 1, "No": 0}).astype("int8[pyarrow]")
 
     # Get columns to keep
     to_keep = get_columns_to_keep(schema=schema_translation)
