@@ -49,11 +49,13 @@ MAX_RETRIES = 5
 
 
 def _open_zip(response_content: bytes | Path) -> zipfile.ZipFile:
+    """Open a zip file from bytes or a file path."""
     if isinstance(response_content, (bytes, bytearray)):
         return zipfile.ZipFile(io.BytesIO(response_content))
     return zipfile.ZipFile(response_content)
 
 def _iter_frames(response_content: bytes | Path) -> typing.Iterator[pd.DataFrame]:
+    """Iterate over row groups in parquet files within a zip archive."""
     with _open_zip(response_content) as z:
         parquet_files = [n for n in z.namelist() if n.endswith(".parquet")]
         for file_name in parquet_files:
@@ -339,14 +341,24 @@ def _cached_stream_to_file(url: str, headers: dict) -> Path:
     downloads = cache_dir()
     downloads.mkdir(parents=True, exist_ok=True)
     file_name = hashlib.sha1(url.encode()).hexdigest() + ".zip"
-    dest = downloads / file_name
-    if dest.exists():
+    destination = downloads / file_name
+    if destination.exists():
         logger.info(f"Loading {url} from cache")
-        return dest
+        return destination
 
-    _stream_to_file(url, headers, dest)
-    return dest
+    _stream_to_file(url, headers, destination)
+    return destination
 
+def _get_temp_file(file_url: str) -> tuple[Path, bool]:
+    """Download file to a temporary location and return the path and a cleanup flag."""
+    headers = {"Accept-Encoding": "gzip"}
+    if memory().store_backend:
+        temp_zip = _cached_stream_to_file(file_url, headers)
+        cleanup = False
+    else:
+        temp_zip = _stream_to_tempfile(file_url, headers)
+        cleanup = True
+    return temp_zip, cleanup
 
 def bulk_download_parquet(
     file_id: str,
@@ -381,13 +393,7 @@ def bulk_download_parquet(
         logger.info("The file will be returned as a DataFrame. ")
 
     # Download the zip file to avoid loading it fully in memory
-    headers = {"Accept-Encoding": "gzip"}
-    if memory().store_backend:
-        temp_zip = _cached_stream_to_file(file_url, headers)
-        cleanup = False
-    else:
-        temp_zip = _stream_to_tempfile(file_url, headers)
-        cleanup = True
+    temp_zip_path, cleanup = _get_temp_file(file_url)
 
     try:
         # Read the parquet file
@@ -395,22 +401,27 @@ def bulk_download_parquet(
             if as_iterator:
                 raise ValueError("Streaming not supported for txt files.")
             files = _save_or_return_parquet_files_from_txt_in_zip(
-                response_content=temp_zip,
+                response_content=temp_zip_path,
                 save_to_path=save_to_path,
             )
         else:
             files = _save_or_return_parquet_files_from_content(
-                response_content=temp_zip,
+                response_content=temp_zip_path,
                 save_to_path=save_to_path,
                 as_iterator=as_iterator,
             )
-    finally:
+            if as_iterator:
+                return files
+    except:
         if cleanup:
-            os.unlink(temp_zip)
+            os.unlink(temp_zip_path)
+        raise Exception(
+            f"Failed to read parquet files from {temp_zip_path}. "
+            "Ensure the file is a valid zip archive containing parquet files."
+        )
 
-    if as_iterator:
-        # When streaming, ``files`` is already an iterator
-        return files
+    if cleanup:
+        os.unlink(temp_zip_path)
 
     if files:
         combined_df = pd.concat(files, ignore_index=True)
