@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import shutil
 import tempfile
 import zipfile
 from pathlib import Path
@@ -198,11 +199,13 @@ def _save_or_return_parquet_files_from_content(
             save_to_path.mkdir(parents=True, exist_ok=True)
             for file_name in parquet_files:
                 logger.info(f"Saving {file_name}")
+                dest_path = save_to_path / file_name
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
                 with (
                     z.open(file_name) as f_in,
-                    (save_to_path / file_name).open("wb") as f_out,
+                    dest_path.open("wb") as f_out,
                 ):
-                    f_out.write(f_in.read())
+                    shutil.copyfileobj(f_in, f_out, length=1024 * 1024)
             return None
 
         if as_iterator:
