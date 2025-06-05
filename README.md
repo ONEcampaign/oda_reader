@@ -326,6 +326,9 @@ It accepts a few different arguments:
 saved. If not provided, `bulk_download_crs` will return a Pandas DataFrame.
 - `reduced_version`: A boolean which defaults to `False`. If `True` smaller file (removing certain
 columns) is downloaded and saved/returned instead.
+- `as_iterator`: If `True` the function yields one `DataFrame` per row group
+  instead of returning the entire file at once. This greatly reduces the peak
+  memory usage when working with very large files.
 
 **Note** that the files provided by the OECD follow the .Stat schema.
 
@@ -335,6 +338,16 @@ To save the full parquet file to `example-folder`:
 from oda_reader import bulk_download_crs
 
 bulk_download_crs(save_to_path="./example-folder/")
+```
+
+To process the file iteratively and keep memory usage low:
+
+```python
+from oda_reader import bulk_download_crs
+
+for chunk in bulk_download_crs(as_iterator=True):
+    # process each chunk (a pandas DataFrame)
+    ...
 ```
 
 To keep the full file in memory as a Pandas DataFrame:
@@ -483,12 +496,14 @@ In many situations, downloading the full Multisystem data may be the most effici
 For those cases, ODA Reader provides tools for getting the bulk download files provided by the OECD.
 The entire Multisystem dataset is provided as a parquet file.
 
-The `bulk_download_multisystem()` function allows you to download the full CRS data (as a parquet file).
+The `bulk_download_multisystem()` function allows you to download the full Multisystem data (as a parquet file).
 
-It accepts a single argument:
+It accepts a couple of arguments:
 
 - `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
   saved. If not provided, `bulk_download_multisystem` will return a Pandas DataFrame.
+- `as_iterator`: If `True` yields `DataFrame` chunks instead of loading the full
+  file into memory at once.
 
 **Note** that the files provided by the OECD follow the .Stat schema.
 
@@ -498,6 +513,16 @@ To save the full parquet file to `example-folder`:
 from oda_reader import bulk_download_multisystem
 
 bulk_download_multisystem(save_to_path="./example-folder/")
+```
+
+To process the data iteratively:
+
+```python
+from oda_reader import bulk_download_multisystem
+
+for chunk in bulk_download_multisystem(as_iterator=True):
+    # process each chunk here
+    ...
 ```
 
 To keep the full file in memory as a Pandas DataFrame:

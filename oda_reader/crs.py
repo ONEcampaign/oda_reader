@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import typing
 
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
@@ -36,7 +37,12 @@ def get_year_crs_zip_id(year: int):
     )
 
 
-def download_crs_file(year: int | str, save_to_path: Path | str | None = None):
+def download_crs_file(
+    year: int | str,
+    save_to_path: Path | str | None = None,
+    *,
+    as_iterator: bool = False,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Download a year of CRS data from the bulk download service. The file is large.
     It is therefore strongly recommended to save it to disk. If save_to_path is not
@@ -46,22 +52,30 @@ def download_crs_file(year: int | str, save_to_path: Path | str | None = None):
         year: The year of CRS data to download.
         save_to_path: The path to save the file to. Optional. If not provided, a
         DataFrame is returned.
+        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single
+        ``DataFrame``.
 
     Returns:
-        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+        pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
 
     file_id = get_year_crs_zip_id(year=year)
 
     return bulk_download_parquet(
-        file_id=file_id, save_to_path=save_to_path, is_txt=True
+        file_id=file_id,
+        save_to_path=save_to_path,
+        is_txt=True,
+        as_iterator=as_iterator,
     )
 
 
 def bulk_download_crs(
-    save_to_path: Path | str | None = None, reduced_version: bool = False
-):
+    save_to_path: Path | str | None = None,
+    reduced_version: bool = False,
+    *,
+    as_iterator: bool = False,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the CRS data from the bulk download service. The file is very large.
     It is therefore strongly recommended to save it to disk. If save_to_path is not
@@ -71,9 +85,11 @@ def bulk_download_crs(
         save_to_path: The path to save the file to. Optional. If not provided, a
         DataFrame is returned.
         reduced_version: Whether to download the reduced version of the CRS data.
+        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single
+        ``DataFrame``.
 
     Returns:
-        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+        pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
 
@@ -82,7 +98,11 @@ def bulk_download_crs(
     else:
         file_id = get_full_crs_parquet_id()
 
-    return bulk_download_parquet(file_id=file_id, save_to_path=save_to_path)
+    return bulk_download_parquet(
+        file_id=file_id,
+        save_to_path=save_to_path,
+        as_iterator=as_iterator,
+    )
 
 
 @cache_info
