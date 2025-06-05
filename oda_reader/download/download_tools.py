@@ -1,19 +1,23 @@
 import io
+import os
 import re
+import tempfile
 import zipfile
 from pathlib import Path
+import hashlib
 
 import pandas as pd
 import requests
+import typing
+import pyarrow.parquet as pq
 
-from oda_reader._cache import memory
+from oda_reader._cache import memory, cache_dir
 from oda_reader.common import (
     api_response_to_df,
     logger,
     _cached_get_response_text,
     _get_response_text,
     _cached_get_response_content,
-    _get_response_content,
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
@@ -32,11 +36,31 @@ BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
-AIDDATA_VERSION="3.0"
-AIDDATA_DOWNLOAD_URL = f"https://docs.aiddata.org/ad4/datasets/AidDatas_Global_Chinese_Development_Finance_Dataset_Version_{AIDDATA_VERSION.replace('.', '_')}.zip"
+AIDDATA_VERSION = "3.0"
+AIDDATA_DOWNLOAD_URL = (
+    "https://docs.aiddata.org/ad4/datasets/"
+    "AidDatas_Global_Chinese_Development_Finance_Dataset_Version_"
+    f"{AIDDATA_VERSION.replace('.', '_')}.zip"
+)
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
+
+
+def _open_zip(response_content: bytes | Path) -> zipfile.ZipFile:
+    if isinstance(response_content, (bytes, bytearray)):
+        return zipfile.ZipFile(io.BytesIO(response_content))
+    return zipfile.ZipFile(response_content)
+
+def _iter_frames(response_content: bytes | Path) -> typing.Iterator[pd.DataFrame]:
+    with _open_zip(response_content) as z:
+        parquet_files = [n for n in z.namelist() if n.endswith(".parquet")]
+        for file_name in parquet_files:
+            logger.info(f"Streaming {file_name}")
+            with z.open(file_name) as f:
+                pf = pq.ParquetFile(f)
+                for rg in range(pf.num_row_groups):
+                    yield pf.read_row_group(rg).to_pandas()
 
 
 def download(
@@ -142,53 +166,63 @@ def download(
 
 
 def _save_or_return_parquet_files_from_content(
-    response_content: requests.Response.content,
+    response_content: bytes | Path,
     save_to_path: Path | str | None = None,
-) -> list[pd.DataFrame] | None:
-    """Extracts parquet files from a zip archive in the response content.
+    *,
+    as_iterator: bool = False,
+) -> list[pd.DataFrame] | None | typing.Iterator[pd.DataFrame]:
+    """Extract parquet files from a zip archive supplied as bytes or a file path.
+
+    If `save_to_path` is provided the parquet files are extracted and written
+    to disk. Otherwise the contents are returned either as a list of
+    `DataFrame` objects or, when `as_iterator` is `True`, as an iterator
+    yielding one `DataFrame` per row group. Iterating over row groups avoids
+    materialising the entire file in memory at once.
 
     Args:
-        response_content (requests.Response.content): The response object.
-        save_to_path (Path | str | None): The path to save the file to. Optional. If
-        not provided, a list of DataFrames is returned.
+        response_content: Bytes or `Path` pointing to the zipped parquet file.
+        save_to_path: Optional path to save the parquet files to.
+        as_iterator: When `True` return an iterator that yields `DataFrame`
+            objects for each row group. Defaults to ``False``.
 
     Returns:
-        list[pd.DataFrame]: The extracted DataFrames if save_to_path is not provided.
+        list[pd.DataFrame] | Iterator[pd.DataFrame] | None
     """
 
-    # Convert the save_to_path to a Path object
     save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
-    # Open the content as a zip file and extract the parquet files
-    with zipfile.ZipFile(io.BytesIO(response_content)) as z:
-        # Find all parquet files in the zip archive
+    with _open_zip(response_content=response_content) as z:
         parquet_files = [name for name in z.namelist() if name.endswith(".parquet")]
 
-        # If save_to_path is provided, save the files to the path
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
             for file_name in parquet_files:
                 logger.info(f"Saving {file_name}")
-                with z.open(file_name) as f_in, (save_to_path / file_name).open(
-                    "wb"
-                ) as f_out:
+                with (
+                    z.open(file_name) as f_in,
+                    (save_to_path / file_name).open("wb") as f_out,
+                ):
                     f_out.write(f_in.read())
-            return
+            return None
 
-        # If save_to_path is not provided, return the DataFrames
+        if as_iterator:
+            # Return a generator over row groups
+            return _iter_frames(response_content=response_content)
+
         logger.info(f"Reading {len(parquet_files)} parquet files.")
         return [pd.read_parquet(z.open(file)) for file in parquet_files]
 
 
 def _save_or_return_parquet_files_from_txt_in_zip(
-    response_content: requests.Response.content,
+    response_content: bytes | Path,
     save_to_path: Path | str | None = None,
 ) -> list[pd.DataFrame] | None:
-    """Extracts a .txt file from a zip archive in the response content, reads it as a CSV,
-    and optionally saves it as a parquet file.
+    """Extract a `.txt` file from a zipped archive supplied as bytes or a file path.
+
+    The file is read as CSV and optionally saved as a parquet file.
 
     Args:
-        response_content (requests.Response.content): The response object.
+        response_content: Bytes or ``Path`` pointing to the zipped archive.
         save_to_path (Path | str | None): The path to save the file to. Optional. If
         not provided, a list of DataFrames is returned.
 
@@ -205,8 +239,9 @@ def _save_or_return_parquet_files_from_txt_in_zip(
     # Convert the save_to_path to a Path object
     save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
-    # Open the content as a zip file and extract the parquet files
-    with zipfile.ZipFile(io.BytesIO(response_content)) as z:
+
+
+    with _open_zip(response_content=response_content) as z:
         # Find all parquet files in the zip archive
         files = [name for name in z.namelist() if name.endswith(".txt")]
 
@@ -230,8 +265,8 @@ def _save_or_return_parquet_files_from_txt_in_zip(
 
 
 def _save_or_return_excel_files_from_content(
-        response_content: bytes,
-        save_to_path: Path | str | None = None,
+    response_content: bytes,
+    save_to_path: Path | str | None = None,
 ) -> pd.DataFrame | None:
     """
     Extract exactly one Excel file from a zip archive in the response content.
@@ -247,15 +282,18 @@ def _save_or_return_excel_files_from_content(
 
     with zipfile.ZipFile(io.BytesIO(response_content)) as z:
         excel_files = [
-            info.filename for info in z.infolist()
+            info.filename
+            for info in z.infolist()
             if info.filename.endswith(".xlsx")
-               and not info.filename.startswith("__MACOSX/")
-               and not info.filename.split("/")[-1].startswith("._")
-               and not info.is_dir()
+            and not info.filename.startswith("__MACOSX/")
+            and not info.filename.split("/")[-1].startswith("._")
+            and not info.is_dir()
         ]
 
         if len(excel_files) != 1:
-            raise ValueError(f"Expected exactly 1 Excel file, found {len(excel_files)}: {excel_files}")
+            raise ValueError(
+                f"Expected exactly 1 Excel file, found {len(excel_files)}: {excel_files}"
+            )
 
         excel_file = excel_files[0]
 
@@ -270,9 +308,50 @@ def _save_or_return_excel_files_from_content(
         return pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
 
 
+def _stream_to_file(url: str, headers: dict, path: Path) -> None:
+    """Stream a URL to the given file path."""
+
+    logger.info(f"Streaming download from {url}")
+    with requests.get(url, headers=headers, stream=True) as r:
+        if r.status_code > 299:
+            raise ConnectionError(f"Error {r.status_code}: {r.text}")
+
+        with path.open("wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+
+
+def _stream_to_tempfile(url: str, headers: dict) -> Path:
+    """Download content to a temporary file using streaming."""
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        _stream_to_file(url, headers, Path(tmp.name))
+        return Path(tmp.name)
+
+
+def _cached_stream_to_file(url: str, headers: dict) -> Path:
+    """Stream a URL to a cached file and return its path."""
+
+    downloads = cache_dir()
+    downloads.mkdir(parents=True, exist_ok=True)
+    file_name = hashlib.sha1(url.encode()).hexdigest() + ".zip"
+    dest = downloads / file_name
+    if dest.exists():
+        logger.info(f"Loading {url} from cache")
+        return dest
+
+    _stream_to_file(url, headers, dest)
+    return dest
+
+
 def bulk_download_parquet(
-    file_id: str, save_to_path: Path | str | None = None, is_txt: bool = False
-) -> pd.DataFrame | None:
+    file_id: str,
+    save_to_path: Path | str | None = None,
+    is_txt: bool = False,
+    *,
+    as_iterator: bool = False,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """Download data from the stats.oecd.org file download service.
 
     Certain data files are available as a bulk download in parquet format. This function
@@ -280,18 +359,15 @@ def bulk_download_parquet(
 
     Args:
         file_id (str): The ID of the file to download.
-        save_to_path (Path | str | None): The path to save the file to. Optional. If
-        not provided, a DataFrame is returned.
+        save_to_path (Path | str | None): The path to save the file to. Optional.
+            If not provided, the contents are returned.
         is_txt (bool): Whether the file is a .txt file. Defaults to False.
+        as_iterator (bool): When ``True`` return an iterator over ``DataFrame``
+            chunks instead of a single ``DataFrame``. Useful for large files.
 
     Returns:
-        pd.DataFrame | None: The DataFrame if save_to_path is not provided.
+        pd.DataFrame | Iterator[pd.DataFrame] | None
     """
-    if memory().store_backend:
-        get = _cached_get_response_content
-    else:
-        get = _get_response_content
-
     # Construct the URL
     file_url = BULK_DOWNLOAD_URL + file_id
 
@@ -301,23 +377,37 @@ def bulk_download_parquet(
     else:
         logger.info("The file will be returned as a DataFrame. ")
 
-    # Get the file
-    headers = (("Accept-Encoding", "gzip"),)
-    status, response = get(file_url, headers=headers)
-
-    if status > 299:
-        logger.error(f"Error {status}: {response}")
-        raise ConnectionError(f"Error {status}: {response}")
-
-    # Read the parquet file
-    if is_txt:
-        files = _save_or_return_parquet_files_from_txt_in_zip(
-            response_content=response, save_to_path=save_to_path
-        )
+    # Download the zip file to avoid loading it fully in memory
+    headers = {"Accept-Encoding": "gzip"}
+    if memory().store_backend:
+        temp_zip = _cached_stream_to_file(file_url, headers)
+        cleanup = False
     else:
-        files = _save_or_return_parquet_files_from_content(
-            response_content=response, save_to_path=save_to_path
-        )
+        temp_zip = _stream_to_tempfile(file_url, headers)
+        cleanup = True
+
+    try:
+        # Read the parquet file
+        if is_txt:
+            if as_iterator:
+                raise ValueError("Streaming not supported for txt files.")
+            files = _save_or_return_parquet_files_from_txt_in_zip(
+                response_content=temp_zip,
+                save_to_path=save_to_path,
+            )
+        else:
+            files = _save_or_return_parquet_files_from_content(
+                response_content=temp_zip,
+                save_to_path=save_to_path,
+                as_iterator=as_iterator,
+            )
+    finally:
+        if cleanup:
+            os.unlink(temp_zip)
+
+    if as_iterator:
+        # When streaming, ``files`` is already an iterator
+        return files
 
     if files:
         combined_df = pd.concat(files, ignore_index=True)
@@ -331,13 +421,17 @@ def bulk_download_parquet(
 def _download_aiddata_response() -> bytes:
     logger.info("Downloading AidData. This may take a while...")
     headers = (("Accept-Encoding", "gzip"),)
-    status, response = _cached_get_response_content(AIDDATA_DOWNLOAD_URL, headers=headers)
+    status, response = _cached_get_response_content(
+        AIDDATA_DOWNLOAD_URL, headers=headers
+    )
     if status > 299:
         raise ConnectionError(f"Error {status}: {response}")
     return response
 
 
-def bulk_download_aiddata(save_to_path: Path | str | None = None) -> pd.DataFrame | None:
+def bulk_download_aiddata(
+    save_to_path: Path | str | None = None,
+) -> pd.DataFrame | None:
     """
     Download data from the AidData website, extract the Excel file,
     and return as a DataFrame or save it to disk.
