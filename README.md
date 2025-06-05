@@ -40,8 +40,6 @@ and Other Official Flows (OOFs) directly from the OECD API.
 - **Bulk download** microdata from the CRS, the Multisystem dataset, and other datasets.
 - **Schema Translation**: Translate OECD data to `.stat` schema for easier integration.
 - **Multi-version Support**: Access multiple versions of dataflows (CRS, DAC1, DAC2, etc.).
-- **Disk Cache**: Downloaded archives are cached on disk to avoid repeated API calls. Set
-  the `ODA_READER_CACHE_DIR` environment variable to control the cache location.
 
 ## Installation
 
