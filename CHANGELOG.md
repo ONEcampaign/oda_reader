@@ -1,6 +1,7 @@
 # Changelog for oda_reader
 ## 1.2.0 (2025-06-05)
 - Introduces importer tools for the AidData's Global Chinese development finance dataset.
+- Introduces functionality to stream bulk files to avoid loading too much data to memory
 
 ## 1.1.5 (2025-05-15)
 - The OECD has unexpectedly (and quietly) changed the naming convention
