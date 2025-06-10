@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 
 import requests
 
-from oda_reader.common import logger
+from oda_reader.common import logger, API_RATE_LIMITER
 
 
 def download_xml(xml_url: str) -> requests.models.Response:
@@ -19,6 +19,7 @@ def download_xml(xml_url: str) -> requests.models.Response:
     logger.info(f"Downloading XML file from {xml_url}")
 
     # Get file with requests
+    API_RATE_LIMITER.wait()
     response = requests.get(xml_url)
 
     # Check if the request was successful

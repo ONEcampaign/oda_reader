@@ -20,6 +20,7 @@ from oda_reader.multisystem import download_multisystem, bulk_download_multisyst
 from oda_reader.crs import download_crs, bulk_download_crs, download_crs_file
 from oda_reader.aiddata import download_aiddata
 from oda_reader.tools import get_available_filters
+from oda_reader.common import API_RATE_LIMITER
 
 enforce_cache_limits()
 
@@ -41,4 +42,5 @@ __all__ = [
     "clear_cache",
     "set_cache_dir",
     "cache_dir",
+    "API_RATE_LIMITER",
 ]

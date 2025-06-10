@@ -1,4 +1,8 @@
 # Changelog for oda_reader
+
+## 1.2.1 (2025-06-10)
+- Introduces rate limiting (20 requests per minute).This is to better manage the OECD's aggressive rate throttling (20 requests per minute).
+
 ## 1.2.0 (2025-06-05)
 - Introduces importer tools for the AidData's Global Chinese development finance dataset.
 - Introduces functionality to stream bulk files to avoid loading too much data to memory

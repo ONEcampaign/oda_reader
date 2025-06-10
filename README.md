@@ -26,7 +26,8 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 6. [CRS](#downloading-crs-data)
 7. [Multisystem](#downloading-multisystem-data)
 8. [Using filters](#using-filters)
-9. [Contribute](#contributing-to-oda-reader)
+9. [Rate limiting](#rate-limiting)
+10. [Contribute](#contributing-to-oda-reader)
 
 ## Getting Started
 
@@ -40,6 +41,7 @@ and Other Official Flows (OOFs) directly from the OECD API.
 - **Bulk download** microdata from the CRS, the Multisystem dataset, and other datasets.
 - **Schema Translation**: Translate OECD data to `.stat` schema for easier integration.
 - **Multi-version Support**: Access multiple versions of dataflows (CRS, DAC1, DAC2, etc.).
+- **Rate Limiting**: API calls automatically pause when the limit (20 requests per minute by default) is reached.
 
 ## Installation
 
@@ -571,6 +573,19 @@ crs_filters = get_available_filters(source="crs")
 multisystem_filters = get_available_filters(source="multisystem")
 ```
 
+
+## Rate limiting
+
+ODA Reader limits outgoing requests to avoid hitting the OECD API too often.
+Network calls pause automatically when the limit (20 calls per minute by default)
+is reached. The limit can be changed via the ``API_RATE_LIMITER`` object:
+
+```python
+from oda_reader import API_RATE_LIMITER
+
+API_RATE_LIMITER.max_calls = 10
+API_RATE_LIMITER.period = 60
+```
 
 ## Contributing to ODA Reader
 
