@@ -19,6 +19,7 @@ from oda_reader.common import (
     _cached_get_response_text,
     _get_response_text,
     _cached_get_response_content,
+    API_RATE_LIMITER,
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
@@ -317,6 +318,7 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
     """Stream a URL to the given file path."""
 
     logger.info(f"Streaming download from {url}")
+    API_RATE_LIMITER.wait()
     with requests.get(url, headers=headers, stream=True) as r:
         if r.status_code > 299:
             raise ConnectionError(f"Error {r.status_code}: {r.text}")

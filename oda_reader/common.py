@@ -3,6 +3,8 @@ import re
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
+import time
+from collections import deque
 
 import pandas as pd
 import requests
@@ -15,6 +17,34 @@ logger = logging.getLogger("oda_importer")
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
+
+
+class RateLimiter:
+    """Simple blocking rate limiter.
+
+    Parameters correspond to the maximum number of calls allowed within
+    ``period`` seconds. ``wait`` pauses execution when the limit has been
+    reached.
+    """
+
+    def __init__(self, max_calls: int = 20, period: float = 60.0) -> None:
+        self.max_calls = max_calls
+        self.period = period
+        self._calls: deque[float] = deque()
+
+    def wait(self) -> None:
+        """Block until a new call is allowed."""
+        now = time.monotonic()
+        while self._calls and now - self._calls[0] >= self.period:
+            self._calls.popleft()
+        if len(self._calls) >= self.max_calls:
+            sleep_for = self.period - (now - self._calls[0])
+            time.sleep(max(sleep_for, 0))
+            self._calls.popleft()
+        self._calls.append(time.monotonic())
+
+
+API_RATE_LIMITER = RateLimiter()
 
 
 class ImporterPaths:
@@ -59,6 +89,8 @@ def _get_dataflow_version(url: str) -> str:
 def _cached_get_response_text(url: str, headers: tuple) -> tuple[int, str]:
     """Cached GET request returning only the status code and text content.
 
+    This call is subject to the global rate limiter.
+    
     Args:
         url (str): The URL to fetch.
         headers (dict): Headers to include in the request.
@@ -67,6 +99,7 @@ def _cached_get_response_text(url: str, headers: tuple) -> tuple[int, str]:
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
+    API_RATE_LIMITER.wait()
     response = requests.get(url, headers=dict(headers))
     return response.status_code, response.text
 
@@ -77,6 +110,8 @@ def _cached_get_response_content(
 ) -> tuple[int, Response.content]:
     """Cached GET request returning only the status code and text content.
 
+    This call is subject to the global rate limiter.
+
     Args:
         url (str): The URL to fetch.
         headers (dict): Headers to include in the request.
@@ -85,12 +120,15 @@ def _cached_get_response_content(
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
+    API_RATE_LIMITER.wait()
     response = requests.get(url, headers=dict(headers))
     return response.status_code, response.content
 
 
 def _get_response_text(url: str, headers: tuple) -> tuple[int, str]:
     """Uncached GET request returning only the status code and text content.
+
+    This call is subject to the global rate limiter.
 
     Args:
         url (str): The URL to fetch.
@@ -100,12 +138,15 @@ def _get_response_text(url: str, headers: tuple) -> tuple[int, str]:
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
+    API_RATE_LIMITER.wait()
     response = requests.get(url, headers=dict(headers))
     return response.status_code, response.text
 
 
 def _get_response_content(url: str, headers: dict) -> tuple[int, Response.content]:
     """Cached GET request returning only the status code and text content.
+
+    This call is subject to the global rate limiter.
 
     Args:
         url (str): The URL to fetch.
@@ -115,6 +156,7 @@ def _get_response_content(url: str, headers: dict) -> tuple[int, Response.conten
         tuple[int, str]: A tuple containing the status code and text content.
     """
     logger.info(f"Fetching data from {url}")
+    API_RATE_LIMITER.wait()
     response = requests.get(url, headers=headers)
     return response.status_code, response.content
 
