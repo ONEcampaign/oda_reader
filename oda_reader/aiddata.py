@@ -70,7 +70,8 @@ def download_aiddata(
     """
 
     # Get data
-    df = bulk_download_aiddata(save_to_path=save_to_path)
+    bulk_download_aiddata(save_to_path=save_to_path)
+    df = pd.read_parquet(save_to_path)
 
     # Filter years, if needed
     df = filter_years(df=df, start_year=start_year, end_year=end_year)
