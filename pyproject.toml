@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oda_reader"
-version = "1.2.1"
+version = "1.2.2"
 description = "A simple package to import ODA data from the OECD's API and AidData's database"
 authors = ["Jorge Rivera"]
 license = "MIT"
@@ -12,6 +12,7 @@ requests = "^2.31.0"
 pandas = "^2.2.2"
 pyarrow = ">=16.0.0"
 joblib = "^1.4.2"
+openpyxl = "^3.1.5"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 1.2.2 (2025-06-16)
+- Fixes a bug with AidData where passing None for end year would raise
+a type error.
+
 ## 1.2.1 (2025-06-10)
 - Introduces rate limiting (20 requests per minute).This is to better manage the OECD's aggressive rate throttling (20 requests per minute).
 

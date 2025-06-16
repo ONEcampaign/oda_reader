@@ -55,6 +55,7 @@ def _open_zip(response_content: bytes | Path) -> zipfile.ZipFile:
         return zipfile.ZipFile(io.BytesIO(response_content))
     return zipfile.ZipFile(response_content)
 
+
 def _iter_frames(response_content: bytes | Path) -> typing.Iterator[pd.DataFrame]:
     """Iterate over row groups in parquet files within a zip archive."""
     with _open_zip(response_content) as z:
@@ -245,8 +246,6 @@ def _save_or_return_parquet_files_from_txt_in_zip(
     # Convert the save_to_path to a Path object
     save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
-
-
     with _open_zip(response_content=response_content) as z:
         # Find all parquet files in the zip archive
         files = [name for name in z.namelist() if name.endswith(".txt")]
@@ -302,16 +301,22 @@ def _save_or_return_excel_files_from_content(
             )
 
         excel_file = excel_files[0]
+        df = pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
 
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
             output_file = save_to_path / Path(excel_file).name
-            logger.info(f"Saving {excel_file} to {output_file}")
-            with z.open(excel_file) as f_in, output_file.open("wb") as f_out:
-                f_out.write(f_in.read())
+            logger.info(f"Saving {excel_file} as parquet to {output_file}")
+            df = df.astype(
+                {
+                    "AidData Parent ID": "string[pyarrow]",
+                    "Contact Position": "string[pyarrow]",
+                }
+            )
+            df.to_parquet(output_file)
             return None
 
-        return pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
+        return df
 
 
 def _stream_to_file(url: str, headers: dict, path: Path) -> None:
@@ -351,6 +356,7 @@ def _cached_stream_to_file(url: str, headers: dict) -> Path:
     _stream_to_file(url, headers, destination)
     return destination
 
+
 def _get_temp_file(file_url: str) -> tuple[Path, bool]:
     """Download file to a temporary location and return the path and a cleanup flag."""
     headers = {"Accept-Encoding": "gzip"}
@@ -361,6 +367,7 @@ def _get_temp_file(file_url: str) -> tuple[Path, bool]:
         temp_zip = _stream_to_tempfile(file_url, headers)
         cleanup = True
     return temp_zip, cleanup
+
 
 def bulk_download_parquet(
     file_id: str,
