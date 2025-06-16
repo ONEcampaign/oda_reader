@@ -2,22 +2,27 @@ import pandas as pd
 from pathlib import Path
 
 from oda_reader._cache import cache_info
-from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     bulk_download_aiddata,
 )
-from oda_reader.schemas.schema_tools import read_schema_translation, convert_dtypes, preprocess
+from oda_reader.schemas.schema_tools import (
+    read_schema_translation,
+    convert_dtypes,
+    preprocess,
+)
 
 
 def filter_years(
-        df,
-        year_range: range | None = None,
+    df: pd.DataFrame,
+    start_year: int = None,
+    end_year: int = None,
 ) -> pd.DataFrame:
-    """ Filters a dataframe by year range. If the provided time range is not a subset of the available years, it returns
+    """Filters a dataframe by year range. If the provided time range is not a subset of the available years, it returns
     the entire dataframe.
     Args:
         df: the DataFrame to filter
-        year_range: time range to filter by
+        start_year: the range of years to filter by, inclusive. If None, no filtering is applied.
+        end_year: the range of years to filter by, inclusive. If None, no filtering is applied.
 
     Returns:
         df: the filtered DataFrame
@@ -25,14 +30,23 @@ def filter_years(
 
     available_years = set(df["Commitment Year"].dropna().unique())
 
-    if filter_years is not None and not set(year_range).issubset(available_years):
-        logger.warning(
-            f"Provided years %s are out of range. Will return all available years.",
-            year_range,
+    if start_year and (start_year not in available_years):
+        raise ValueError(
+            f"Provided start year {start_year} is not available in the data. "
+            f"Available years are: {available_years}"
         )
-        return None
+    if end_year and (end_year not in available_years):
+        raise ValueError(
+            f"Provided end year {end_year} is not available in the data. "
+            f"Available years are: {available_years}"
+        )
 
-    return df.query("`Commitment Year` in @year_range")
+    if start_year:
+        df = df.loc[lambda d: d["Commitment Year"] >= start_year]
+    if end_year:
+        df = df.loc[lambda d: d["Commitment Year"] <= end_year]
+
+    return df.reset_index(drop=True)
 
 
 @cache_info
@@ -58,8 +72,8 @@ def download_aiddata(
     # Get data
     df = bulk_download_aiddata(save_to_path=save_to_path)
 
-    # Filter years
-    df = filter_years(df, range(start_year, end_year + 1))
+    # Filter years, if needed
+    df = filter_years(df=df, start_year=start_year, end_year=end_year)
 
     # get scheme for dtypes and column names
     schema = read_schema_translation(version="aidData")
