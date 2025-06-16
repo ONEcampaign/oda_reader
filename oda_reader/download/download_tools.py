@@ -302,16 +302,16 @@ def _save_or_return_excel_files_from_content(
             )
 
         excel_file = excel_files[0]
+        df = pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
 
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
             output_file = save_to_path / Path(excel_file).name
-            logger.info(f"Saving {excel_file} to {output_file}")
-            with z.open(excel_file) as f_in, output_file.open("wb") as f_out:
-                f_out.write(f_in.read())
+            logger.info(f"Saving {excel_file} as parquet to {output_file}")
+            df.to_parquet(output_file)
             return None
 
-        return pd.read_excel(z.open(excel_file), sheet_name=f"GCDF_{AIDDATA_VERSION}")
+        return df
 
 
 def _stream_to_file(url: str, headers: dict, path: Path) -> None:
