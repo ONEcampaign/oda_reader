@@ -55,7 +55,7 @@ def download_aiddata(
     start_year: int | None = None,
     end_year: int | None = None,
     pre_process: bool = True,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """
     Download the AidData from the website.
 
@@ -70,8 +70,7 @@ def download_aiddata(
     """
 
     # Get data
-    bulk_download_aiddata(save_to_path=save_to_path)
-    df = pd.read_parquet(save_to_path)
+    df = bulk_download_aiddata()
 
     # Filter years, if needed
     df = filter_years(df=df, start_year=start_year, end_year=end_year)
@@ -88,5 +87,9 @@ def download_aiddata(
 
     # remove columns where all rows are NaN
     df = df.dropna(axis=1, how="all")
+
+    if save_to_path:
+        df.to_parquet(save_to_path)
+        return None
 
     return df
