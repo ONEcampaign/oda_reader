@@ -57,39 +57,43 @@ def download_aiddata(
     pre_process: bool = True,
 ) -> pd.DataFrame | None:
     """
-    Download the AidData from the website.
+    Download AidData from the AidData website. If save_to_path is not specified, a dataframe will be returned with the
+    corresponding settings (end_year, start_year and pre_process). If save_to_path is specified, the raw AidData Excel
+    file will be saved as a parquet file to the specified path ignoring the settings (end_year, start_year and
+    pre_process).
 
     Args:
         save_to_path (Path | str): Path to save the raw data to.
-        start_year (int): The start year of the data to return. This will filter based on commitment year. Optional
-        end_year (int): The end year of the data to return. This will filter base on commitment year. Optional
-        pre_process (bool): Whether to preprocess the data. Defaults to True.
+        start_year (int): Optional parameter indicating the start year of the data to return. This will filter based on
+        commitment year. If save_to_path is specified, the saved parquet file won't take into account start_year.
+        end_year (int): Optional parameter indicating the end year of the data to return. This will filter base on
+        commitment year. If save_to_path is specified, the saved parquet file won't take into account end_year.
+        pre_process (bool): Whether to preprocess the data. Defaults to True. If save_to_path is specified, the saved
+        parquet file won't be preprocessed.
     Returns:
-        pd.DataFrame: The adiData data.
+        pd.DataFrame: The adiData data if no save_to_path is specified.
 
     """
 
     # Get data
-    df = bulk_download_aiddata()
+    df = bulk_download_aiddata(save_to_path=save_to_path)
 
-    # Filter years, if needed
-    df = filter_years(df=df, start_year=start_year, end_year=end_year)
+    if not save_to_path:
 
-    # get scheme for dtypes and column names
-    schema = read_schema_translation(version="aidData")
+        # Filter years, if needed
+        df = filter_years(df=df, start_year=start_year, end_year=end_year)
 
-    # Convert dtypes
-    df = convert_dtypes(df, schema=schema)
+        # get scheme for dtypes and column names
+        schema = read_schema_translation(version="aidData")
 
-    # rename/remove columns, convert bool columns
-    if pre_process:
-        df = preprocess(df, schema)
+        # Convert dtypes
+        df = convert_dtypes(df, schema=schema)
 
-    # remove columns where all rows are NaN
-    df = df.dropna(axis=1, how="all")
+        # rename/remove columns, convert bool columns
+        if pre_process:
+            df = preprocess(df, schema)
 
-    if save_to_path:
-        df.to_parquet(save_to_path)
-        return None
+        # remove columns where all rows are NaN
+        df = df.dropna(axis=1, how="all")
 
-    return df
+        return df
