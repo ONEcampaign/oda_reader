@@ -65,11 +65,11 @@ def download_aiddata(
     Args:
         save_to_path (Path | str): Path to save the raw data to.
         start_year (int): Optional parameter indicating the start year of the data to return. This will filter based on
-        commitment year. If save_to_path is specified, the saved parquet file won't take into account start_year.
+            commitment year. If save_to_path is specified, the saved parquet file won't take into account start_year.
         end_year (int): Optional parameter indicating the end year of the data to return. This will filter base on
-        commitment year. If save_to_path is specified, the saved parquet file won't take into account end_year.
+            commitment year. If save_to_path is specified, the saved parquet file won't take into account end_year.
         pre_process (bool): Whether to preprocess the data. Defaults to True. If save_to_path is specified, the saved
-        parquet file won't be preprocessed.
+            parquet file won't be preprocessed.
     Returns:
         pd.DataFrame: The adiData data if no save_to_path is specified.
 
