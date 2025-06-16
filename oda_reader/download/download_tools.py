@@ -305,7 +305,7 @@ def _save_or_return_excel_files_from_content(
 
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
-            output_file = save_to_path / Path(excel_file).name
+            output_file = save_to_path / Path(excel_file).with_suffix(".parquet").name
             logger.info(f"Saving {excel_file} as parquet to {output_file}")
             df = df.astype(
                 {
@@ -539,3 +539,8 @@ def get_bulk_file_id(
     parquet_link = match.group(1).strip()
 
     return parquet_link.split("=")[-1]
+
+
+if __name__ == "__main__":
+
+    bulk_download_aiddata(save_to_path='/Users/miguelharoruiz/Desktop')
