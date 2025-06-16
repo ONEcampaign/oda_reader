@@ -307,6 +307,12 @@ def _save_or_return_excel_files_from_content(
             save_to_path.mkdir(parents=True, exist_ok=True)
             output_file = save_to_path / Path(excel_file).name
             logger.info(f"Saving {excel_file} as parquet to {output_file}")
+            df = df.astype(
+                {
+                    "AidData Parent ID": "string[pyarrow]",
+                    "Contact Position": "string[pyarrow]",
+                }
+            )
             df.to_parquet(output_file)
             return None
 
