@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.3.0 (2025-06-16)
+- Improves cache management.
+
 ## 1.2.2 (2025-06-16)
 - Fixes a bug with AidData where passing None for end year would raise
 a type error.

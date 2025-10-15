@@ -12,13 +12,13 @@ import requests
 import typing
 import pyarrow.parquet as pq
 
-from oda_reader._cache import memory, cache_dir
+from oda_reader._cache.config import get_bulk_cache_dir
+from oda_reader._cache.dataframe import dataframe_cache
 from oda_reader.common import (
     api_response_to_df,
     logger,
-    _cached_get_response_text,
     _get_response_text,
-    _cached_get_response_content,
+    _get_response_content,
     API_RATE_LIMITER,
 )
 from oda_reader.download.query_builder import QueryBuilder
@@ -148,8 +148,21 @@ def download(
     # Get the url
     url = qb.set_time_period(start=start_year, end=end_year).build_query()
 
-    # Get the dataframe
+    # Check DataFrame cache first (includes preprocessing params in key)
+    df_cache = dataframe_cache()
+    cached_df = df_cache.get(
+        dataflow_id=dataflow_id,
+        dataflow_version=dataflow_version or "default",
+        url=url,
+        pre_process=pre_process,
+        dotstat_codes=dotstat_codes,
+    )
 
+    if cached_df is not None:
+        logger.info("Data loaded from DataFrame cache.")
+        return cached_df
+
+    # Cache miss - fetch from API (HTTP layer may still cache)
     df = api_response_to_df(url=url, read_csv_options=df_options)
 
     # Preprocess the data
@@ -161,12 +174,17 @@ def download(
         if dotstat_codes:
             raise ValueError("Cannot convert to dotstat codes without preprocessing.")
 
-    # Return the dataframe
-    if not memory().store_backend:
-        logger.info("Data downloaded correctly.")
-    else:
-        logger.info("Data loaded from cache correctly.")
+    # Cache the processed DataFrame
+    df_cache.set(
+        df=df,
+        dataflow_id=dataflow_id,
+        dataflow_version=dataflow_version or "default",
+        url=url,
+        pre_process=pre_process,
+        dotstat_codes=dotstat_codes,
+    )
 
+    logger.info("Data processed and cached.")
     return df
 
 
@@ -345,22 +363,30 @@ def _stream_to_tempfile(url: str, headers: dict) -> Path:
 def _cached_stream_to_file(url: str, headers: dict) -> Path:
     """Stream a URL to a cached file and return its path."""
 
-    downloads = cache_dir()
+    downloads = get_bulk_cache_dir()
     downloads.mkdir(parents=True, exist_ok=True)
     file_name = hashlib.sha1(url.encode()).hexdigest() + ".zip"
     destination = downloads / file_name
     if destination.exists():
-        logger.info(f"Loading {url} from cache")
+        logger.info(f"Loading {url} from bulk file cache")
         return destination
 
     _stream_to_file(url, headers, destination)
     return destination
 
 
-def _get_temp_file(file_url: str) -> tuple[Path, bool]:
-    """Download file to a temporary location and return the path and a cleanup flag."""
+def _get_temp_file(file_url: str, use_cache: bool = True) -> tuple[Path, bool]:
+    """Download file to a temporary location and return the path and a cleanup flag.
+
+    Args:
+        file_url: URL to download
+        use_cache: If True, cache the file. If False, use a temp file.
+
+    Returns:
+        tuple[Path, bool]: Path to file and whether it should be cleaned up
+    """
     headers = {"Accept-Encoding": "gzip"}
-    if memory().store_backend:
+    if use_cache:
         temp_zip = _cached_stream_to_file(file_url, headers)
         cleanup = False
     else:
@@ -421,7 +447,7 @@ def bulk_download_parquet(
             )
             if as_iterator:
                 return files
-    except:
+    except zipfile.BadZipFile:
         if cleanup:
             os.unlink(temp_zip_path)
         raise Exception(
@@ -440,11 +466,15 @@ def bulk_download_parquet(
     return None
 
 
-@memory().cache
 def _download_aiddata_response() -> bytes:
+    """Download AidData response (HTTP cached).
+
+    Returns:
+        bytes: The response content
+    """
     logger.info("Downloading AidData. This may take a while...")
-    headers = (("Accept-Encoding", "gzip"),)
-    status, response = _cached_get_response_content(
+    headers = {"Accept-Encoding": "gzip"}
+    status, response, from_cache = _get_response_content(
         AIDDATA_DOWNLOAD_URL, headers=headers
     )
     if status > 299:
@@ -509,13 +539,10 @@ def get_bulk_file_id(
     if latest_flow == 1.0:
         latest_flow = int(round(latest_flow, 0))
 
-    if memory().store_backend:
-        get = _cached_get_response_text
-    else:
-        get = _get_response_text
-
-    headers = (("Accept-Encoding", "gzip"),)
-    status, response = get(f"{flow_url}{latest_flow}", headers=headers)
+    headers = {"Accept-Encoding": "gzip"}
+    status, response, from_cache = _get_response_text(
+        f"{flow_url}{latest_flow}", headers=headers
+    )
 
     if status > 299:
         return get_bulk_file_id(
