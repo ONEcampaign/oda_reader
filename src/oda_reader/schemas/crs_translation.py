@@ -4,8 +4,6 @@ from oda_reader.common import ImporterPaths
 from oda_reader.schemas.dac1_translation import prices_mapping
 from oda_reader.schemas.schema_tools import map_area_codes, map_amount_type_codes
 from oda_reader.schemas.xml_tools import (
-    parse_xml,
-    extract_dac_to_area_codes,
     read_mapping,
 )
 

@@ -1,4 +1,4 @@
-""" A module for constructing SDMX API queries for the OECD data. """
+"""A module for constructing SDMX API queries for the OECD data."""
 
 from oda_reader.common import logger
 

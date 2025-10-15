@@ -5,11 +5,13 @@ from io import StringIO
 from pathlib import Path
 import time
 from collections import deque
+from typing import Optional
 
 import pandas as pd
 import requests
-from requests import Response
-from oda_reader._cache import memory
+import requests_cache
+
+from oda_reader._cache.config import get_http_cache_path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -17,6 +19,89 @@ logger = logging.getLogger("oda_importer")
 
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
+
+
+# Global HTTP cache session (initialized lazily)
+_HTTP_SESSION: Optional[requests_cache.CachedSession] = None
+_CACHE_ENABLED = True
+
+
+def _get_http_session() -> requests_cache.CachedSession:
+    """Get or create the global HTTP cache session.
+
+    All responses are cached for 7 days (604800 seconds).
+
+    Returns:
+        CachedSession: requests-cache session with 7-day expiration.
+    """
+    global _HTTP_SESSION
+
+    if _HTTP_SESSION is None:
+        cache_path = str(get_http_cache_path())
+
+        _HTTP_SESSION = requests_cache.CachedSession(
+            cache_name=cache_path,
+            backend="sqlite",
+            expire_after=604800,  # 7 days
+            allowable_codes=(200, 404),  # Cache 404s for version fallback
+            stale_if_error=True,  # Use stale cache if API errors
+        )
+
+    return _HTTP_SESSION
+
+
+def enable_http_cache() -> None:
+    """Enable HTTP response caching.
+
+    Example:
+        >>> from oda_reader import enable_http_cache
+        >>> enable_http_cache()
+    """
+    global _CACHE_ENABLED
+    _CACHE_ENABLED = True
+    if _HTTP_SESSION is not None:
+        _HTTP_SESSION.cache.clear()  # Clear any cached data from disabled session
+
+
+def disable_http_cache() -> None:
+    """Disable HTTP response caching (useful for testing or forcing fresh data).
+
+    Example:
+        >>> from oda_reader import disable_http_cache
+        >>> disable_http_cache()
+    """
+    global _CACHE_ENABLED
+    _CACHE_ENABLED = False
+
+
+def clear_http_cache() -> None:
+    """Clear all cached HTTP responses.
+
+    Example:
+        >>> from oda_reader import clear_http_cache
+        >>> clear_http_cache()
+    """
+    session = _get_http_session()
+    session.cache.clear()
+    logger.info("HTTP cache cleared")
+
+
+def get_http_cache_info() -> dict:
+    """Get information about the HTTP cache.
+
+    Returns:
+        Dict with cache statistics (response_count, redirects, etc.).
+
+    Example:
+        >>> from oda_reader import get_http_cache_info
+        >>> info = get_http_cache_info()
+        >>> print(f"Cached responses: {info['response_count']}")
+    """
+    session = _get_http_session()
+    return {
+        "response_count": len(session.cache.responses),
+        "redirects_count": len(session.cache.redirects),
+    }
 
 
 class RateLimiter:
@@ -85,96 +170,77 @@ def _get_dataflow_version(url: str) -> str:
     return re.search(pattern, url).group(1)
 
 
-@memory().cache
-def _cached_get_response_text(url: str, headers: tuple) -> tuple[int, str]:
-    """Cached GET request returning only the status code and text content.
+def _get_response_text(url: str, headers: dict) -> tuple[int, str, bool]:
+    """GET request returning status code, text content, and cache hit status.
 
-    This call is subject to the global rate limiter.
-    
-    Args:
-        url (str): The URL to fetch.
-        headers (dict): Headers to include in the request.
-
-    Returns:
-        tuple[int, str]: A tuple containing the status code and text content.
-    """
-    logger.info(f"Fetching data from {url}")
-    API_RATE_LIMITER.wait()
-    response = requests.get(url, headers=dict(headers))
-    return response.status_code, response.text
-
-
-@memory().cache
-def _cached_get_response_content(
-    url: str, headers: tuple
-) -> tuple[int, Response.content]:
-    """Cached GET request returning only the status code and text content.
-
-    This call is subject to the global rate limiter.
+    This call is subject to the global rate limiter and HTTP caching.
 
     Args:
-        url (str): The URL to fetch.
-        headers (dict): Headers to include in the request.
+        url: The URL to fetch.
+        headers: Headers to include in the request.
 
     Returns:
-        tuple[int, str]: A tuple containing the status code and text content.
+        tuple[int, str, bool]: Status code, text content, and whether from cache.
     """
-    logger.info(f"Fetching data from {url}")
     API_RATE_LIMITER.wait()
-    response = requests.get(url, headers=dict(headers))
-    return response.status_code, response.content
+
+    if _CACHE_ENABLED:
+        session = _get_http_session()
+        response = session.get(url, headers=headers)
+        from_cache = getattr(response, "from_cache", False)
+        if from_cache:
+            logger.info(f"Loading data from HTTP cache: {url}")
+        else:
+            logger.info(f"Fetching data from API: {url}")
+    else:
+        response = requests.get(url, headers=headers)
+        from_cache = False
+        logger.info(f"Fetching data from API (cache disabled): {url}")
+
+    return response.status_code, response.text, from_cache
 
 
-def _get_response_text(url: str, headers: tuple) -> tuple[int, str]:
-    """Uncached GET request returning only the status code and text content.
+def _get_response_content(url: str, headers: dict) -> tuple[int, bytes, bool]:
+    """GET request returning status code, content, and cache hit status.
 
-    This call is subject to the global rate limiter.
+    This call is subject to the global rate limiter and HTTP caching.
 
     Args:
-        url (str): The URL to fetch.
-        headers (tuple): Immutable headers as tuple of key-value pairs.
+        url: The URL to fetch.
+        headers: Headers to include in the request.
 
     Returns:
-        tuple[int, str]: A tuple containing the status code and text content.
+        tuple[int, bytes, bool]: Status code, content, and whether from cache.
     """
-    logger.info(f"Fetching data from {url}")
     API_RATE_LIMITER.wait()
-    response = requests.get(url, headers=dict(headers))
-    return response.status_code, response.text
 
+    if _CACHE_ENABLED:
+        session = _get_http_session()
+        response = session.get(url, headers=headers)
+        from_cache = getattr(response, "from_cache", False)
+        if from_cache:
+            logger.info(f"Loading data from HTTP cache: {url}")
+        else:
+            logger.info(f"Fetching data from API: {url}")
+    else:
+        response = requests.get(url, headers=headers)
+        from_cache = False
+        logger.info(f"Fetching data from API (cache disabled): {url}")
 
-def _get_response_content(url: str, headers: dict) -> tuple[int, Response.content]:
-    """Cached GET request returning only the status code and text content.
-
-    This call is subject to the global rate limiter.
-
-    Args:
-        url (str): The URL to fetch.
-        headers (dict): Headers to include in the request.
-
-    Returns:
-        tuple[int, str]: A tuple containing the status code and text content.
-    """
-    logger.info(f"Fetching data from {url}")
-    API_RATE_LIMITER.wait()
-    response = requests.get(url, headers=headers)
-    return response.status_code, response.content
+    return response.status_code, response.content, from_cache
 
 
 def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> str:
-    """Download a CSV file from an API endpoint and return it as a DataFrame.
+    """Download a CSV file from an API endpoint and return it as text.
 
     Args:
-        url (str): The URL of the API endpoint.
-        compressed (bool): Whether the data is fetched compressed. Strongly recommended.
-        retries (int): The number of retries to attempt.
+        url: The URL of the API endpoint.
+        compressed: Whether the data is fetched compressed. Strongly recommended.
+        retries: The number of retries to attempt.
 
     Returns:
-        requests.models.Response: The response object from the API.
+        str: The response text from the API.
     """
-
-    get = _cached_get_response_text if memory().store_backend else _get_response_text
-
     # Set the headers with gzip encoding (if required)
     if compressed:
         headers = {"Accept-Encoding": "gzip"}
@@ -182,7 +248,7 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
         headers = {}
 
     # Fetch the data with headers
-    status_code, response = get(url, headers=headers)
+    status_code, response, from_cache = _get_response_text(url, headers=headers)
 
     if (status_code == 404) and (
         ("Dataflow" in response) or (response == "NoRecordsFound")
@@ -199,7 +265,7 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
 
     if (status_code == 500) and (response.find("not set to") > 0):
         url = url.replace("public", "dcd-public")
-        response = get(url, headers=headers)
+        status_code, response, from_cache = _get_response_text(url, headers=headers)
 
     if status_code > 299:
         logger.error(f"Error {status_code}: {response}")

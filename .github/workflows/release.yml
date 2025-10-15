@@ -1,0 +1,44 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-versions: ["3.13"]
+
+    permissions:
+      contents: write  # needed by action-gh-release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: tag_name
+        run: echo "current_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Set up uv (and Python)
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-versions }}
+
+      - name: Build sdist and wheel (uv)
+        run: uv build --no-sources
+
+      - name: Show dist/
+        run: ls -l dist
+
+      - name: Publish to PyPI (uv)
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish

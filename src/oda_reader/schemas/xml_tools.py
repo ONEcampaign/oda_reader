@@ -169,7 +169,7 @@ def read_mapping(mapping_path: str, keys_as_int: bool, update: callable) -> dict
     # Read the mapping from a JSON file. If it doesn't exist, create it.
 
     if not Path(mapping_path).exists():
-        logger.info(f"Not found, downloading.")
+        logger.info("Not found, downloading.")
         update()
 
     with open(mapping_path, "r") as f:

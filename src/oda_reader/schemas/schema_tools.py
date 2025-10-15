@@ -48,6 +48,7 @@ def get_dtypes(schema: dict) -> dict:
 
     return dtypes
 
+
 def convert_dtypes(df: pd.DataFrame, schema: dict) -> pd.DataFrame:
     """Convert the dtypes of a DataFrame given a schema translation.
     Args:
@@ -105,6 +106,7 @@ def get_columns_to_keep(schema: dict) -> list:
 
     return columns_to_keep
 
+
 def get_bool_columns(schema: dict) -> list[str]:
     """
     Get the columns marked as boolean from the schema.
@@ -116,7 +118,6 @@ def get_bool_columns(schema: dict) -> list[str]:
         list[str]: The list of columns where "bool" is True.
     """
     return [col for col, settings in schema.items() if settings.get("bool") is True]
-
 
 
 def map_area_codes(
