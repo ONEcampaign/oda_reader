@@ -1,0 +1,119 @@
+# Pre-commit hooks for ODA Reader Package
+#
+# Installation:
+#   1. Install pre-commit: `uv sync --group dev`
+#   2. Install hooks: `uv run pre-commit install`
+#
+# Usage:
+#   - Hooks run automatically on `git commit`
+#   - Run manually on all files: `uv run pre-commit run --all-files`
+#   - Run on specific files: `uv run pre-commit run --files src/file.py`
+#   - Update hooks: `uv run pre-commit autoupdate`
+#   - Skip hooks temporarily: `git commit --no-verify`
+
+repos:
+  # ============================================================================
+  # Ruff - Fast Python linter and formatter (replaces black, isort, flake8)
+  # ============================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # ============================================================================
+  # Built-in pre-commit hooks for file quality
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      # Ensure files end with a newline
+      - id: end-of-file-fixer
+
+      # Prevent mixed line endings (Unix vs Windows)
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+      # Check for files that would conflict on case-insensitive filesystems
+      - id: check-case-conflict
+
+      # Check for merge conflict strings
+      - id: check-merge-conflict
+
+      # Check for debug statements (pdb, breakpoint, etc.)
+      - id: debug-statements
+
+      # Validate Python syntax
+      - id: check-ast
+
+      # Check for proper shebang formatting
+      - id: check-shebang-scripts-are-executable
+
+      # Prevent large files from being committed (default 500kb)
+      - id: check-added-large-files
+        args: [--maxkb=1000]  # Allow up to 1MB files
+        exclude: |
+          (?x)^(
+              .*\.parquet|
+              .*\.feather|
+              uv\.lock
+          )$
+
+  # ============================================================================
+  # JSON validation (critical for schema mappings)
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Check JSON syntax
+      - id: check-json
+
+      # Pretty-format JSON files
+      - id: pretty-format-json
+        args: [--autofix, --indent=2, --no-sort-keys]
+        exclude: |
+          (?x)^(
+              \.vscode/.*|
+              \.claude/.*
+          )$
+
+  # ============================================================================
+  # YAML validation (for GitHub Actions and MkDocs)
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Check YAML syntax
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+
+  # ============================================================================
+  # Security checks
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Detect private keys
+      - id: detect-private-key
+
+  # ============================================================================
+  # Python-specific checks
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Check for common Python mistakes
+      - id: check-builtin-literals
+
+      # Check docstring is first
+      - id: check-docstring-first
+
+      # Validate pyproject.toml
+      - id: check-toml

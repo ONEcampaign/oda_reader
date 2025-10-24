@@ -1,26 +1,25 @@
+import typing
 from pathlib import Path
 
 import pandas as pd
-import typing
 
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
 from oda_reader.download.download_tools import (
-    get_bulk_file_id,
-    bulk_download_parquet,
     CRS_FLOW_URL,
+    bulk_download_parquet,
     download,
+    get_bulk_file_id,
 )
 
 DATAFLOW_ID: str = "DSD_CRS@DF_CRS"
 DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
 DATAFLOW_VERSION: str = "1.6"
 
-"""
-{donor}.{recipient}.{sector}.{measure}.{channel}.
-        {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}.{unit_measure}.
-        {time_period}
-"""
+# CRS filter structure:
+# {donor}.{recipient}.{sector}.{measure}.{channel}.
+# {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}.{unit_measure}.
+# {time_period}
 
 
 def get_full_crs_parquet_id():
@@ -50,10 +49,8 @@ def download_crs_file(
 
     Args:
         year: The year of CRS data to download.
-        save_to_path: The path to save the file to. Optional. If not provided, a
-        DataFrame is returned.
-        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single
-        ``DataFrame``.
+        save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.
+        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -82,11 +79,9 @@ def bulk_download_crs(
     provided, the function will return a DataFrame.
 
     Args:
-        save_to_path: The path to save the file to. Optional. If not provided, a
-        DataFrame is returned.
+        save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.
         reduced_version: Whether to download the reduced version of the CRS data.
-        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single
-        ``DataFrame``.
+        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -122,11 +117,9 @@ def download_crs(
         start_year (int): The start year of the data to download. Optional
         end_year (int): The end year of the data to download. Optional
         filters (dict): Optional filters to pass to the download.
-        pre_process (bool): Whether to preprocess the data. Defaults to True.
-        Preprocessing makes it comply with the .stat schema.
+        pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        as_grant_equivalent (bool): Whether to download the grant equivalent data
-        instead of flows.
+        as_grant_equivalent (bool): Whether to download the grant equivalent data instead of flows.
         dataflow_version (str): The version of the dataflow to download.
 
     Returns:

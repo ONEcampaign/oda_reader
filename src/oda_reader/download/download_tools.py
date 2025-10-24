@@ -1,25 +1,25 @@
+import hashlib
 import io
 import os
 import re
 import shutil
 import tempfile
+import typing
 import zipfile
 from pathlib import Path
-import hashlib
 
 import pandas as pd
-import requests
-import typing
 import pyarrow.parquet as pq
+import requests
 
 from oda_reader._cache.config import get_bulk_cache_dir
 from oda_reader._cache.dataframe import dataframe_cache
 from oda_reader.common import (
+    API_RATE_LIMITER,
+    _get_response_content,
+    _get_response_text,
     api_response_to_df,
     logger,
-    _get_response_text,
-    _get_response_content,
-    API_RATE_LIMITER,
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
@@ -29,9 +29,9 @@ from oda_reader.schemas.multisystem_translation import (
     convert_multisystem_to_dotstat_codes,
 )
 from oda_reader.schemas.schema_tools import (
-    read_schema_translation,
     get_dtypes,
     preprocess,
+    read_schema_translation,
 )
 
 BULK_DOWNLOAD_URL = "https://stats.oecd.org/wbos/fileview2.aspx?IDFile="
@@ -51,7 +51,7 @@ MAX_RETRIES = 5
 
 def _open_zip(response_content: bytes | Path) -> zipfile.ZipFile:
     """Open a zip file from bytes or a file path."""
-    if isinstance(response_content, (bytes, bytearray)):
+    if isinstance(response_content, bytes | bytearray):
         return zipfile.ZipFile(io.BytesIO(response_content))
     return zipfile.ZipFile(response_content)
 
@@ -170,9 +170,8 @@ def download(
         df = preprocess(df=df, schema_translation=schema_translation)
         if dotstat_codes:
             df = convert_func(df)
-    else:
-        if dotstat_codes:
-            raise ValueError("Cannot convert to dotstat codes without preprocessing.")
+    elif dotstat_codes:
+        raise ValueError("Cannot convert to dotstat codes without preprocessing.")
 
     # Cache the processed DataFrame
     df_cache.set(

@@ -9,7 +9,7 @@ The OECD DAC Data Importer
 the **OECD data explorer API** and bulk downloads.
 
 It allows for easy, programmatic access to OECD DAC data in python. It is designed for policy
-analysts, data analysts, researchers and students who need easy and programmatic access to 
+analysts, data analysts, researchers and students who need easy and programmatic access to
 OECD DAC data.
 
 This documentation will walk you through how to set up and use ODA Reader.
@@ -246,7 +246,7 @@ crs_data = download_crs(
 
 The filtering can get quite specific. For example, the following
 query gets disbursements for ODA grants from Germany to Nigeria for
-primary education, provided through multilateral organisations, in 
+primary education, provided through multilateral organisations, in
 constant prices:
 
 ```python
@@ -266,8 +266,8 @@ crs_data = download_crs(
 )
 ```
 
-The data-explorer API can also return semi-aggregates, built from the CRS microdata. 
-That is the data that is shown online through the data-explorer. 
+The data-explorer API can also return semi-aggregates, built from the CRS microdata.
+That is the data that is shown online through the data-explorer.
 
 You can get that view of the data using the ODA Reader package. However, the filters must
 be used to avoid double counting.
@@ -540,7 +540,7 @@ When using ODA Reader, you can apply filters to refine the data you retrieve fro
 
 Filters allow you to specify subsets of data, making it easy to focus on the information that is most relevant to your needs.
 
-Filters are specified as a dictionary, with keys representing the filter categories (such as donor, recipient, sector, etc.) and values representing the criteria to match, provided as single values (like a year, or a code), or lists of values (like multiple donors or multiple sectors). 
+Filters are specified as a dictionary, with keys representing the filter categories (such as donor, recipient, sector, etc.) and values representing the criteria to match, provided as single values (like a year, or a code), or lists of values (like multiple donors or multiple sectors).
 
 You can use the `get_available_filters()` function to see the available filter parameters that
 can be used for a specific dataset. Note that (for now) all filter values must be provided using

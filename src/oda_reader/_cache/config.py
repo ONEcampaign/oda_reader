@@ -6,7 +6,6 @@ Directory specifications on Linux and platform conventions elsewhere.
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from platformdirs import user_cache_dir
 
@@ -15,7 +14,7 @@ from platformdirs import user_cache_dir
 __version__ = "1.3.0"
 
 # Global override for cache directory (set via set_cache_dir)
-_CACHE_DIR_OVERRIDE: Optional[Path] = None
+_CACHE_DIR_OVERRIDE: Path | None = None
 
 
 def get_cache_dir() -> Path:

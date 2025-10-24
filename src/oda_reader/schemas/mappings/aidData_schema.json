@@ -491,7 +491,7 @@
     "keep": true,
     "bool": true
   },
-  "Supplier’s Credit/Export Seller’s Credit": {
+  "Supplier\u2019s Credit/Export Seller\u2019s Credit": {
     "name": "suppliers_credit_export_sellers_credit",
     "type": "string[pyarrow]",
     "keep": true,
@@ -539,7 +539,7 @@
     "keep": true,
     "bool": true
   },
-  "FXSL/BOP":  {
+  "FXSL/BOP": {
     "name": "fxsl_bop",
     "type": "string[pyarrow]",
     "keep": true,

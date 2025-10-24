@@ -12,7 +12,6 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Optional
 
 from oda_reader._cache.config import get_cache_dir
 
@@ -24,7 +23,7 @@ CACHE_MAX_AGE_HOURS = 168
 _has_logged_cache_message = False
 
 # Legacy joblib support (deprecated)
-_JOBLIB_MEMORY: Optional[object] = None
+_JOBLIB_MEMORY: object | None = None
 
 
 def memory():
@@ -196,8 +195,8 @@ def disable_cache() -> None:
 
     This disables HTTP caching and DataFrame caching.
     """
-    from oda_reader.common import disable_http_cache
     from oda_reader._cache.dataframe import dataframe_cache
+    from oda_reader.common import disable_http_cache
 
     disable_http_cache()
     dataframe_cache().disable()
@@ -209,8 +208,8 @@ def enable_cache() -> None:
 
     This enables HTTP caching and DataFrame caching.
     """
-    from oda_reader.common import enable_http_cache
     from oda_reader._cache.dataframe import dataframe_cache
+    from oda_reader.common import enable_http_cache
 
     enable_http_cache()
     dataframe_cache().enable()

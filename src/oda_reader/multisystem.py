@@ -6,10 +6,10 @@ import pandas as pd
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
 from oda_reader.download.download_tools import (
-    get_bulk_file_id,
     MULTI_FLOW_URL,
     bulk_download_parquet,
     download,
+    get_bulk_file_id,
 )
 
 DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
@@ -33,10 +33,8 @@ def bulk_download_multisystem(
     provided, the function will return a DataFrame.
 
     Args:
-        save_to_path: The path to save the file to. Optional. If not provided, a
-        DataFrame is returned.
-        as_iterator: If `True` yields `DataFrame` chunks instead of a single
-        `DataFrame`.
+        save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.
+        as_iterator: If `True` yields `DataFrame` chunks instead of a single `DataFrame`.
 
 
     Returns:
@@ -70,8 +68,7 @@ def download_multisystem(
         start_year (int): The start year of the data to download. Optional
         end_year (int): The end year of the data to download. Optional
         filters (dict): Optional filters to pass to the download.
-        pre_process (bool): Whether to preprocess the data. Defaults to True.
-        Preprocessing makes it comply with the .stat schema.
+        pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
         dataflow_version (str): The version of the dataflow. Optional
 

@@ -16,7 +16,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -77,7 +77,7 @@ class DataFrameCache:
     Uses parquet files for efficient storage and fast loading.
     """
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Path | None = None):
         """Initialize DataFrame cache.
 
         Args:
@@ -95,7 +95,7 @@ class DataFrameCache:
         pre_process: bool,
         dotstat_codes: bool,
         **kwargs,
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """Get a cached DataFrame if it exists.
 
         Args:
@@ -206,7 +206,7 @@ class DataFrameCache:
 
 
 # Global singleton
-_DATAFRAME_CACHE: Optional[DataFrameCache] = None
+_DATAFRAME_CACHE: DataFrameCache | None = None
 
 
 def dataframe_cache() -> DataFrameCache:

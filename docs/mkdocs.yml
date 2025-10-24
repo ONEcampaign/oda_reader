@@ -1,0 +1,61 @@
+site_name: ODA Reader
+site_description: Python package for accessing OECD DAC data
+site_author: The ONE Campaign
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Why ODA Reader: why-oda-reader.md
+  - Getting Started: getting-started.md
+  - Datasets Overview: datasets.md
+  - Filtering Data: filtering.md
+  - Bulk Downloads: bulk-downloads.md
+  - Caching & Performance: caching.md
+  - Schema Translation: schema-translation.md
+  - Advanced Topics: advanced.md
+  - API Reference: api-reference.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.snippets
+  - pymdownx.inlinehilite
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            members_order: source
