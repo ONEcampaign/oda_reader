@@ -34,6 +34,12 @@ docs = [
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.24.0",
 ]
+test = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+    "pytest-cov>=4.1",
+    "pytest-xdist>=3.5",
+]
 
 [tool.ruff]
 # Set the maximum line length
@@ -109,3 +115,20 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect line endings
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Fast unit tests (no external dependencies)",
+    "integration: Tests that call real OECD API",
+    "slow: Long-running tests (bulk downloads)",
+    "cache: Tests that verify cache behavior",
+]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "-m", "not integration",
+]
