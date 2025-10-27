@@ -11,7 +11,7 @@ from platformdirs import user_cache_dir
 
 # Version for cache versioning (hardcoded to avoid circular import)
 # This should match the version in __init__.py
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 # Global override for cache directory (set via set_cache_dir)
 _CACHE_DIR_OVERRIDE: Path | None = None
