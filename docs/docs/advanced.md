@@ -270,6 +270,5 @@ print("Bulk columns:", list(bulk_filtered.columns)[:10])
 
 ## Next Steps
 
-- **[API Reference](api-reference.md)** - Complete function signatures and parameters
 - **[Getting Started](getting-started.md)** - Return to basics if needed
 - **GitHub Issues** - Report bugs or request features at the ODA Reader repository

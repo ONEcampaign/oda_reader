@@ -35,7 +35,6 @@ nav:
   - Caching & Performance: caching.md
   - Schema Translation: schema-translation.md
   - Advanced Topics: advanced.md
-  - API Reference: api-reference.md
   - Changelog: changelog.md
 
 markdown_extensions:
