@@ -13,7 +13,7 @@ pip install oda-reader
 Or using uv (recommended for faster installs):
 
 ```bash
-uv pip install oda-reader
+uv add oda-reader
 ```
 
 That's it! ODA Reader and its dependencies (pandas, requests, pyarrow, etc.) are now installed.
@@ -121,6 +121,4 @@ Now that you've downloaded your first datasets, explore:
 
 **Query is slow**: First-time queries can take 10-30 seconds as ODA Reader fetches from OECD's API. Subsequent identical queries are instant due to caching.
 
-**Rate limit errors**: By default, ODA Reader limits to 20 requests per 60 seconds. This should prevent rate limit errors. If you see them, your cache might have been cleared. Wait a minute and retry.
-
-**Import errors**: Make sure you installed with dependencies: `pip install oda-reader` (not just `oda_reader`).
+**Rate limit errors**: By default, ODA Reader limits to 20 requests per hour. This should prevent rate limit errors. If you see them, your cache might have been cleared. Wait and retry.

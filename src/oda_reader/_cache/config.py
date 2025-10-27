@@ -11,7 +11,7 @@ from platformdirs import user_cache_dir
 
 # Version for cache versioning (hardcoded to avoid circular import)
 # This should match the version in __init__.py
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 # Global override for cache directory (set via set_cache_dir)
 _CACHE_DIR_OVERRIDE: Path | None = None
@@ -72,14 +72,15 @@ def reset_cache_dir() -> None:
 
 
 def get_http_cache_path() -> Path:
-    """Get the path for HTTP response cache (requests-cache SQLite file).
+    """Get the path for HTTP response cache (requests-cache filesystem directory).
 
     Returns:
-        Path: Path to the HTTP cache database file.
+        Path: Path to the HTTP cache directory.
     """
     cache_dir = get_cache_dir()
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir / "http_cache.sqlite"
+    http_cache_dir = cache_dir / "http_cache"
+    http_cache_dir.mkdir(parents=True, exist_ok=True)
+    return http_cache_dir
 
 
 def get_bulk_cache_dir() -> Path:

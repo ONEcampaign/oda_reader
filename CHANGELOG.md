@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.3.1 (2025-06-27)
+- Improves cache management for very large files. Introduces tests and improved documentation
+
 ## 1.3.0 (2025-06-16)
 - Improves cache management.
 

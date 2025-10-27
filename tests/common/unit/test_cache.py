@@ -43,7 +43,7 @@ class TestHTTPCache:
 
         assert common._CACHE_ENABLED is True
 
-    def test_clear_cache_resets_counters(self):
+    def test_clear_cache_resets_counters(self, temp_cache_dir):
         """Test that clear_http_cache resets cache statistics."""
         enable_http_cache()
         clear_http_cache()
@@ -53,7 +53,7 @@ class TestHTTPCache:
         assert info["response_count"] == 0
         assert info["redirects_count"] == 0
 
-    def test_get_cache_info_returns_dict(self):
+    def test_get_cache_info_returns_dict(self, temp_cache_dir):
         """Test that get_http_cache_info returns expected structure."""
         enable_http_cache()
 

@@ -45,9 +45,9 @@ OECD occasionally changes dataflow versions (schema updates). ODA Reader handles
 
 When a dataflow version returns 404 (not found), ODA Reader automatically:
 
-1. Tries the configured version (e.g., `1.0`)
-2. If 404, retries with `0.9`
-3. Continues decrementing: `0.8`, `0.7`, `0.6`
+1. Tries the configured version (e.g., `1.5`)
+2. If 404, retries with `1.4`
+3. Continues decrementing: `1.3`, `1.2`, `1.1`
 4. Returns data from first successful version (up to 5 attempts)
 
 This means your code keeps working even when OECD makes breaking schema changes.
@@ -58,9 +58,9 @@ This means your code keeps working even when OECD makes breaking schema changes.
 from oda_reader import download_dac1
 
 # ODA Reader will automatically try:
-# 1.0 -> 404
-# 0.9 -> 404
-# 0.8 -> Success! Returns data with version 0.8
+# 1.5 -> 404
+# 1.4 -> 404
+# 1.3 -> Success! Returns data with version 1.3
 data = download_dac1(start_year=2022, end_year=2022)
 ```
 
@@ -71,11 +71,11 @@ You'll see a message indicating which version succeeded.
 You can specify an exact dataflow version:
 
 ```python
-# Force use of version 0.8
+# Force use of version 1.3
 data = download_dac1(
     start_year=2022,
     end_year=2022,
-    dataflow_version="0.8"
+    dataflow_version="1.3"
 )
 ```
 
@@ -177,26 +177,6 @@ combined = pd.merge(
 - Column names and codes must align
 - Filter carefully to avoid double-counting
 
-## Custom Schema Handling
-
-If you need custom schema translation beyond built-in options:
-
-### Access Raw Data and Translate Manually
-
-```python
-# Get raw API data
-data = download_dac1(
-    start_year=2022,
-    end_year=2022,
-    pre_process=False,
-    dotstat_codes=False
-)
-
-# Apply custom transformations
-data = data.rename(columns={'DONOR': 'donor_custom'})
-data['donor_custom'] = data['donor_custom'].map(my_custom_mapping)
-```
-
 ### Load Schema Mapping Files
 
 ```python
@@ -232,51 +212,6 @@ bulk_download_crs(save_to_path="/data/crs_full.parquet")
 # In your pipeline, read from local file (fast)
 def get_crs_data():
     return pd.read_parquet("/data/crs_full.parquet")
-```
-
-### Refresh Strategy
-
-```python
-from pathlib import Path
-from datetime import datetime, timedelta
-
-def refresh_if_old(file_path, max_age_days=7):
-    """Re-download if file is older than max_age_days"""
-    path = Path(file_path)
-
-    if not path.exists():
-        print("File doesn't exist, downloading...")
-        bulk_download_crs(save_to_path=file_path)
-        return
-
-    file_age = datetime.now() - datetime.fromtimestamp(path.stat().st_mtime)
-
-    if file_age > timedelta(days=max_age_days):
-        print(f"File is {file_age.days} days old, refreshing...")
-        bulk_download_crs(save_to_path=file_path)
-    else:
-        print(f"File is recent ({file_age.days} days old), using cached version")
-
-# Use in pipeline
-refresh_if_old("/data/crs_full.parquet", max_age_days=7)
-crs_data = pd.read_parquet("/data/crs_full.parquet")
-```
-
-### Memory-Efficient Aggregation
-
-```python
-# Process bulk CRS in chunks, aggregate results
-sector_totals = {}
-
-for chunk in bulk_download_crs(as_iterator=True):
-    # Aggregate by sector
-    sector_sums = chunk.groupby('purpose_code')['usd_commitment'].sum()
-
-    # Accumulate
-    for sector, amount in sector_sums.items():
-        sector_totals[sector] = sector_totals.get(sector, 0) + amount
-
-print(f"Total sectors: {len(sector_totals)}")
 ```
 
 ## Debugging Tips
