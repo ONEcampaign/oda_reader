@@ -4,28 +4,32 @@ import pytest
 
 from oda_reader import (
     clear_http_cache,
+    common,
     disable_http_cache,
     enable_http_cache,
     get_http_cache_info,
 )
-from oda_reader.common import _CACHE_ENABLED
 
 
 @pytest.mark.unit
 @pytest.mark.cache
+@pytest.mark.xdist_group("cache")
 class TestHTTPCache:
-    """Test HTTP cache control functions."""
+    """Test HTTP cache control functions.
+
+    Note: These tests are grouped to run serially (not in parallel)
+    because they test global cache state that can't be safely shared
+    across pytest-xdist workers.
+    """
 
     def test_disable_cache_sets_flag(self):
         """Test that disable_http_cache sets the flag."""
         enable_http_cache()
-        assert _CACHE_ENABLED is True
+        assert common._CACHE_ENABLED is True
 
         disable_http_cache()
 
-        # Need to check the global variable through the module
-        from oda_reader import common
-
+        # Check the global variable through the module
         assert common._CACHE_ENABLED is False
 
         # Cleanup
@@ -36,8 +40,6 @@ class TestHTTPCache:
         disable_http_cache()
 
         enable_http_cache()
-
-        from oda_reader import common
 
         assert common._CACHE_ENABLED is True
 
