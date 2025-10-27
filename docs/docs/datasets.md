@@ -7,16 +7,17 @@ ODA Reader provides access to five datasets covering official development assist
 | Dataset | What It Contains | Use When |
 |---------|------------------|----------|
 | **DAC1** | Aggregate flows by donor | Analyzing overall ODA trends, donor performance |
-| **DAC2a** | Bilateral flows by donor-recipient | Recipient-level analysis, who gives to whom |
+| **DAC2a** | Bilateral flows by donor-recipient | Recipient-level analysis |
 | **CRS** | Project-level microdata | Sector analysis, project details, activity-level data |
 | **Multisystem** | Multilateral system usage | Analyzing multilateral channels and contributions |
-| **AidData** | Chinese development finance | Non-DAC donor analysis, Chinese aid flows |
+| **AidData** | Chinese development finance | Chinese aid flows |
 
 ## DAC1: Aggregate Flows
 
 **What it contains**: Total ODA and OOF by donor, aggregated across all recipients and sectors. This is the highest-level view of development assistance.
 
 **Key dimensions**:
+
 - Donor (bilateral donors and multilateral organizations)
 - Measure type (ODA, OOF, grants, loans, etc.)
 - Flow type (commitments, disbursements, grant equivalents)
@@ -24,6 +25,7 @@ ODA Reader provides access to five datasets covering official development assist
 - Unit measure (USD millions, national currency, etc.)
 
 **Use when**:
+
 - You need donor-level totals
 - Analyzing overall ODA trends over time
 - Comparing donor performance
@@ -56,12 +58,14 @@ oda_constant = download_dac1(
 **What it contains**: Bilateral ODA and OOF flows broken down by both donor and recipient country. Shows who gives to whom.
 
 **Key dimensions**:
+
 - Donor (bilateral donors)
 - Recipient (receiving countries and regions)
 - Measure type (bilateral ODA, imputed multilateral, etc.)
 - Price base (current or constant)
 
 **Use when**:
+
 - Analyzing flows to specific recipient countries
 - Understanding bilateral relationships
 - Studying geographic distribution of aid
@@ -95,6 +99,7 @@ germany_eastafrica = download_dac2a(
 **What it contains**: Individual project and activity-level data with detailed information about each development assistance activity. This is the most granular dataset.
 
 **Key dimensions**:
+
 - Donor
 - Recipient
 - Sector (purpose codes at various levels of detail)
@@ -104,6 +109,7 @@ germany_eastafrica = download_dac2a(
 - Microdata flag (True for project-level, False for semi-aggregates)
 
 **Use when**:
+
 - You need project-level details (descriptions, amounts, sectors)
 - Analyzing sector-specific flows
 - Understanding implementation channels
@@ -153,6 +159,7 @@ semi_agg = download_crs(
 **What it contains**: Data on how DAC members use the multilateral aid system, including core contributions to multilateral organizations and earmarked funding.
 
 **Key dimensions**:
+
 - Donor
 - Recipient (multilateral organizations)
 - Channel (specific multilateral organizations)
@@ -160,6 +167,7 @@ semi_agg = download_crs(
 - Measure type
 
 **Use when**:
+
 - Analyzing multilateral contributions
 - Understanding core vs. earmarked funding
 - Studying specific multilateral channels (World Bank, UN agencies, etc.)
@@ -191,6 +199,7 @@ ida_contributions = download_multisystem(
 **What it contains**: Project-level data on Chinese development finance activities, compiled by AidData. Covers official finance from China that may not be reported to the OECD.
 
 **Key dimensions**:
+
 - Commitment year
 - Recipient country
 - Sector
@@ -198,9 +207,9 @@ ida_contributions = download_multisystem(
 - Flow amounts and types
 
 **Use when**:
+
 - Analyzing Chinese development finance
-- Comparing traditional DAC donors with China
-- Studying non-DAC donor activities
+- Comparing DAC donors with China
 
 **Example**:
 
@@ -213,7 +222,7 @@ chinese_aid = download_aiddata(start_year=2015, end_year=2020)
 # AidData is downloaded as bulk file, filtered by year after download
 ```
 
-**Note**: AidData comes from Excel files, not the OECD API. It uses a different schema than DAC datasets.
+**Note**: AidData comes from Excel files from the Aid Data website, not the OECD API. It uses a different schema than DAC datasets.
 
 ## Discovering Available Filters
 

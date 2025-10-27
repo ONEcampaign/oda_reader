@@ -101,12 +101,13 @@ multisystem_filters = get_available_filters("multisystem")
 ### DAC1 and DAC2a
 
 Common dimensions:
+
 - `donor` - Donor country (ISO3 codes like "USA", "GBR", "FRA")
 - `recipient` - Recipient country or region (DAC2a only)
 - `measure` - Type of flow (ODA, OOF, grants, loans, etc.)
 - `flow_type` - Commitments, disbursements, net flows, etc.
 - `price_base` - "V" for current prices, "Q" for constant prices
-- `unit_measure` - "USD" for US dollars, "XDC" for national currency
+- `unit_measure` - "USD" for US dollars
 
 **Example**: Get net ODA disbursements in constant prices:
 
@@ -127,6 +128,7 @@ data = download_dac1(
 ### CRS (Creditor Reporting System)
 
 CRS has additional dimensions:
+
 - `sector` - Purpose codes (5-digit codes like "12220" for basic health)
 - `channel` - Implementing organization (government, NGO, multilateral, etc.)
 - `modality` - Grant, loan, equity, etc.
@@ -178,6 +180,7 @@ The `_T` suffix means "total" - it aggregates across that dimension to avoid dou
 ### Multisystem
 
 Multisystem tracks multilateral contributions:
+
 - `donor` - Contributing country
 - `channel` - Specific multilateral organization (e.g., "44002" for World Bank IDA)
 - `flow_type` - Commitments, disbursements
@@ -214,7 +217,8 @@ print(data['measure'].unique())  # See all measure codes
 
 3. **Use trial and error**: Download a small query and examine column values
 
-**Note**: Codes differ between API schema and .Stat schema. By default, ODA Reader returns .Stat codes. See [Schema Translation](schema-translation.md) for details.
+**Note**: Codes differ between API schema and .Stat schema. When making API calls, you must use the
+API schema. However by default, ODA Reader returns .Stat codes. See [Schema Translation](schema-translation.md) for details.
 
 ## Empty Filters
 

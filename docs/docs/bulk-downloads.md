@@ -71,8 +71,6 @@ bulk_download_crs(
 )
 ```
 
-The reduced version omits some descriptive columns but retains all flow amounts and key dimensions.
-
 ## Memory-Efficient Processing with Iterators
 
 For very large files, process in chunks to avoid loading the entire dataset into memory:
@@ -206,37 +204,6 @@ Bulk downloads already have:
 
 See [Schema Translation](schema-translation.md) for detailed comparison.
 
-## Combining Bulk and API Downloads
-
-You can mix approaches:
-
-```python
-# Download full CRS as bulk file
-crs_full = bulk_download_crs()
-
-# Use API for recent updates or specific queries
-crs_recent = download_crs(
-    start_year=2023,
-    end_year=2023,
-    filters={"donor": "USA"}
-)
-
-# Combine if schemas match
-# (you may need to harmonize column names first)
-```
-
-## Performance Comparison
-
-Approximate times (varies by network speed and OECD server load):
-
-| Method | Dataset Size | Time |
-|--------|-------------|------|
-| API download (filtered) | 10,000 rows | 10-30 seconds |
-| API download (large query) | 100,000 rows | 2-5 minutes |
-| Bulk download CRS | ~2 million rows | 1-2 minutes |
-| Bulk + iterator (filter) | Process 2 million rows | 2-5 minutes |
-
-Bulk downloads are consistently fast regardless of query complexity, while API times vary significantly with query size.
 
 ## Troubleshooting
 

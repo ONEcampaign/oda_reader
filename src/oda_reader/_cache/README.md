@@ -48,7 +48,7 @@ User Request
      ↓ (cache miss)
 ┌─────────────────────────────────────────┐
 │  HTTP Cache (requests-cache)            │
-│  - SQLite backend                       │
+│  - Filesystem backend                   │
 │  - 7-day TTL                            │
 │  - Caches 200 and 404 responses         │
 └─────────────────────────────────────────┘
@@ -65,7 +65,9 @@ Default location: `~/.cache/oda-reader/{version}/` (macOS/Linux) or `%LOCALAPPDA
 
 ```
 ~/.cache/oda-reader/1.2.2/
-├── http_cache.sqlite          # HTTP response cache
+├── http_cache/                # HTTP response cache (filesystem backend)
+│   ├── <hash1>
+│   └── <hash2>
 ├── dataframes/                # Processed DataFrames
 │   ├── 2986243275235237.parquet
 │   └── 00b396b02a62f1cb.parquet
@@ -320,7 +322,7 @@ Second download: 0.03s (DataFrame cache) - 90x faster
 ### Storage Usage
 
 Typical cache sizes:
-- HTTP cache: 1-10 MB (SQLite database)
+- HTTP cache: 1-10 MB per response (filesystem backend, can handle >2GB responses)
 - DataFrame cache: 0.1-1 MB per query (compressed parquet)
 - Bulk files: 100-1000 MB per file (CRS full dataset ~900 MB)
 
@@ -456,9 +458,10 @@ This ensures different preprocessing options get separate cache entries.
 
 ### HTTP Cache Backend
 
-Uses `requests-cache` with SQLite backend:
-- Database: `{cache_dir}/http_cache.sqlite`
-- Stores responses, redirects, and metadata
+Uses `requests-cache` with filesystem backend:
+- Directory: `{cache_dir}/http_cache/`
+- Stores responses, redirects, and metadata as individual files
+- Handles large responses (>2GB) without issues
 - Automatic cleanup on expiration
 - Thread-safe for concurrent requests
 

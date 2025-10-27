@@ -1,6 +1,5 @@
 # Why ODA Reader?
 
-This page explains why ODA Reader exists, how it compares to alternatives, and when you might want to use it (or not).
 
 ## The Problem with OECD DAC Data Access
 
@@ -8,7 +7,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 
 **No official Python library**: The OECD doesn't provide any first-party Python tools for accessing DAC data. You're on your own to figure out the SDMX API, construct queries, and parse responses.
 
-**Undocumented breaking changes**: The OECD regularly introduces schema changes without documentation or warning. A dataflow version that worked last month might return 404 errors today. Link URLs change, breaking saved bookmarks and automated downloads.
+**Undocumented breaking changes**: The OECD regularly introduces schema changes without documentation or warning. A dataflow version that worked last month might return 404 errors today, or worse - return outdated data. Link URLs change, breaking saved bookmarks and automated downloads.
 
 **Inconsistent formats**: Different datasets use different schemas. The new Data Explorer API uses one set of dimension codes, while legacy .Stat files and bulk downloads use another. Reconciling these takes significant effort.
 
@@ -31,7 +30,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 
 ### Manual Downloads from OECD.Stat
 
-**Approach**: Download CSV or Excel files from OECD.Stat portal manually.
+**Approach**: Download Parquet, CSV or Excel files from the data-explorer manually.
 
 **Challenges**:
 - No automation - manual clicking and downloading
@@ -81,43 +80,24 @@ API calls to OECD are slow (often 10-30 seconds per query) and subject to rate l
 
 You can disable or clear caching when you need fresh data.
 
-### How Version Fallback Works
-
-When OECD changes a dataflow schema version, ODA Reader:
-1. Tries the configured version (e.g., `1.0`)
-2. If 404 error, automatically retries with `0.9`
-3. Continues decrementing (0.8, 0.7, 0.6) up to 5 attempts
-4. Returns data from first successful version
-
-This means your code keeps working even when OECD makes breaking changes.
 
 ## Limitations and When Not to Use ODA Reader
 
-**Be honest about limitations:**
 
-❌ **Not for real-time data**: Caching introduces delays. If you need the absolute latest data published in the last hour, you'll need to clear cache or use the OECD portal directly.
+**Requires Python knowledge**: This is a Python package. If you're not comfortable with Python and pandas, the OECD.Stat portal's Excel downloads might be easier.
 
-❌ **Requires Python knowledge**: This is a Python package. If you're not comfortable with Python and pandas, the OECD.Stat portal's Excel downloads might be easier.
+**Mostly focused on DAC data**: ODA Reader focuses on Development Assistance Committee datasets. However, we recently introduced data from Aid Data.
 
-❌ **Only covers DAC data**: ODA Reader focuses exclusively on Development Assistance Committee datasets. For other OECD data (economic indicators, education statistics, etc.), you'll need different tools.
-
-❌ **Bulk downloads limited**: Only CRS, Multisystem, and AidData have bulk download options. For other datasets, you must use the API.
-
-❌ **Dependent on OECD availability**: While caching helps, initial downloads still depend on OECD's servers being available and responsive.
+**Dependent on OECD availability**: While caching helps, initial downloads still depend on OECD's servers being available and responsive.
 
 ## When to Use ODA Reader
 
-✅ You're doing research or analysis that requires ODA/OOF data
-
-✅ You need programmatic, reproducible access to multiple datasets
-
-✅ You're building data pipelines that need to be robust to OECD's changes
-
-✅ You want to avoid manually managing API rate limits and caching
-
-✅ You need to work with both API and bulk download formats
-
-✅ You're comfortable with Python and pandas
+- You're doing research or analysis that requires ODA/OOF data
+- You need programmatic, reproducible access to multiple datasets
+- You're building data pipelines that need to be robust to OECD's changes
+- You want to avoid manually managing API rate limits and caching
+- You need to work with both API and bulk download formats
+- You're comfortable with Python and pandas
 
 ## Next Steps
 

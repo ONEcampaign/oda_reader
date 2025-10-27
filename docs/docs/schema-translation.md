@@ -7,6 +7,7 @@ OECD DAC data exists in two schema formats: the modern Data Explorer API schema 
 ### Data Explorer API Schema (New)
 
 The current OECD Data Explorer uses a new schema:
+
 - Column names: `DONOR`, `RECIPIENT`, `MEASURE`, etc. (all caps)
 - Dimension codes: Modern conventions (e.g., donor codes)
 - Used by: API downloads (`download_dac1()`, `download_crs()`, etc.)
@@ -14,6 +15,7 @@ The current OECD Data Explorer uses a new schema:
 ### OECD.Stat Schema (Legacy)
 
 The older OECD.Stat system uses a different schema:
+
 - Column names: `DonorCode`, `RecipientCode`, `Measure`, etc. (mixed case)
 - Dimension codes: Legacy conventions, sometimes different from API codes
 - Used by: Bulk download files, historical .Stat exports
@@ -122,7 +124,6 @@ data = download_dac1(start_year=2022, end_year=2022)
 
 **Pros**:
 - Works with existing .Stat-based workflows
-- Codes are human-readable (ISO3 country codes)
 - Compatible with bulk download files
 
 ### Mode 2: Raw API Response
@@ -148,7 +149,6 @@ data = download_dac1(
 
 **Cons**:
 - Harder to work with (inconsistent naming)
-- Codes are not human-readable
 
 ### Mode 3: Preprocessed with API Codes
 
@@ -179,30 +179,23 @@ data = download_dac1(
 
 ### Donor Codes
 
-| API Code | .Stat Code | Country |
-|----------|------------|---------|
-| `1` | `AUS` | Australia |
-| `2` | `AUT` | Austria |
-| `12` | `USA` | United States |
-| `301` | `GBR` | United Kingdom |
+| .Stat Code | API code | Country |
+|----------|----------|---------|
+| `1` | `AUS`    | Australia |
+| `2` | `AUT`    | Austria |
+| `12` | `USA`    | United States |
+| `301` | `GBR`    | United Kingdom |
 
 ### Measure Codes (DAC1)
 
-| API Code | .Stat Code | Description |
-|----------|------------|-------------|
-| `100` | `1010` | Net ODA |
-| `106` | `1011` | ODA Grants |
-| `11017` | `11017` | Grant equiv. of loans |
+| .Stat Code | API Code | Description |
+|------------|------------|-------------|
+| `100`      | `1010` | Net ODA |
+| `106`      | `1011` | ODA Grants |
+| `11017`    | `11017` | Grant equiv. of loans |
 
 (Note: Some codes are the same across schemas)
 
-### Flow Type Codes
-
-| API Code | .Stat Code | Description |
-|----------|------------|-------------|
-| `A` | `1140` | Disbursements |
-| `C` | `1110` | Commitments |
-| `D` | `1160` | Net flows |
 
 Translation mappings are maintained in `src/oda_reader/schemas/mappings/` as JSON files.
 
@@ -262,20 +255,20 @@ bulk_data = bulk_data.rename(columns={
 ## When to Use Which Mode
 
 **Use default mode (pre_process=True, dotstat_codes=True)**:
-- ✅ General analysis and research
-- ✅ Combining API downloads with bulk files
-- ✅ Working with historical .Stat exports
-- ✅ Human-readable codes (ISO3 country codes)
+
+-  General analysis and research
+-  Combining API downloads with bulk files
+-  Working with historical .Stat exports
+-  Human-readable codes (ISO3 country codes)
 
 **Use raw mode (pre_process=False, dotstat_codes=False)**:
-- ✅ Debugging API issues
-- ✅ Understanding API response structure
-- ❌ Not recommended for analysis
+-  Debugging API issues
+- Understanding API response structure
 
 **Use API codes mode (pre_process=True, dotstat_codes=False)**:
-- ✅ Working exclusively with new Data Explorer API
-- ✅ When you prefer OECD's latest code conventions
-- ❌ Avoid if combining with bulk downloads or .Stat files
+-  Working exclusively with new Data Explorer API
+-  When you prefer OECD's latest code conventions
+-  Avoid if combining with bulk downloads or .Stat files
 
 ## Finding Code Mappings
 

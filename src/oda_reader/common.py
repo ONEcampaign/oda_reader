@@ -29,6 +29,7 @@ def _get_http_session() -> requests_cache.CachedSession:
     """Get or create the global HTTP cache session.
 
     All responses are cached for 7 days (604800 seconds).
+    Uses filesystem backend to handle large responses (>2GB).
 
     Returns:
         CachedSession: requests-cache session with 7-day expiration.
@@ -40,7 +41,7 @@ def _get_http_session() -> requests_cache.CachedSession:
 
         _HTTP_SESSION = requests_cache.CachedSession(
             cache_name=cache_path,
-            backend="sqlite",
+            backend="filesystem",
             expire_after=604800,  # 7 days
             allowable_codes=(200, 404),  # Cache 404s for version fallback
             stale_if_error=True,  # Use stale cache if API errors
