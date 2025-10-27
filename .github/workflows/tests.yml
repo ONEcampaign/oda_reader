@@ -22,12 +22,15 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: false
 
       - name: Install dependencies
         run: uv sync --all-groups
 
       - name: Run unit tests
         run: uv run pytest tests/ -n auto -m "not integration" -v
+        env:
+          ODA_READER_CACHE_DIR: ${{ runner.temp }}/oda_cache
 
       - name: Integration Tests
         if: github.event_name == 'pull_request' && matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
