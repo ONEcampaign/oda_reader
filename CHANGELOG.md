@@ -19,10 +19,10 @@ a type error.
 for the bulk Multisystem data. This is a small fix to address that.
 
 ## 1.1.4 (2025-04-22)
-- fix small cache bug 
+- fix small cache bug
 
 ## 1.1.3 (2025-04-22)
-- Small caching improvements 
+- Small caching improvements
 
 ## 1.1.2 (2025-04-22)
 - Extends caching to bulk downloaded files.
@@ -30,7 +30,7 @@ for the bulk Multisystem data. This is a small fix to address that.
 
 ## 1.1.1 (2025-04-16)
 - Manages an issue created by the OECD when they are about to release new data. In that case
-certain dataflows return `NoRecordsFound`, even though the query is valid for lower dataflows. 
+certain dataflows return `NoRecordsFound`, even though the query is valid for lower dataflows.
 This version of `oda_reader` defends against that.
 
 

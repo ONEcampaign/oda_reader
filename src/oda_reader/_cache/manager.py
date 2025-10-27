@@ -7,10 +7,11 @@ for large, monolithic datasets (bulk CRS, Multisystem, AidData downloads).
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from filelock import FileLock
 
@@ -38,7 +39,7 @@ class CacheEntry:
     filename: str
     fetcher: Callable[[Path], None]
     ttl_days: int = 30
-    version: Optional[str] = None
+    version: str | None = None
 
 
 class CacheManager:
@@ -58,7 +59,7 @@ class CacheManager:
         └── *.parquet           # Cached datasets
     """
 
-    def __init__(self, base_dir: Optional[Path] = None):
+    def __init__(self, base_dir: Path | None = None):
         """Initialize cache manager.
 
         Args:
@@ -124,7 +125,7 @@ class CacheManager:
 
             return path
 
-    def clear(self, key: Optional[str] = None) -> None:
+    def clear(self, key: str | None = None) -> None:
         """Clear cached data.
 
         Args:
@@ -144,15 +145,14 @@ class CacheManager:
                     file_path.unlink(missing_ok=True)
                 manifest.clear()
                 logger.info("Cleared all bulk cache entries")
+            # Clear specific entry
+            elif key in manifest:
+                file_path = self.base_dir / manifest[key]["filename"]
+                file_path.unlink(missing_ok=True)
+                del manifest[key]
+                logger.info(f"Cleared cache entry: {key}")
             else:
-                # Clear specific entry
-                if key in manifest:
-                    file_path = self.base_dir / manifest[key]["filename"]
-                    file_path.unlink(missing_ok=True)
-                    del manifest[key]
-                    logger.info(f"Cleared cache entry: {key}")
-                else:
-                    logger.warning(f"Cache key not found: {key}")
+                logger.warning(f"Cache key not found: {key}")
 
             self._save_manifest(manifest)
 
@@ -269,7 +269,7 @@ class CacheManager:
 
 
 # Global singleton
-_BULK_CACHE_MANAGER: Optional[CacheManager] = None
+_BULK_CACHE_MANAGER: CacheManager | None = None
 
 
 def bulk_cache_manager() -> CacheManager:

@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from oda_reader.common import logger, ImporterPaths
+from oda_reader.common import ImporterPaths, logger
 
 
 def read_schema_translation(version: str = "dac1") -> dict:
@@ -17,13 +17,10 @@ def read_schema_translation(version: str = "dac1") -> dict:
     """
     logger.info(f"Reading the {version} schema translation")
 
-    if version == "aidData":
-        schema = "schema"
-    else:
-        schema = "dotstat"
+    schema = "schema" if version == "aidData" else "dotstat"
 
     # Load the schema translation
-    with open(ImporterPaths.mappings / f"{version}_{schema}.json", "r") as f:
+    with open(ImporterPaths.mappings / f"{version}_{schema}.json") as f:
         mapping = json.load(f)
 
     return mapping

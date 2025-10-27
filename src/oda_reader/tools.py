@@ -15,8 +15,9 @@ def get_available_filters(source: str, quiet: bool = False) -> dict:
     Returns:
         dict: The available filters.
     """
-    from oda_reader import QueryBuilder as qb
     from pprint import pprint
+
+    from oda_reader import QueryBuilder as qb
 
     match source:
         case "dac1":

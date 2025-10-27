@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 
 import requests
 
-from oda_reader.common import logger, API_RATE_LIMITER
+from oda_reader.common import API_RATE_LIMITER, logger
 
 
 def download_xml(xml_url: str) -> requests.models.Response:
@@ -172,7 +172,7 @@ def read_mapping(mapping_path: str, keys_as_int: bool, update: callable) -> dict
         logger.info("Not found, downloading.")
         update()
 
-    with open(mapping_path, "r") as f:
+    with open(mapping_path) as f:
         mapping = json.load(f)
 
     # Convert keys to integers (if required)

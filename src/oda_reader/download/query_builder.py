@@ -237,10 +237,7 @@ class QueryBuilder:
         price_base = self._to_filter_str(price_base)
         unit_measure = self._to_filter_str(unit_measure)
         md_id = self._to_filter_str(None)
-        if microdata:
-            md_dim = "DD"
-        else:
-            md_dim = "_T"
+        md_dim = "DD" if microdata else "_T"
         return ".".join(
             [
                 donor,
@@ -266,7 +263,7 @@ class QueryBuilder:
         channel: int | list[int] | None = None,
         flow_type: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
-    ):
+    ) -> str:
         """Build the filter string for the Multisystem dataflow.
 
         The allowed filter follows the pattern:

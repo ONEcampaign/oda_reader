@@ -1,11 +1,10 @@
 import logging
 import re
+import time
+from collections import deque
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
-import time
-from collections import deque
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -22,7 +21,7 @@ MAX_RETRIES = 5
 
 
 # Global HTTP cache session (initialized lazily)
-_HTTP_SESSION: Optional[requests_cache.CachedSession] = None
+_HTTP_SESSION: requests_cache.CachedSession | None = None
 _CACHE_ENABLED = True
 
 
@@ -142,7 +141,7 @@ class ImporterPaths:
     cache = scripts / ".cache"
 
 
-def text_to_stringIO(response_text: str) -> StringIO:
+def text_to_stringio(response_text: str) -> StringIO:
     """Convert the content of a response to bytes.
 
     Args:
@@ -242,10 +241,7 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
         str: The response text from the API.
     """
     # Set the headers with gzip encoding (if required)
-    if compressed:
-        headers = {"Accept-Encoding": "gzip"}
-    else:
-        headers = {}
+    headers = {"Accept-Encoding": "gzip"} if compressed else {}
 
     # Fetch the data with headers
     status_code, response, from_cache = _get_response_text(url, headers=headers)
@@ -300,7 +296,7 @@ def api_response_to_df(
     response = get_data_from_api(url=url, compressed=compressed)
 
     # Convert the content to stringIO
-    data = text_to_stringIO(response)
+    data = text_to_stringio(response)
 
     # Return the data as a DataFrame
     try:

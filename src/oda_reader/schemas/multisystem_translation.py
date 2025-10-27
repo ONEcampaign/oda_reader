@@ -2,7 +2,7 @@ import pandas as pd
 
 from oda_reader.schemas.dac1_translation import prices_mapping
 from oda_reader.schemas.dac2_translation import area_code_mapping
-from oda_reader.schemas.schema_tools import map_area_codes, map_amount_type_codes
+from oda_reader.schemas.schema_tools import map_amount_type_codes, map_area_codes
 
 
 def convert_multisystem_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:

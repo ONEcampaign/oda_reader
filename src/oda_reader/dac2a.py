@@ -24,8 +24,7 @@ def download_dac2a(
         start_year (int): The start year of the data to download. Optional
         end_year (int): The end year of the data to download. Optional
         filters (dict): Optional filters to pass to the download.
-        pre_process (bool): Whether to preprocess the data. Defaults to True.
-        Preprocessing makes it comply with the .stat schema.
+        pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
         dataflow_version (str): The version of the data. Optional
 

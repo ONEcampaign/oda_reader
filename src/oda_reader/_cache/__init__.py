@@ -14,19 +14,12 @@ The module is organized into:
 
 # Configuration
 from oda_reader._cache.config import (
-    get_cache_dir,
-    set_cache_dir,
-    reset_cache_dir,
-    get_http_cache_path,
     get_bulk_cache_dir,
+    get_cache_dir,
     get_dataframe_cache_dir,
-)
-
-# Bulk file cache manager
-from oda_reader._cache.manager import (
-    CacheEntry,
-    CacheManager,
-    bulk_cache_manager,
+    get_http_cache_path,
+    reset_cache_dir,
+    set_cache_dir,
 )
 
 # DataFrame cache
@@ -37,18 +30,27 @@ from oda_reader._cache.dataframe import (
 
 # Legacy functions (backward compatibility)
 from oda_reader._cache.legacy import (
-    memory,
+    CACHE_MAX_AGE_HOURS,
+    CACHE_MAX_SIZE_MB,
     cache_dir,
-    set_cache_dir as legacy_set_cache_dir,
-    get_cache_size_mb,
+    cache_info,
     clear_cache,
     clear_old_cache_entries,
-    enforce_cache_limits,
-    cache_info,
     disable_cache,
     enable_cache,
-    CACHE_MAX_SIZE_MB,
-    CACHE_MAX_AGE_HOURS,
+    enforce_cache_limits,
+    get_cache_size_mb,
+    memory,
+)
+from oda_reader._cache.legacy import (
+    set_cache_dir as legacy_set_cache_dir,
+)
+
+# Bulk file cache manager
+from oda_reader._cache.manager import (
+    CacheEntry,
+    CacheManager,
+    bulk_cache_manager,
 )
 
 __all__ = [

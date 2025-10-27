@@ -2,7 +2,7 @@ import pandas as pd
 
 from oda_reader.common import ImporterPaths
 from oda_reader.schemas.dac1_translation import prices_mapping
-from oda_reader.schemas.schema_tools import map_area_codes, map_amount_type_codes
+from oda_reader.schemas.schema_tools import map_amount_type_codes, map_area_codes
 from oda_reader.schemas.xml_tools import (
     read_mapping,
 )
