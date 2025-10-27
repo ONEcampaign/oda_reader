@@ -27,10 +27,19 @@ def temp_cache_dir(tmp_path, monkeypatch):
     Yields:
         Path: Path to the temporary cache directory
     """
+    from oda_reader import common
+
     cache_dir = tmp_path / "test_cache"
     cache_dir.mkdir()
     monkeypatch.setenv("ODA_READER_CACHE_DIR", str(cache_dir))
+
+    # Reset global HTTP session so it gets reinitialized with new cache path
+    common._HTTP_SESSION = None
+
     yield cache_dir
+
+    # Clean up: reset session again after test
+    common._HTTP_SESSION = None
 
 
 @pytest.fixture
