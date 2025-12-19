@@ -1,11 +1,36 @@
+import typing
+from pathlib import Path
+
 import pandas as pd
 
 from oda_reader._cache import cache_info
 from oda_reader.common import logger
-from oda_reader.download.download_tools import download
+from oda_reader.download.download_tools import (
+    DAC2A_FLOW_URL,
+    bulk_download_parquet,
+    download,
+    get_bulk_file_id,
+)
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
 DATAFLOW_VERSION: str = "1.6"
+
+
+def get_full_dac2a_parquet_id() -> str:
+    """Retrieve the file ID for the full DAC2A bulk download parquet file.
+
+    Queries the OECD dataflow to find the bulk download link for the complete
+    DAC2A dataset in dotStat format.
+
+    Returns:
+        str: The file ID to use with the bulk download service.
+
+    Raises:
+        RuntimeError: If the file ID cannot be found after maximum retries.
+    """
+    return get_bulk_file_id(
+        flow_url=DAC2A_FLOW_URL, search_string="DAC2A full dataset (dotStat format)|"
+    )
 
 
 @cache_info
@@ -52,3 +77,30 @@ def download_dac2a(
     )
 
     return df
+
+
+def bulk_download_dac2a(
+    save_to_path: Path | str | None = None,
+    *,
+    as_iterator: bool = False,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
+    """
+    Bulk download the DAC2a data from the bulk download service. The file is very large.
+    It is therefore strongly recommended to save it to disk. If save_to_path is not
+    provided, the function will return a DataFrame.
+
+    Args:
+        save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.
+        as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
+
+    Returns:
+        pd.DataFrame | Iterator[pd.DataFrame] | None
+
+    """
+    file_id = get_full_dac2a_parquet_id()
+
+    return bulk_download_parquet(
+        file_id=file_id,
+        save_to_path=save_to_path,
+        as_iterator=as_iterator,
+    )
