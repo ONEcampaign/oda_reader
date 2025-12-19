@@ -140,7 +140,7 @@ class TestFileTypeAutoDetection:
         return zip_buffer.getvalue()
 
     def _create_zip_with_txt(self, delimiter: str = ",") -> bytes:
-        """Create a zip file containing a txt/CSV file."""
+        """Create a zip file containing a txt file."""
         if delimiter == "|":
             csv_content = "col1|col2|col3\n1|2|3\n4|5|6"
         else:
@@ -149,6 +149,18 @@ class TestFileTypeAutoDetection:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as z:
             z.writestr("test_data.txt", csv_content.encode("utf-8"))
+        return zip_buffer.getvalue()
+
+    def _create_zip_with_csv(self, delimiter: str = ",") -> bytes:
+        """Create a zip file containing a .csv file."""
+        if delimiter == "|":
+            csv_content = "col1|col2|col3\n1|2|3\n4|5|6"
+        else:
+            csv_content = "col1,col2,col3\n1,2,3\n4,5,6"
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as z:
+            z.writestr("test_data.csv", csv_content.encode("utf-8"))
         return zip_buffer.getvalue()
 
     def test_auto_detect_parquet_files(self):
@@ -185,6 +197,48 @@ class TestFileTypeAutoDetection:
         df = result[0]
         assert isinstance(df, pd.DataFrame)
         assert list(df.columns) == ["col1", "col2", "col3"]
+        assert len(df) == 2
+
+    def test_auto_detect_csv_files(self):
+        """Test that .csv files are auto-detected and read correctly."""
+        zip_content = self._create_zip_with_csv(delimiter=",")
+
+        result = _save_or_return_parquet_files_from_content(zip_content)
+
+        assert result is not None
+        assert len(result) == 1
+        assert isinstance(result[0], pd.DataFrame)
+        assert list(result[0].columns) == ["col1", "col2", "col3"]
+        assert len(result[0]) == 2
+
+    def test_auto_detect_csv_files_pipe(self):
+        """Test that pipe-delimited .csv files are auto-detected."""
+        zip_content = self._create_zip_with_csv(delimiter="|")
+
+        result = _save_or_return_parquet_files_from_content(zip_content)
+
+        assert result is not None
+        assert len(result) == 1
+        df = result[0]
+        assert isinstance(df, pd.DataFrame)
+        assert list(df.columns) == ["col1", "col2", "col3"]
+        assert len(df) == 2
+
+    def test_save_csv_as_parquet_to_path(self, tmp_path):
+        """Test that .csv files are converted to parquet when saving."""
+        zip_content = self._create_zip_with_csv()
+
+        result = _save_or_return_parquet_files_from_content(
+            zip_content, save_to_path=tmp_path
+        )
+
+        assert result is None
+        saved_files = list(tmp_path.glob("*.parquet"))
+        assert len(saved_files) == 1
+        # Verify conversion to parquet with correct name
+        assert saved_files[0].suffix == ".parquet"
+        assert "test_data" in saved_files[0].name
+        df = pd.read_parquet(saved_files[0])
         assert len(df) == 2
 
     def test_save_parquet_to_path(self, tmp_path):
@@ -224,7 +278,7 @@ class TestFileTypeAutoDetection:
         with zipfile.ZipFile(zip_buffer, "w") as z:
             z.writestr("readme.md", "Not a data file")
 
-        with pytest.raises(ValueError, match="No parquet or txt files"):
+        with pytest.raises(ValueError, match="No parquet, csv, or txt files"):
             _save_or_return_parquet_files_from_content(zip_buffer.getvalue())
 
     def test_txt_iterator_raises(self):

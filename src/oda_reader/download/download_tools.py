@@ -226,16 +226,16 @@ def _save_or_return_parquet_files_from_content(
     *,
     as_iterator: bool = False,
 ) -> list[pd.DataFrame] | None | typing.Iterator[pd.DataFrame]:
-    """Extract parquet or txt (CSV) files from a zip archive.
+    """Extract parquet, csv, or txt files from a zip archive.
 
     If `save_to_path` is provided the files are extracted and written
     to disk. Otherwise the contents are returned either as a list of
     `DataFrame` objects or, when `as_iterator` is `True`, as an iterator
     yielding one `DataFrame` per row group (parquet only).
 
-    The function auto-detects whether the zip contains parquet or txt files.
-    Txt files have their delimiter auto-detected (comma or pipe) and are
-    converted to parquet when saving.
+    The function auto-detects whether the zip contains parquet, csv, or txt files.
+    CSV/txt files have their delimiter auto-detected (comma, pipe, tab, etc.) and
+    are converted to parquet when saving.
 
     Args:
         response_content: Bytes or `Path` pointing to the zipped file.
@@ -252,7 +252,11 @@ def _save_or_return_parquet_files_from_content(
 
     with _open_zip(response_content=response_content) as z:
         parquet_files = [name for name in z.namelist() if name.endswith(".parquet")]
-        txt_files = [name for name in z.namelist() if name.endswith(".txt")]
+        csv_files = [
+            name
+            for name in z.namelist()
+            if name.endswith(".txt") or name.endswith(".csv")
+        ]
 
         # Determine which file type we're dealing with
         if parquet_files:
@@ -276,15 +280,18 @@ def _save_or_return_parquet_files_from_content(
             logger.info(f"Reading {len(parquet_files)} parquet files.")
             return [pd.read_parquet(z.open(file)) for file in parquet_files]
 
-        elif txt_files:
+        elif csv_files:
             if as_iterator:
-                raise ValueError("Streaming not supported for txt files.")
+                raise ValueError("Streaming not supported for csv/txt files.")
 
             if save_to_path:
                 save_to_path.mkdir(parents=True, exist_ok=True)
-                for file_name in txt_files:
+                for file_name in csv_files:
                     clean_name = (
-                        file_name.replace(".txt", ".parquet").lower().replace(" ", "_")
+                        file_name.replace(".txt", ".parquet")
+                        .replace(".csv", ".parquet")
+                        .lower()
+                        .replace(" ", "_")
                     )
                     logger.info(f"Saving {clean_name}")
                     with z.open(file_name) as f_in:
@@ -299,9 +306,9 @@ def _save_or_return_parquet_files_from_content(
                         ).to_parquet(save_to_path / clean_name)
                 return None
 
-            logger.info(f"Reading {len(txt_files)} txt files.")
+            logger.info(f"Reading {len(csv_files)} csv/txt files.")
             dfs = []
-            for file_name in txt_files:
+            for file_name in csv_files:
                 with z.open(file_name) as f_in:
                     delimiter = _detect_delimiter(f_in)
                     logger.info(f"Detected delimiter for {file_name}: '{delimiter}'")
@@ -317,14 +324,14 @@ def _save_or_return_parquet_files_from_content(
             return dfs
 
         else:
-            raise ValueError("No parquet or txt files found in the zip archive.")
+            raise ValueError("No parquet, csv, or txt files found in the zip archive.")
 
 
 def _save_or_return_parquet_files_from_txt_in_zip(
     response_content: bytes | Path,
     save_to_path: Path | str | None = None,
 ) -> list[pd.DataFrame] | None:
-    """Extract a `.txt` file from a zipped archive supplied as bytes or a file path.
+    """Extract csv or txt files from a zipped archive supplied as bytes or a file path.
 
     The file is read as CSV (with auto-detected delimiter) and optionally saved
     as a parquet file.
@@ -341,15 +348,22 @@ def _save_or_return_parquet_files_from_txt_in_zip(
     save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
 
     with _open_zip(response_content=response_content) as z:
-        # Find all txt files in the zip archive
-        files = [name for name in z.namelist() if name.endswith(".txt")]
+        # Find all csv/txt files in the zip archive
+        files = [
+            name
+            for name in z.namelist()
+            if name.endswith(".txt") or name.endswith(".csv")
+        ]
 
         # If save_to_path is provided, save the files to the path
         if save_to_path:
             save_to_path.mkdir(parents=True, exist_ok=True)
             for file_name in files:
                 clean_name = (
-                    file_name.replace(".txt", ".parquet").lower().replace(" ", "_")
+                    file_name.replace(".txt", ".parquet")
+                    .replace(".csv", ".parquet")
+                    .lower()
+                    .replace(" ", "_")
                 )
                 logger.info(f"Saving {clean_name}")
                 with z.open(file_name) as f_in:
@@ -501,7 +515,7 @@ def bulk_download_parquet(
     """Download data from the stats.oecd.org file download service.
 
     Certain data files are available as a bulk download. This function
-    downloads the files (parquet or txt/csv) and returns a single DataFrame.
+    downloads the files (parquet, csv, or txt) and returns a single DataFrame.
     The file type is auto-detected from the zip contents.
 
     Args:

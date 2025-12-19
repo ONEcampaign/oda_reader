@@ -1,8 +1,11 @@
 # Changelog for oda_reader
 
+## 1.4.1 (2025-12-19)
+- Extends bulk download auto-detection to support `.csv` files in addition to `.txt` files.
+
 ## 1.4.0 (2025-12-19)
 - Adds `bulk_download_dac2a()` function for bulk downloading the full DAC2A dataset.
-- Auto-detects file types (parquet vs txt/csv) in bulk downloads, removing the need for the `is_txt` parameter.
+- Auto-detects file types (parquet or txt) in bulk downloads, removing the need for the `is_txt` parameter.
 - Auto-detects CSV delimiters (comma, pipe, tab, semicolon) when reading txt files from bulk downloads.
 - Deprecates the `is_txt` parameter in `bulk_download_parquet()`. The parameter is still accepted for backward compatibility but emits a deprecation warning and will be removed in a future major release.
 - Adds pytest and pytest-mock to dev dependencies for improved testing support.
