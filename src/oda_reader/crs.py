@@ -62,7 +62,6 @@ def download_crs_file(
     return bulk_download_parquet(
         file_id=file_id,
         save_to_path=save_to_path,
-        is_txt=True,
         as_iterator=as_iterator,
     )
 
