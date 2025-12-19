@@ -514,7 +514,7 @@ def bulk_download_aiddata(
 
 
 def get_bulk_file_id(
-    flow_url: str, search_string: str, latest_flow: float = 1.4, retries: int = 0
+    flow_url: str, search_string: str, latest_flow: float = 1.6, retries: int = 0
 ) -> str:
     """
     Retrieves the full bulk file ID from the OECD dataflow.
