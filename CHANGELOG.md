@@ -1,7 +1,10 @@
 # Changelog for oda_reader
 
+## 1.3.5 (2025-12-19)
+- Fixes `_get_dataflow_version()` to gracefully handle URLs without a version pattern instead of crashing.
+
 ## 1.3.4 (2025-12-19)
-- Improves robustness of dataflow version fallback logic. The API error detection now checks response content regardless of HTTP status code, handling cases where error messages are returned with non-404 status codes.
+- Improves robustness of dataflow version fallback logic. The API error detection now checks response content regardless of HTTP status code, handling cases where error messages like "Could not find Dataflow" are returned with various status codes.
 
 ## 1.3.3 (2025-12-19)
 - Reverts DAC1 dataflow version from 1.6 to 1.5 to ensure compatibility with published data.
