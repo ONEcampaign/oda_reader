@@ -5,7 +5,7 @@ from oda_reader.common import logger
 from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
-DATAFLOW_VERSION: str = "1.4"
+DATAFLOW_VERSION: str = "1.6"
 
 
 @cache_info

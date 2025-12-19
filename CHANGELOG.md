@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.3.2 (2025-12-19)
+- Updates bulk file dataflow version to 1.6 to match OECD's latest schema.
+
 ## 1.3.1 (2025-06-27)
 - Improves cache management for very large files. Introduces tests and improved documentation
 
