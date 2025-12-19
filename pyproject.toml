@@ -1,6 +1,6 @@
 [project]
 name = "oda_reader"
-version = "1.3.2"
+version = "1.3.3"
 description = "A simple package to import ODA data from the OECD's API and AidData's database"
 readme = "README.md"
 license = "MIT"

@@ -1,5 +1,8 @@
 # Changelog for oda_reader
 
+## 1.3.3 (2025-12-19)
+- Reverts DAC1 dataflow version from 1.6 to 1.5 to ensure compatibility with published data.
+
 ## 1.3.2 (2025-12-19)
 - Updates bulk file dataflow version to 1.6 to match OECD's latest schema.
 
