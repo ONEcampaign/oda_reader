@@ -197,11 +197,15 @@ def _replace_dataflow_version(url: str, version: str) -> str:
     return re.sub(pattern, f",{version}/", url)
 
 
-def _get_dataflow_version(url: str) -> str:
-    """Get the dataflow version from the URL."""
-    pattern = r",(\d+\.\d+)/"
+def _get_dataflow_version(url: str) -> str | None:
+    """Get the dataflow version from the URL.
 
-    return re.search(pattern, url).group(1)
+    Returns:
+        The version string if found, None otherwise.
+    """
+    pattern = r",(\d+\.\d+)/"
+    match = re.search(pattern, url)
+    return match.group(1) if match else None
 
 
 def _get_response_text(url: str, headers: dict) -> tuple[int, str, bool]:
@@ -284,9 +288,10 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
     # Check for dataflow not found errors - these should trigger version fallback
     # This check happens regardless of status code since the API may return
     # error messages with various status codes (404, 200, etc.)
-    if _is_dataflow_not_found_error(response):
+    # Only attempt fallback if the URL contains a dataflow version pattern
+    version = _get_dataflow_version(url)
+    if _is_dataflow_not_found_error(response) and version is not None:
         if retries < MAX_RETRIES:
-            version = _get_dataflow_version(url)
             new_version = str(round(float(version) - FALLBACK_STEP, 1))
             new_url = _replace_dataflow_version(url=url, version=new_version)
             logger.info(
