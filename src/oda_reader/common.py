@@ -19,6 +19,40 @@ logger = logging.getLogger("oda_importer")
 FALLBACK_STEP = 0.1
 MAX_RETRIES = 5
 
+# Error message patterns that indicate a dataflow/version not found error
+# These should trigger a version fallback retry
+DATAFLOW_NOT_FOUND_PATTERNS = (
+    "Could not find Dataflow",
+    "Could not find DSD",
+    "Dataflow not found",
+    "NoRecordsFound",
+)
+
+
+def _is_dataflow_not_found_error(response: str) -> bool:
+    """Check if the response indicates a dataflow/version not found error.
+
+    These errors should trigger a version fallback retry rather than
+    being treated as valid data.
+
+    Args:
+        response: The response text from the API.
+
+    Returns:
+        bool: True if the response indicates a dataflow not found error.
+    """
+    # Check for known error patterns
+    for pattern in DATAFLOW_NOT_FOUND_PATTERNS:
+        if pattern in response:
+            return True
+
+    # Also check if the response is too short to be valid CSV data
+    # A valid CSV response should have at least a header line with multiple columns
+    stripped = response.strip()
+    is_too_short = len(stripped) < 50 and not stripped.startswith('"')
+    looks_like_error = "," not in response and "\n" not in response
+    return is_too_short and looks_like_error
+
 
 # Global HTTP cache session (initialized lazily)
 _HTTP_SESSION: requests_cache.CachedSession | None = None
@@ -245,24 +279,32 @@ def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> st
     headers = {"Accept-Encoding": "gzip"} if compressed else {}
 
     # Fetch the data with headers
-    status_code, response, from_cache = _get_response_text(url, headers=headers)
+    status_code, response, _ = _get_response_text(url, headers=headers)
 
-    if (status_code == 404) and (
-        ("Dataflow" in response) or (response == "NoRecordsFound")
-    ):
+    # Check for dataflow not found errors - these should trigger version fallback
+    # This check happens regardless of status code since the API may return
+    # error messages with various status codes (404, 200, etc.)
+    if _is_dataflow_not_found_error(response):
         if retries < MAX_RETRIES:
             version = _get_dataflow_version(url)
             new_version = str(round(float(version) - FALLBACK_STEP, 1))
             new_url = _replace_dataflow_version(url=url, version=new_version)
+            logger.info(
+                f"Dataflow not found, retrying with version {new_version} "
+                f"(attempt {retries + 1}/{MAX_RETRIES})"
+            )
             return get_data_from_api(
                 url=new_url, compressed=compressed, retries=retries + 1
             )
         else:
-            raise ConnectionError("No data found for the selected parameters.")
+            raise ConnectionError(
+                f"No data found after {MAX_RETRIES} version fallback attempts. "
+                f"Last response: {response[:200]}"
+            )
 
     if (status_code == 500) and (response.find("not set to") > 0):
         url = url.replace("public", "dcd-public")
-        status_code, response, from_cache = _get_response_text(url, headers=headers)
+        status_code, response, _ = _get_response_text(url, headers=headers)
 
     if status_code > 299:
         logger.error(f"Error {status_code}: {response}")
