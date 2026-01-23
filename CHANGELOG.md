@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 1.4.2 (2026-01-23)
+- Updates DAC1 dataflow version from 1.5 to 1.7.
+- Updates DAC2a dataflow version from 1.6 to 1.4.
+
 ## 1.4.1 (2025-12-19)
 - Extends bulk download auto-detection to support `.csv` files in addition to `.txt` files.
 
