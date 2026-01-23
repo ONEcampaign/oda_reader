@@ -13,7 +13,7 @@ from oda_reader.download.download_tools import (
 )
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
-DATAFLOW_VERSION: str = "1.6"
+DATAFLOW_VERSION: str = "1.4"
 
 
 def get_full_dac2a_parquet_id() -> str:
