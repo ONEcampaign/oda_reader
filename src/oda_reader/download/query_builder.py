@@ -128,6 +128,7 @@ class QueryBuilder:
     def build_dac1_filter(
         self,
         donor: str | list[str] | None = None,
+        sector: str | list[str] | None = None,
         measure: str | list[str] | None = None,
         flow_type: str | list[str] | None = None,
         unit_measure: str | list[str] | None = None,
@@ -136,10 +137,11 @@ class QueryBuilder:
         """Build the filter string for the DAC1 dataflow.
 
         The allowed filter follows the pattern:
-        {donor}.{measure}.{untied}.{flow_type}.{unit_measure}.{price_base}.{period}
+        {donor}.{sector}.{measure}.{tying_status}.{flow_type}.{unit_measure}.{price_base}
 
         Args:
             donor (str | list[str] | None): The donor country code(s).
+            sector (str | list[str] | None): The sector code(s).
             measure (str | list[str] | None): The measure code(s).
             flow_type (str | list[str] | None): The flow type code(s).
             unit_measure (str | list[str] | None): The unit of measure code(s).
@@ -149,17 +151,16 @@ class QueryBuilder:
             str: The filter string for the query.
         """
 
-        # if any of the parameters are None, set them to the default value
         donor = self._to_filter_str(donor)
+        sector = self._to_filter_str(sector)
         measure = self._to_filter_str(measure)
-        untied = self._to_filter_str(None)
+        tying_status = self._to_filter_str(None)
         flow_type = self._to_filter_str(flow_type)
         unit_measure = self._to_filter_str(unit_measure)
         price_base = self._to_filter_str(price_base)
-        period = self._to_filter_str(None)
 
         return ".".join(
-            [donor, measure, untied, flow_type, unit_measure, price_base, period]
+            [donor, sector, measure, tying_status, flow_type, unit_measure, price_base]
         )
 
     def build_dac2a_filter(
