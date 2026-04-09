@@ -68,9 +68,9 @@ dac1_filters = get_available_filters("dac1")
 **Output:**
 ```
 OrderedDict([('donor', typing.Union[str, list, NoneType]),
-             ('recipient', typing.Union[str, list, NoneType]),
-             ('flow_type', typing.Union[str, list, NoneType]),
+             ('sector', typing.Union[str, list, NoneType]),
              ('measure', typing.Union[str, list, NoneType]),
+             ('flow_type', typing.Union[str, list, NoneType]),
              ('unit_measure', typing.Union[str, list, NoneType]),
              ('price_base', typing.Union[str, list, NoneType])])
 ```
@@ -104,6 +104,7 @@ Common dimensions:
 
 - `donor` - Donor country (ISO3 codes like "USA", "GBR", "FRA")
 - `recipient` - Recipient country or region (DAC2a only)
+- `sector` - Sector code (DAC1 only, use "_Z" for not applicable)
 - `measure` - Type of flow (ODA, OOF, grants, loans, etc.)
 - `flow_type` - Commitments, disbursements, net flows, etc.
 - `price_base` - "V" for current prices, "Q" for constant prices

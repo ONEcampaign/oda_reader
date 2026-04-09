@@ -128,7 +128,7 @@ def test_query_builder_filter(mocker):
     qb = QueryBuilder(dataflow_id="DF_DAC1", api_version=1)
     result = qb.build_dac1_filter(donor="1", measure="2010")
 
-    assert result == "1.2010....."
+    assert result == "1..2010...."
 ```
 
 ### Integration Tests
