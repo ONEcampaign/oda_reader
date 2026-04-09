@@ -18,22 +18,23 @@ class TestQueryBuilderDAC1:
             flow_type="1140",
         )
 
-        # Should have donor.measure.untied.flow_type.unit_measure.price_base.period
+        # Should have donor.sector.measure.tying_status.flow_type.unit_measure.price_base
         # With None values as empty strings for API v1
-        assert result == "1.2010..1140..."
+        assert result == "1..2010..1140.."
 
     def test_dac1_filter_all_parameters(self):
         """Test DAC1 filter with all parameters specified."""
         qb = QueryBuilder(dataflow_id="DF_DAC1", api_version=1)
         result = qb.build_dac1_filter(
             donor="1",
+            sector="_Z",
             measure="2010",
             flow_type="1140",
             unit_measure="USD",
             price_base="V",
         )
 
-        assert result == "1.2010..1140.USD.V."
+        assert result == "1._Z.2010..1140.USD.V"
 
     def test_dac1_filter_no_parameters(self):
         """Test DAC1 filter with no parameters (all dimensions)."""
@@ -128,7 +129,7 @@ class TestQueryBuilderURL:
             dataflow_version="1.0",
             api_version=1,
         )
-        qb.set_filter("1.2010..1140...")
+        qb.set_filter("1..2010..1140..")
         qb.set_time_period(start=2020, end=2023)
 
         url = qb.build_query()
@@ -136,7 +137,7 @@ class TestQueryBuilderURL:
         assert "https://sdmx.oecd.org/public/rest/data/" in url
         assert "OECD.DCD.FSD" in url
         assert "DF_DAC1,1.0/" in url
-        assert "1.2010..1140..." in url
+        assert "1..2010..1140.." in url
         assert "startPeriod=2020" in url
         assert "endPeriod=2023" in url
         assert "format=csvfilewithlabels" in url

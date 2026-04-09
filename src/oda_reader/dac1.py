@@ -4,7 +4,7 @@ from oda_reader._cache import cache_info
 from oda_reader.download.download_tools import download
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
-DATAFLOW_VERSION: str = "1.7"
+DATAFLOW_VERSION: str = "1.8"
 
 
 @cache_info

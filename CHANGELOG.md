@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 1.4.3 (2026-04-09)
+- Fixes DAC1 query filter dimension order to match the current DSD schema, which added SECTOR at position 2.
+- Bumps DAC1 dataflow version from 1.7 to 1.8.
+
 ## 1.4.2 (2026-01-23)
 - Updates DAC1 dataflow version from 1.5 to 1.7.
 - Updates DAC2a dataflow version from 1.6 to 1.4.

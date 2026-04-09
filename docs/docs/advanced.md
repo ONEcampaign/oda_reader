@@ -19,7 +19,7 @@ filter_string = qb.build_dac1_filter(
 )
 
 print(filter_string)
-# Output: "USA.....1010.1140..."
+# Output: "USA..1010..1140.."
 ```
 
 This filter string can be used to manually construct API URLs.
@@ -30,7 +30,7 @@ This filter string can be used to manually construct API URLs.
 - Understanding dimension order for a dataset
 
 **Methods available**:
-- `build_dac1_filter(donor, recipient, flow_type, measure, unit_measure, price_base)`
+- `build_dac1_filter(donor, sector, measure, flow_type, unit_measure, price_base)`
 - `build_dac2a_filter(donor, recipient, measure, price_base, ...)`
 - `build_crs_filter(donor, recipient, sector, channel, modality, microdata, ...)`
 - `build_multisystem_filter(donor, channel, flow_type, ...)`
