@@ -154,10 +154,11 @@ def clear_version_cache() -> None:
         >>> clear_version_cache()
     """
     # Evict HTTP-cached metadata responses so the next lookup hits the network.
-    session = _get_http_session()
-    for dataflow_id in _version_cache:
-        url = _build_metadata_url(dataflow_id)
-        session.cache.delete(urls=[url])
+    if _version_cache:
+        session = _get_http_session()
+        for dataflow_id in _version_cache:
+            url = _build_metadata_url(dataflow_id)
+            session.cache.delete(urls=[url])
 
     _version_cache.clear()
     logger.info("Version discovery cache cleared.")

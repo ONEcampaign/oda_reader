@@ -128,6 +128,12 @@ class TestParseVersionFromXml:
 def _mock_http(mocker):
     """Patch get_response_text in version_discovery and clear the cache."""
     clear_version_cache()
+    # Also mock _get_http_session so clear_version_cache() doesn't create a
+    # real SQLite-backed session during tests (causes conflicts in parallel).
+    mocker.patch(
+        "oda_reader.download.version_discovery._get_http_session",
+        return_value=mocker.MagicMock(),
+    )
     return mocker.patch(
         "oda_reader.download.version_discovery.get_response_text",
     )
