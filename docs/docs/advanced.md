@@ -14,12 +14,13 @@ qb = QueryBuilder()
 # Build a custom DAC1 filter
 filter_string = qb.build_dac1_filter(
     donor="USA",
+    sector="_Z",
     measure="1010",
     flow_type="1140"
 )
 
 print(filter_string)
-# Output: "USA..1010..1140.."
+# Output: "USA._Z.1010..1140.."
 ```
 
 This filter string can be used to manually construct API URLs.
@@ -39,50 +40,43 @@ Each method returns a filter string suitable for the SDMX API.
 
 ## Dataflow Version Handling
 
-OECD occasionally changes dataflow versions (schema updates). ODA Reader handles this automatically with version fallback.
+OECD occasionally changes dataflow versions (schema updates). ODA Reader handles this automatically with version discovery.
 
-### Automatic Fallback
+### Automatic Version Discovery
 
-When a dataflow version returns 404 (not found), ODA Reader automatically:
+When a dataflow version returns an error (not found), ODA Reader automatically queries the OECD's SDMX metadata endpoint to discover the latest published version and retries with it:
 
-1. Tries the configured version (e.g., `1.5`)
-2. If 404, retries with `1.4`
-3. Continues decrementing: `1.3`, `1.2`, `1.1`
-4. Returns data from first successful version (up to 5 attempts)
+1. Tries the configured default version
+2. If not found, queries the metadata endpoint for the authoritative latest version
+3. Retries once with the discovered version
 
-This means your code keeps working even when OECD makes breaking schema changes.
+This means your code keeps working even when OECD updates schema versions. You'll see a log message indicating which version was discovered.
 
-**Example**:
+### Clearing the Version Cache
+
+Discovered versions are cached in-process so repeated queries don't trigger extra metadata lookups. If the OECD publishes a new dataflow version mid-session, you can force re-discovery:
 
 ```python
-from oda_reader import download_dac1
+from oda_reader import clear_version_cache
 
-# ODA Reader will automatically try:
-# 1.5 -> 404
-# 1.4 -> 404
-# 1.3 -> Success! Returns data with version 1.3
-data = download_dac1(start_year=2022, end_year=2022)
+clear_version_cache()
 ```
-
-You'll see a message indicating which version succeeded.
 
 ### Manual Version Override
 
 You can specify an exact dataflow version:
 
 ```python
-# Force use of version 1.3
 data = download_dac1(
     start_year=2022,
     end_year=2022,
-    dataflow_version="1.3"
+    dataflow_version="1.7"
 )
 ```
 
 **When to override**:
 - You know the correct version for reproducibility
 - Debugging version-specific issues
-- Avoiding automatic fallback (for performance)
 
 **Available for**:
 - `download_dac1(dataflow_version=...)`

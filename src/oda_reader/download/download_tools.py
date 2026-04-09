@@ -24,6 +24,7 @@ from oda_reader.common import (
     logger,
 )
 from oda_reader.download.query_builder import QueryBuilder
+from oda_reader.download.version_discovery import discover_latest_version
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
 from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
@@ -48,8 +49,6 @@ AIDDATA_DOWNLOAD_URL = (
     f"{AIDDATA_VERSION.replace('.', '_')}.zip"
 )
 
-FALLBACK_STEP = 0.1
-MAX_RETRIES = 5
 
 
 def _detect_delimiter(file_obj, sample_size: int = 8192) -> str:
@@ -626,55 +625,105 @@ def bulk_download_aiddata(
     return None
 
 
-def get_bulk_file_id(
-    flow_url: str, search_string: str, latest_flow: float = 1.6, retries: int = 0
-) -> str:
-    """
-    Retrieves the full bulk file ID from the OECD dataflow.
+def _extract_dataflow_id_from_flow_url(flow_url: str) -> str | None:
+    """Extract the dataflow ID from a bulk-download flow URL.
+
+    Flow URLs follow the pattern::
+
+        https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/<DATAFLOW_ID>/
 
     Args:
-        flow_url (str): The URL of the dataflow to check.
-        search_string (str): The string to search for in the response content.
-        latest_flow (float): The latest version of the dataflow to check.
-        retries (int): The current number of retries (to avoid infinite recursion).
+        flow_url: A URL string such as
+            ``https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/``.
+
+    Returns:
+        The dataflow identifier (e.g. ``"DSD_CRS@DF_CRS"``) if found,
+        ``None`` otherwise.
+    """
+    match = re.search(r"OECD\.DCD\.FSD/([^/]+)/?$", flow_url)
+    return match.group(1) if match else None
+
+
+def get_bulk_file_id(
+    flow_url: str,
+    search_string: str,
+    latest_flow: float | None = None,
+) -> str:
+    """Retrieve the full bulk file ID from the OECD dataflow.
+
+    The version to query is determined as follows:
+
+    1. If *latest_flow* is provided, try that version first.
+    2. If it fails (non-2xx or search string not found), call
+       :func:`~oda_reader.download.version_discovery.discover_latest_version`
+       to obtain the authoritative latest version and retry once.
+    3. If *latest_flow* is ``None``, discover the version unconditionally
+       before making any request.
+
+    Args:
+        flow_url: The base URL of the dataflow (without a version suffix),
+            e.g. ``https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/``.
+        search_string: The string to search for in the response XML to locate
+            the bulk-download link.
+        latest_flow: An explicit starting version to try.  If ``None`` the
+            version is discovered automatically.
 
     Returns:
         str: The ID of the bulk download file.
 
     Raises:
-        KeyError: If the bulk download file link could not be found.
-        RuntimeError: If the maximum number of retries is exceeded.
+        RuntimeError: If the bulk download file ID cannot be found even after
+            version discovery.
     """
-    if retries > MAX_RETRIES:
-        raise RuntimeError(f"Maximum retries ({MAX_RETRIES}) exceeded.")
-
-    if latest_flow == 1.0:
-        latest_flow = int(round(latest_flow, 0))
-
     headers = {"Accept-Encoding": "gzip"}
-    status, response, from_cache = _get_response_text(
-        f"{flow_url}{latest_flow}", headers=headers
+
+    dataflow_id = _extract_dataflow_id_from_flow_url(flow_url)
+
+    def _try_version(version: float | int | str) -> str | None:
+        """Attempt to retrieve the file ID for a given version.
+
+        Returns the file ID on success, ``None`` if this version does not
+        contain the expected link.
+        """
+        status, response, _ = _get_response_text(
+            f"{flow_url}{version}", headers=headers
+        )
+        if status > 299:
+            return None
+        found = re.search(f"{re.escape(search_string)}(.*?)</", response)
+        if not found:
+            return None
+        return found.group(1).strip().split("=")[-1]
+
+    # --- Step 1: try an explicit version if provided ---
+    if latest_flow is not None:
+        result = _try_version(latest_flow)
+        if result is not None:
+            return result
+
+    # --- Step 2 (or Step 1 when latest_flow is None): use version discovery ---
+    if dataflow_id is not None:
+        try:
+            discovered_version = discover_latest_version(dataflow_id)
+            result = _try_version(discovered_version)
+            if result is not None:
+                return result
+        except (ConnectionError, ValueError):
+            logger.info(
+                "Version discovery failed; falling back to version scan."
+            )
+
+    # --- Step 3: fall back to a decrement scan from 2.0 ---
+    start = latest_flow if latest_flow is not None else 2.0
+    for i in range(10):
+        scan_version = round(start - i * 0.1, 1)
+        if scan_version <= 0:
+            break
+        result = _try_version(scan_version)
+        if result is not None:
+            return result
+
+    raise RuntimeError(
+        f"Bulk download file ID for '{search_string}' could not be found "
+        f"in dataflow '{flow_url}' after version discovery and scan."
     )
-
-    if status > 299:
-        return get_bulk_file_id(
-            flow_url=flow_url,
-            search_string=search_string,
-            latest_flow=round(latest_flow - FALLBACK_STEP, 1),
-            retries=retries + 1,
-        )
-
-    match = re.search(f"{re.escape(search_string)}(.*?)</", response)
-
-    if not match:
-        logger.info("The link to the bulk download file could not be found.")
-        return get_bulk_file_id(
-            flow_url=flow_url,
-            search_string=search_string,
-            latest_flow=round(latest_flow - FALLBACK_STEP, 1),
-            retries=retries + 1,
-        )
-
-    parquet_link = match.group(1).strip()
-
-    return parquet_link.split("=")[-1]

@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 1.5.0 (2026-04-09)
+- Replaces blind version-decrement fallback with authoritative SDMX metadata endpoint lookup for all datasets.
+- Adds `clear_version_cache()` to the public API for forcing fresh version discovery mid-session.
+
 ## 1.4.3 (2026-04-09)
 - Fixes DAC1 query filter dimension order to match the current DSD schema, which added SECTOR at position 2.
 - Bumps DAC1 dataflow version from 1.7 to 1.8.

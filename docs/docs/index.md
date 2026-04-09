@@ -15,8 +15,7 @@ ODA Reader eliminates these headaches. It provides a unified Python interface th
 - **Bulk download large files** with memory-efficient streaming for the full CRS (1GB+)
 - **Automatic rate limiting** and caching to work within API constraints
 - **Schema translation** between Data Explorer API and OECD.Stat formats
-- **Version fallback** automatically searches for the most recent schema version since they
-can unexpectedly change with new data releases.
+- **Automatic version discovery** queries OECD's SDMX metadata to find the latest dataflow version, handling schema changes transparently.
 
 **Built for researchers, analysts, and developers** who need reliable, programmatic access to ODA data without fighting infrastructure.
 

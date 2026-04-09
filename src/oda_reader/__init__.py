@@ -26,6 +26,7 @@ from oda_reader.common import (
     enable_http_cache,
     get_http_cache_info,
 )
+from oda_reader.download.version_discovery import clear_version_cache
 from oda_reader.crs import bulk_download_crs, download_crs, download_crs_file
 from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
@@ -55,6 +56,8 @@ __all__ = [
     "disable_http_cache",
     "clear_http_cache",
     "get_http_cache_info",
+    # Version discovery cache
+    "clear_version_cache",
     # DataFrame and bulk cache managers
     "dataframe_cache",
     "bulk_cache_manager",

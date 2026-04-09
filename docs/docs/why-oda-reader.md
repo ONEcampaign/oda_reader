@@ -26,7 +26,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 - Schema changes break queries without warning
 - No automatic retries or fallback mechanisms
 
-**What ODA Reader provides**: Automatic version fallback, rate limiting built-in, consistent function interface, handles schema changes gracefully.
+**What ODA Reader provides**: Automatic version discovery, rate limiting built-in, consistent function interface, handles schema changes gracefully.
 
 ### Manual Downloads from OECD.Stat
 

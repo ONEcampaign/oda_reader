@@ -14,6 +14,7 @@ from oda_reader.download.download_tools import (
 
 DATAFLOW_ID: str = "DSD_CRS@DF_CRS"
 DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
+# Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.6"
 
 # CRS filter structure:

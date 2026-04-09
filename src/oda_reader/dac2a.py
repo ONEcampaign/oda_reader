@@ -13,6 +13,7 @@ from oda_reader.download.download_tools import (
 )
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
+# Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.4"
 
 

@@ -10,8 +10,10 @@ import pytest
 from oda_reader.common import get_data_from_api
 from oda_reader.download.download_tools import (
     _detect_delimiter,
+    _extract_dataflow_id_from_flow_url,
     _save_or_return_parquet_files_from_content,
     bulk_download_parquet,
+    get_bulk_file_id,
 )
 
 
@@ -33,27 +35,129 @@ class TestDownloadWithMocks:
         assert result == sample_csv_response
         assert "DONOR,RECIPIENT" in result
 
-    def test_get_data_from_api_404_triggers_retry(self, mocker):
-        """Test that 404 with 'Dataflow' message triggers version fallback."""
-        # First call returns 404 with Dataflow message
-        # Second call (with fallback version) returns success
-        mock_responses = [
-            (404, "Dataflow not found", False),
-            (200, "DONOR,VALUE\n1,100", False),
-        ]
-
-        mock = mocker.patch(
+    def test_get_data_from_api_404_triggers_version_discovery(self, mocker):
+        """Test that a 'Dataflow not found' response triggers version discovery retry."""
+        mock_get_response = mocker.patch(
             "oda_reader.common._get_response_text",
-            side_effect=mock_responses,
+            side_effect=[
+                (404, "Dataflow not found", False),
+                (200, "DONOR,VALUE\n1,100", False),
+            ],
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="1.9",
+        )
+        mocker.patch(
+            "oda_reader.common.get_dimension_count",
+            return_value=7,
         )
 
-        # URL with version 2.0 should fallback to 1.9
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DF_DAC1,2.0/"
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
         result = get_data_from_api(url)
 
-        # Should have made 2 calls (original + fallback)
-        assert mock.call_count == 2
+        assert mock_get_response.call_count == 2
         assert result == "DONOR,VALUE\n1,100"
+
+    def test_get_data_from_api_discovered_version_matches_raises(self, mocker):
+        """Test that matching discovered version raises immediately without retry."""
+        mocker.patch(
+            "oda_reader.common._get_response_text",
+            return_value=(404, "Dataflow not found", False),
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="2.0",  # same as URL version
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        with pytest.raises(ConnectionError, match="matches the attempted version"):
+            get_data_from_api(url)
+
+    def test_get_data_from_api_incompatible_dsd_raises(self, mocker):
+        """Test that a discovered version with different dimension count raises."""
+        mocker.patch(
+            "oda_reader.common._get_response_text",
+            side_effect=[
+                (404, "Dataflow not found", False),
+                (200, "DONOR,VALUE\n1,100", False),
+            ],
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="3.0",
+        )
+        mocker.patch(
+            "oda_reader.common.get_dimension_count",
+            side_effect=[7, 8],  # old has 7, new has 8 — breaking change
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        with pytest.raises(ConnectionError, match="breaking schema change"):
+            get_data_from_api(url)
+
+    def test_get_data_from_api_compatible_upgrade_succeeds(self, mocker):
+        """Test that auto-upgrade works when dimension count matches."""
+        mocker.patch(
+            "oda_reader.common._get_response_text",
+            side_effect=[
+                (404, "Dataflow not found", False),
+                (200, "DONOR,VALUE\n1,100", False),
+            ],
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="3.0",
+        )
+        mocker.patch(
+            "oda_reader.common.get_dimension_count",
+            return_value=7,  # same count — compatible
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        result = get_data_from_api(url)
+        assert result == "DONOR,VALUE\n1,100"
+
+    def test_get_data_from_api_dsd_check_fails_gracefully(self, mocker):
+        """Test that DSD check failure doesn't block the retry."""
+        mocker.patch(
+            "oda_reader.common._get_response_text",
+            side_effect=[
+                (404, "Dataflow not found", False),
+                (200, "DONOR,VALUE\n1,100", False),
+            ],
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="1.9",
+        )
+        mocker.patch(
+            "oda_reader.common.get_dimension_count",
+            side_effect=ConnectionError("DSD endpoint down"),
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        result = get_data_from_api(url)
+        assert result == "DONOR,VALUE\n1,100"
+
+    def test_get_data_from_api_retry_also_fails_raises(self, mocker):
+        """Test that failed retry after discovery raises clearly."""
+        mocker.patch(
+            "oda_reader.common._get_response_text",
+            return_value=(404, "Dataflow not found", False),
+        )
+        mocker.patch(
+            "oda_reader.common.discover_latest_version",
+            return_value="1.9",
+        )
+        mocker.patch(
+            "oda_reader.common.get_dimension_count",
+            return_value=7,
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        with pytest.raises(ConnectionError, match="even after version discovery"):
+            get_data_from_api(url)
 
     def test_get_data_from_api_non_404_error_raises(self, mocker):
         """Test that non-404 errors raise ConnectionError."""
@@ -337,3 +441,122 @@ class TestDeprecationWarnings:
             warnings.simplefilter("error", DeprecationWarning)
             # Should not raise any DeprecationWarning
             bulk_download_parquet("fake-id")
+
+
+@pytest.mark.unit
+class TestExtractDataflowIdFromFlowUrl:
+    """Test the helper that extracts a dataflow ID from a bulk-download flow URL."""
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            (
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/",
+                "DSD_CRS@DF_CRS",
+            ),
+            (
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_DAC2@DF_DAC2A/",
+                "DSD_DAC2@DF_DAC2A",
+            ),
+            (
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_MULTI@DF_MULTI/",
+                "DSD_MULTI@DF_MULTI",
+            ),
+            # trailing slash optional
+            (
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS",
+                "DSD_CRS@DF_CRS",
+            ),
+        ],
+    )
+    def test_recognized_urls(self, url, expected):
+        assert _extract_dataflow_id_from_flow_url(url) == expected
+
+    def test_unrecognized_url_returns_none(self):
+        assert _extract_dataflow_id_from_flow_url("https://example.com/other/path") is None
+
+
+FLOW_URL = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/"
+SEARCH_STRING = "DF_CRS_BULK="
+
+
+@pytest.mark.unit
+class TestGetBulkFileId:
+    """Test get_bulk_file_id with discovery and fallback paths."""
+
+    def test_explicit_version_succeeds_immediately(self, mocker):
+        """When latest_flow is provided and works, discovery is not called."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(200, f"{SEARCH_STRING}abc123</end>", False),
+        )
+        mock_discover = mocker.patch(
+            "oda_reader.download.download_tools.discover_latest_version",
+        )
+
+        result = get_bulk_file_id(FLOW_URL, SEARCH_STRING, latest_flow=1.6)
+
+        assert result == "abc123"
+        mock_discover.assert_not_called()
+
+    def test_discovery_succeeds_when_no_explicit_version(self, mocker):
+        """When latest_flow=None, discovery is used and succeeds."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(200, f"{SEARCH_STRING}xyz789</end>", False),
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools.discover_latest_version",
+            return_value="1.7",
+        )
+
+        result = get_bulk_file_id(FLOW_URL, SEARCH_STRING)
+        assert result == "xyz789"
+
+    def test_explicit_version_fails_then_discovery_rescues(self, mocker):
+        """When explicit version fails, discovery finds a working version."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            side_effect=[
+                (404, "Not found", False),  # explicit version fails
+                (200, f"{SEARCH_STRING}rescued</end>", False),  # discovered version works
+            ],
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools.discover_latest_version",
+            return_value="1.7",
+        )
+
+        result = get_bulk_file_id(FLOW_URL, SEARCH_STRING, latest_flow=1.8)
+        assert result == "rescued"
+
+    def test_discovery_fails_then_scan_rescues(self, mocker):
+        """When discovery raises, the decrement scan finds a working version."""
+        responses = [(404, "Not found", False)] * 5 + [
+            (200, f"{SEARCH_STRING}scanned</end>", False),
+        ]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            side_effect=responses,
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools.discover_latest_version",
+            side_effect=ConnectionError("metadata endpoint down"),
+        )
+
+        result = get_bulk_file_id(FLOW_URL, SEARCH_STRING, latest_flow=2.0)
+        assert result == "scanned"
+
+    def test_all_methods_exhausted_raises(self, mocker):
+        """When discovery and scan both fail, RuntimeError is raised."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(404, "Not found", False),
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools.discover_latest_version",
+            side_effect=ConnectionError("metadata endpoint down"),
+        )
+
+        with pytest.raises(RuntimeError, match="could not be found"):
+            get_bulk_file_id(FLOW_URL, SEARCH_STRING, latest_flow=1.0)
