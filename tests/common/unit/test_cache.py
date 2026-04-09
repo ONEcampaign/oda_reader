@@ -2,9 +2,9 @@
 
 import pytest
 
+import oda_reader._http_primitives as _http_primitives
 from oda_reader import (
     clear_http_cache,
-    common,
     disable_http_cache,
     enable_http_cache,
     get_http_cache_info,
@@ -25,12 +25,12 @@ class TestHTTPCache:
     def test_disable_cache_sets_flag(self):
         """Test that disable_http_cache sets the flag."""
         enable_http_cache()
-        assert common._CACHE_ENABLED is True
+        assert _http_primitives._CACHE_ENABLED is True
 
         disable_http_cache()
 
-        # Check the global variable through the module
-        assert common._CACHE_ENABLED is False
+        # Check the global variable through the primitives module
+        assert _http_primitives._CACHE_ENABLED is False
 
         # Cleanup
         enable_http_cache()
@@ -41,7 +41,7 @@ class TestHTTPCache:
 
         enable_http_cache()
 
-        assert common._CACHE_ENABLED is True
+        assert _http_primitives._CACHE_ENABLED is True
 
     def test_clear_cache_resets_counters(self, temp_cache_dir):
         """Test that clear_http_cache resets cache statistics."""

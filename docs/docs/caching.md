@@ -141,6 +141,18 @@ disable_http_cache()
 enable_http_cache()
 ```
 
+### Clear Version Discovery Cache
+
+ODA Reader caches discovered dataflow versions in-process. If the OECD publishes a new version mid-session:
+
+```python
+from oda_reader import clear_version_cache
+
+clear_version_cache()
+```
+
+This forces a fresh metadata lookup on the next query.
+
 ### Clear HTTP Cache Only
 
 ```python

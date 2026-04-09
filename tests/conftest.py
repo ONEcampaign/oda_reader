@@ -11,8 +11,13 @@ from oda_reader.common import RateLimiter
 @pytest.fixture(autouse=True)
 def disable_cache_for_tests():
     """Disable HTTP cache for all tests by default."""
+    import oda_reader._http_primitives as _http_primitives
+
     disable_http_cache()
     yield
+    # Reset session before re-enabling to avoid SQLite contention
+    # in parallel test workers sharing the same cache directory.
+    _http_primitives._HTTP_SESSION = None
     enable_http_cache()
 
 
@@ -27,19 +32,19 @@ def temp_cache_dir(tmp_path, monkeypatch):
     Yields:
         Path: Path to the temporary cache directory
     """
-    from oda_reader import common
+    import oda_reader._http_primitives as _http_primitives
 
     cache_dir = tmp_path / "test_cache"
     cache_dir.mkdir()
     monkeypatch.setenv("ODA_READER_CACHE_DIR", str(cache_dir))
 
     # Reset global HTTP session so it gets reinitialized with new cache path
-    common._HTTP_SESSION = None
+    _http_primitives._HTTP_SESSION = None
 
     yield cache_dir
 
     # Clean up: reset session again after test
-    common._HTTP_SESSION = None
+    _http_primitives._HTTP_SESSION = None
 
 
 @pytest.fixture

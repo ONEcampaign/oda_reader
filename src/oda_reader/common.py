@@ -1,26 +1,30 @@
 import logging
 import re
-import time
-from collections import deque
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 
 import pandas as pd
-import requests
-import requests_cache
 
-from oda_reader._cache.config import get_http_cache_path
+import oda_reader._http_primitives as _http_primitives
+from oda_reader._http_primitives import (
+    API_RATE_LIMITER,
+    RateLimiter,
+    _get_http_session,
+    get_response_content as _get_response_content,
+    get_response_text as _get_response_text,
+)
+from oda_reader.download.version_discovery import (
+    discover_latest_version,
+    get_dimension_count,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 logger = logging.getLogger("oda_importer")
 
-FALLBACK_STEP = 0.1
-MAX_RETRIES = 5
-
 # Error message patterns that indicate a dataflow/version not found error
-# These should trigger a version fallback retry
+# These should trigger a version discovery retry
 DATAFLOW_NOT_FOUND_PATTERNS = (
     "Could not find Dataflow",
     "Could not find DSD",
@@ -32,7 +36,7 @@ DATAFLOW_NOT_FOUND_PATTERNS = (
 def _is_dataflow_not_found_error(response: str) -> bool:
     """Check if the response indicates a dataflow/version not found error.
 
-    These errors should trigger a version fallback retry rather than
+    These errors should trigger a version discovery retry rather than
     being treated as valid data.
 
     Args:
@@ -54,36 +58,6 @@ def _is_dataflow_not_found_error(response: str) -> bool:
     return is_too_short and looks_like_error
 
 
-# Global HTTP cache session (initialized lazily)
-_HTTP_SESSION: requests_cache.CachedSession | None = None
-_CACHE_ENABLED = True
-
-
-def _get_http_session() -> requests_cache.CachedSession:
-    """Get or create the global HTTP cache session.
-
-    All responses are cached for 7 days (604800 seconds).
-    Uses filesystem backend to handle large responses (>2GB).
-
-    Returns:
-        CachedSession: requests-cache session with 7-day expiration.
-    """
-    global _HTTP_SESSION
-
-    if _HTTP_SESSION is None:
-        cache_path = str(get_http_cache_path())
-
-        _HTTP_SESSION = requests_cache.CachedSession(
-            cache_name=cache_path,
-            backend="filesystem",
-            expire_after=604800,  # 7 days
-            allowable_codes=(200, 404),  # Cache 404s for version fallback
-            stale_if_error=True,  # Use stale cache if API errors
-        )
-
-    return _HTTP_SESSION
-
-
 def enable_http_cache() -> None:
     """Enable HTTP response caching.
 
@@ -91,10 +65,9 @@ def enable_http_cache() -> None:
         >>> from oda_reader import enable_http_cache
         >>> enable_http_cache()
     """
-    global _CACHE_ENABLED
-    _CACHE_ENABLED = True
-    if _HTTP_SESSION is not None:
-        _HTTP_SESSION.cache.clear()  # Clear any cached data from disabled session
+    _http_primitives._CACHE_ENABLED = True
+    if _http_primitives._HTTP_SESSION is not None:
+        _http_primitives._HTTP_SESSION.cache.clear()
 
 
 def disable_http_cache() -> None:
@@ -104,8 +77,7 @@ def disable_http_cache() -> None:
         >>> from oda_reader import disable_http_cache
         >>> disable_http_cache()
     """
-    global _CACHE_ENABLED
-    _CACHE_ENABLED = False
+    _http_primitives._CACHE_ENABLED = False
 
 
 def clear_http_cache() -> None:
@@ -138,32 +110,9 @@ def get_http_cache_info() -> dict:
     }
 
 
-class RateLimiter:
-    """Simple blocking rate limiter.
-
-    Parameters correspond to the maximum number of calls allowed within
-    ``period`` seconds. ``wait`` pauses execution when the limit has been
-    reached.
-    """
-
-    def __init__(self, max_calls: int = 20, period: float = 60.0) -> None:
-        self.max_calls = max_calls
-        self.period = period
-        self._calls: deque[float] = deque()
-
-    def wait(self) -> None:
-        """Block until a new call is allowed."""
-        now = time.monotonic()
-        while self._calls and now - self._calls[0] >= self.period:
-            self._calls.popleft()
-        if len(self._calls) >= self.max_calls:
-            sleep_for = self.period - (now - self._calls[0])
-            time.sleep(max(sleep_for, 0))
-            self._calls.popleft()
-        self._calls.append(time.monotonic())
-
-
-API_RATE_LIMITER = RateLimiter()
+# RateLimiter and API_RATE_LIMITER live in _http_primitives to avoid a
+# circular import with version_discovery.py.  Re-exported here for
+# backward compatibility.
 
 
 class ImporterPaths:
@@ -191,121 +140,129 @@ def text_to_stringio(response_text: str) -> StringIO:
 
 
 def _replace_dataflow_version(url: str, version: str) -> str:
-    """Replace the dataflow version in the URL."""
-    pattern = r",(\d+\.\d+)/"
+    """Replace the dataflow version in the URL.
 
-    return re.sub(pattern, f",{version}/", url)
+    Handles both comma-separated (v1) and slash-separated (v2) patterns.
+    """
+    # v1 pattern: OECD.DCD.FSD,DATAFLOW_ID,VERSION/
+    if re.search(r",(\d+\.\d+)/", url):
+        return re.sub(r",(\d+\.\d+)/", f",{version}/", url)
+    # v2 pattern: OECD.DCD.FSD/DATAFLOW_ID/VERSION/
+    return re.sub(r"/(\d+\.\d+)/", f"/{version}/", url)
 
 
 def _get_dataflow_version(url: str) -> str | None:
     """Get the dataflow version from the URL.
 
+    Handles both comma-separated (v1) and slash-separated (v2) patterns.
+
     Returns:
         The version string if found, None otherwise.
     """
-    pattern = r",(\d+\.\d+)/"
-    match = re.search(pattern, url)
+    # v1 pattern: ,VERSION/
+    match = re.search(r",(\d+\.\d+)/", url)
+    if match:
+        return match.group(1)
+    # v2 pattern: /VERSION/ — must not be a port or protocol fragment
+    match = re.search(r"/(\d+\.\d+)/", url)
     return match.group(1) if match else None
 
 
-def _get_response_text(url: str, headers: dict) -> tuple[int, str, bool]:
-    """GET request returning status code, text content, and cache hit status.
+def _extract_dataflow_id(url: str) -> str | None:
+    """Extract the dataflow ID from an SDMX data URL.
 
-    This call is subject to the global rate limiter and HTTP caching.
+    Handles both URL patterns used by the OECD SDMX API:
 
-    Args:
-        url: The URL to fetch.
-        headers: Headers to include in the request.
-
-    Returns:
-        tuple[int, str, bool]: Status code, text content, and whether from cache.
-    """
-    API_RATE_LIMITER.wait()
-
-    if _CACHE_ENABLED:
-        session = _get_http_session()
-        response = session.get(url, headers=headers)
-        from_cache = getattr(response, "from_cache", False)
-        if from_cache:
-            logger.info(f"Loading data from HTTP cache: {url}")
-        else:
-            logger.info(f"Fetching data from API: {url}")
-    else:
-        response = requests.get(url, headers=headers)
-        from_cache = False
-        logger.info(f"Fetching data from API (cache disabled): {url}")
-
-    return response.status_code, response.text, from_cache
-
-
-def _get_response_content(url: str, headers: dict) -> tuple[int, bytes, bool]:
-    """GET request returning status code, content, and cache hit status.
-
-    This call is subject to the global rate limiter and HTTP caching.
+    - v1 (comma-separated):  ``…/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.8/…``
+    - v2 (slash-separated):  ``…/OECD.DCD.FSD/DSD_DAC1@DF_DAC1/1.8/…``
 
     Args:
-        url: The URL to fetch.
-        headers: Headers to include in the request.
+        url: A full SDMX data or dataflow URL string.
 
     Returns:
-        tuple[int, bytes, bool]: Status code, content, and whether from cache.
+        The dataflow identifier (e.g. ``"DSD_DAC1@DF_DAC1"``) if found,
+        ``None`` if the URL does not match a recognised pattern.
     """
-    API_RATE_LIMITER.wait()
-
-    if _CACHE_ENABLED:
-        session = _get_http_session()
-        response = session.get(url, headers=headers)
-        from_cache = getattr(response, "from_cache", False)
-        if from_cache:
-            logger.info(f"Loading data from HTTP cache: {url}")
-        else:
-            logger.info(f"Fetching data from API: {url}")
-    else:
-        response = requests.get(url, headers=headers)
-        from_cache = False
-        logger.info(f"Fetching data from API (cache disabled): {url}")
-
-    return response.status_code, response.content, from_cache
+    # v1: AGENCY,DATAFLOW_ID,VERSION
+    match = re.search(r"OECD\.DCD\.FSD,([^,/]+),\d+\.\d+", url)
+    if match:
+        return match.group(1)
+    # v2: AGENCY/DATAFLOW_ID/VERSION
+    match = re.search(r"OECD\.DCD\.FSD/([^/]+)/\d+\.\d+", url)
+    return match.group(1) if match else None
 
 
-def get_data_from_api(url: str, compressed: bool = True, retries: int = 0) -> str:
+def get_data_from_api(url: str, compressed: bool = True) -> str:
     """Download a CSV file from an API endpoint and return it as text.
+
+    If the initial request returns a "dataflow not found" error, the function
+    queries the SDMX metadata endpoint to discover the authoritative latest
+    version and retries once with that version.
 
     Args:
         url: The URL of the API endpoint.
         compressed: Whether the data is fetched compressed. Strongly recommended.
-        retries: The number of retries to attempt.
 
     Returns:
         str: The response text from the API.
+
+    Raises:
+        ConnectionError: If the request fails and version discovery cannot help,
+            or if the discovered version also fails.
     """
-    # Set the headers with gzip encoding (if required)
     headers = {"Accept-Encoding": "gzip"} if compressed else {}
 
-    # Fetch the data with headers
     status_code, response, _ = _get_response_text(url, headers=headers)
 
-    # Check for dataflow not found errors - these should trigger version fallback
-    # This check happens regardless of status code since the API may return
-    # error messages with various status codes (404, 200, etc.)
-    # Only attempt fallback if the URL contains a dataflow version pattern
+    # If the response indicates a dataflow-not-found error and the URL contains
+    # a version, discover the latest version and retry.  Before retrying we
+    # verify that the discovered DSD has the same number of key dimensions as
+    # the one this release was built for, so we never silently send filters to
+    # an incompatible schema.
     version = _get_dataflow_version(url)
     if _is_dataflow_not_found_error(response) and version is not None:
-        if retries < MAX_RETRIES:
-            new_version = str(round(float(version) - FALLBACK_STEP, 1))
-            new_url = _replace_dataflow_version(url=url, version=new_version)
+        dataflow_id = _extract_dataflow_id(url)
+        if dataflow_id is not None:
+            discovered_version = discover_latest_version(dataflow_id)
+            if discovered_version == version:
+                raise ConnectionError(
+                    f"Dataflow not found and discovered version '{discovered_version}' "
+                    f"matches the attempted version. Response: {response[:200]}"
+                )
+
+            # Verify structural compatibility: the discovered DSD must have
+            # the same number of key dimensions as the version we expected.
+            try:
+                old_dims = get_dimension_count(dataflow_id, version)
+                new_dims = get_dimension_count(dataflow_id, discovered_version)
+                if old_dims != new_dims:
+                    raise ConnectionError(
+                        f"Discovered version {discovered_version} has "
+                        f"{new_dims} key dimensions, but version {version} "
+                        f"had {old_dims}. This is a breaking schema change. "
+                        f"Please upgrade oda_reader."
+                    )
+            except (ConnectionError, ValueError) as exc:
+                if "breaking schema change" in str(exc):
+                    raise
+                logger.warning(
+                    f"Could not verify DSD compatibility: {exc}. "
+                    f"Proceeding with discovered version {discovered_version}."
+                )
+
+            new_url = _replace_dataflow_version(url=url, version=discovered_version)
             logger.info(
-                f"Dataflow not found, retrying with version {new_version} "
-                f"(attempt {retries + 1}/{MAX_RETRIES})"
+                f"Dataflow not found at version {version}, retrying with "
+                f"discovered version {discovered_version}"
             )
-            return get_data_from_api(
-                url=new_url, compressed=compressed, retries=retries + 1
-            )
-        else:
-            raise ConnectionError(
-                f"No data found after {MAX_RETRIES} version fallback attempts. "
-                f"Last response: {response[:200]}"
-            )
+            status_code, response, _ = _get_response_text(new_url, headers=headers)
+            if _is_dataflow_not_found_error(response) or status_code > 299:
+                raise ConnectionError(
+                    f"Dataflow not found even after version discovery "
+                    f"(tried version {discovered_version}). "
+                    f"Response: {response[:200]}"
+                )
+            return response
 
     if (status_code == 500) and (response.find("not set to") > 0):
         url = url.replace("public", "dcd-public")
