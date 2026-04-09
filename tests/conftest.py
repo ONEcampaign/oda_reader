@@ -11,8 +11,13 @@ from oda_reader.common import RateLimiter
 @pytest.fixture(autouse=True)
 def disable_cache_for_tests():
     """Disable HTTP cache for all tests by default."""
+    import oda_reader._http_primitives as _http_primitives
+
     disable_http_cache()
     yield
+    # Reset session before re-enabling to avoid SQLite contention
+    # in parallel test workers sharing the same cache directory.
+    _http_primitives._HTTP_SESSION = None
     enable_http_cache()
 
 

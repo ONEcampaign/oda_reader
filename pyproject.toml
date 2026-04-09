@@ -24,13 +24,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "filelock>=3.18.0",
+    "filelock>=3.20.3",
     "joblib>=1.4",
     "openpyxl>=3.1.0",
     "pandas>=2.2.0",
     "platformdirs>=4.5.0",
     "pyarrow>=14.0.0",
-    "requests>=2.32",
+    "requests>=2.33.0",
     "requests-cache>=1.2.0",
 ]
 
@@ -56,6 +56,13 @@ test = [
     "pytest-mock>=3.12",
     "pytest-cov>=4.1",
     "pytest-xdist>=3.5",
+]
+
+[tool.uv]
+constraint-dependencies = [
+    "urllib3>=2.6.3",
+    "virtualenv>=20.36.1",
+    "pygments>=2.20.0",
 ]
 
 [tool.ruff]
