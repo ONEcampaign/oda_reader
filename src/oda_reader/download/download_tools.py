@@ -10,6 +10,8 @@ import warnings
 import zipfile
 from pathlib import Path
 
+import oda_reader.download._deflate64  # noqa: F401 — adds Deflate64 support
+
 import pandas as pd
 import pyarrow.parquet as pq
 import requests

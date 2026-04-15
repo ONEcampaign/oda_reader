@@ -1,5 +1,9 @@
 # Changelog for oda_reader
 
+## 1.5.1 (2026-04-15)
+- Adds support for Deflate64-compressed ZIP files in bulk downloads. The OECD switched the full CRS bulk file to Deflate64 compression, which Python's standard library does not support. This release patches `zipfile` at runtime using the `inflate64` library to handle Deflate64 transparently.
+- Adds `inflate64` as a dependency.
+
 ## 1.5.0 (2026-04-09)
 - Replaces blind version-decrement fallback with authoritative SDMX metadata endpoint lookup for all datasets.
 - Adds `clear_version_cache()` to the public API for forcing fresh version discovery mid-session.
