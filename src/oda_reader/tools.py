@@ -1,6 +1,7 @@
 """Additional tools for the API wrapper"""
 
 from collections import OrderedDict
+from pprint import pprint
 
 
 def get_available_filters(source: str, quiet: bool = False) -> dict:
@@ -15,9 +16,9 @@ def get_available_filters(source: str, quiet: bool = False) -> dict:
     Returns:
         dict: The available filters.
     """
-    from pprint import pprint
-
-    from oda_reader import QueryBuilder as qb
+    # Local import: oda_reader/__init__.py imports from this module, so a
+    # top-level import would form a cycle.
+    from oda_reader import QueryBuilder as qb  # noqa: PLC0415
 
     match source:
         case "dac1":

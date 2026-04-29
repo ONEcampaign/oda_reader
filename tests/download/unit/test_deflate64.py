@@ -15,10 +15,12 @@ import pandas as pd
 import pytest
 
 import oda_reader.download._deflate64  # noqa: F401 — ensure patch is active
-from oda_reader.download.download_tools import _save_or_return_parquet_files_from_content
+from oda_reader.download.download_tools import (
+    _save_or_return_parquet_files_from_content,
+)
 
 
-def _create_deflate64_zip(files: dict[str, bytes]) -> bytes:
+def _create_deflate64_zip(files: dict[str, bytes]) -> bytes:  # noqa: PLR0915  # binary ZIP layout is inherently statement-heavy
     """Create a ZIP archive using Deflate64 (type 9) compression.
 
     Manually constructs the ZIP binary format since Python's ``zipfile``

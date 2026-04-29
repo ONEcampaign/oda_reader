@@ -10,14 +10,13 @@ import warnings
 import zipfile
 from pathlib import Path
 
-import oda_reader.download._deflate64  # noqa: F401 — adds Deflate64 support
-
 import pandas as pd
 import pyarrow.parquet as pq
 import requests
 
-from oda_reader._cache.config import get_bulk_cache_dir
+import oda_reader.download._deflate64  # noqa: F401  # adds Deflate64 support
 from oda_reader._cache.dataframe import dataframe_cache
+from oda_reader._cache.manager import CacheEntry, bulk_cache_manager
 from oda_reader.common import (
     API_RATE_LIMITER,
     _get_response_content,
@@ -27,6 +26,11 @@ from oda_reader.common import (
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import discover_latest_version
+from oda_reader.exceptions import (
+    BulkDownloadHTTPError,
+    BulkPayloadCorruptError,
+    validate_zip_or_raise,
+)
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
 from oda_reader.schemas.dac2_translation import convert_dac2a_to_dotstat_codes
@@ -50,7 +54,6 @@ AIDDATA_DOWNLOAD_URL = (
     "AidDatas_Global_Chinese_Development_Finance_Dataset_Version_"
     f"{AIDDATA_VERSION.replace('.', '_')}.zip"
 )
-
 
 
 def _detect_delimiter(file_obj, sample_size: int = 8192) -> str:
@@ -105,7 +108,7 @@ def _iter_frames(response_content: bytes | Path) -> typing.Iterator[pd.DataFrame
 def download(
     version: str,
     dataflow_id: str,
-    dataflow_version: str = None,
+    dataflow_version: str | None = None,
     start_year: int | None = None,
     end_year: int | None = None,
     filters: dict | None = None,
@@ -328,76 +331,6 @@ def _save_or_return_parquet_files_from_content(
             raise ValueError("No parquet, csv, or txt files found in the zip archive.")
 
 
-def _save_or_return_parquet_files_from_txt_in_zip(
-    response_content: bytes | Path,
-    save_to_path: Path | str | None = None,
-) -> list[pd.DataFrame] | None:
-    """Extract csv or txt files from a zipped archive supplied as bytes or a file path.
-
-    The file is read as CSV (with auto-detected delimiter) and optionally saved
-    as a parquet file.
-
-    Args:
-        response_content: Bytes or ``Path`` pointing to the zipped archive.
-        save_to_path (Path | str | None): The path to save the file to. Optional. If
-        not provided, a list of DataFrames is returned.
-
-    Returns:
-        list[pd.DataFrame]: The extracted DataFrames if save_to_path is not provided.
-    """
-    # Convert the save_to_path to a Path object
-    save_to_path = Path(save_to_path).expanduser().resolve() if save_to_path else None
-
-    with _open_zip(response_content=response_content) as z:
-        # Find all csv/txt files in the zip archive
-        files = [
-            name
-            for name in z.namelist()
-            if name.endswith(".txt") or name.endswith(".csv")
-        ]
-
-        # If save_to_path is provided, save the files to the path
-        if save_to_path:
-            save_to_path.mkdir(parents=True, exist_ok=True)
-            for file_name in files:
-                clean_name = (
-                    file_name.replace(".txt", ".parquet")
-                    .replace(".csv", ".parquet")
-                    .lower()
-                    .replace(" ", "_")
-                )
-                logger.info(f"Saving {clean_name}")
-                with z.open(file_name) as f_in:
-                    delimiter = _detect_delimiter(f_in)
-                    logger.info(f"Detected delimiter: '{delimiter}'")
-                    pd.read_csv(
-                        f_in,
-                        delimiter=delimiter,
-                        encoding="utf-8",
-                        quotechar='"',
-                        low_memory=False,
-                    ).to_parquet(save_to_path / clean_name)
-            return None
-
-        # If save_to_path is not provided, return the DataFrames
-        logger.info(f"Reading {len(files)} files.")
-        dfs = []
-        for file_name in files:
-            with z.open(file_name) as f_in:
-                delimiter = _detect_delimiter(f_in)
-                logger.info(f"Detected delimiter for {file_name}: '{delimiter}'")
-                dfs.append(
-                    pd.read_csv(
-                        f_in,
-                        delimiter=delimiter,
-                        encoding="utf-8",
-                        quotechar='"',
-                        low_memory=False,
-                    )
-                )
-        return dfs
-
-
 def _save_or_return_excel_files_from_content(
     response_content: bytes,
     save_to_path: Path | str | None = None,
@@ -455,7 +388,7 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
     API_RATE_LIMITER.wait()
     with requests.get(url, headers=headers, stream=True) as r:
         if r.status_code > 299:
-            raise ConnectionError(f"Error {r.status_code}: {r.text}")
+            raise BulkDownloadHTTPError(status_code=r.status_code, url=url, body=r.text)
 
         with path.open("wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -464,46 +397,95 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
 
 
 def _stream_to_tempfile(url: str, headers: dict) -> Path:
-    """Download content to a temporary file using streaming."""
+    """Download content to a temporary file using streaming.
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        _stream_to_file(url, headers, Path(tmp.name))
-        return Path(tmp.name)
-
-
-def _cached_stream_to_file(url: str, headers: dict) -> Path:
-    """Stream a URL to a cached file and return its path."""
-
-    downloads = get_bulk_cache_dir()
-    downloads.mkdir(parents=True, exist_ok=True)
-    file_name = hashlib.sha1(url.encode()).hexdigest() + ".zip"
-    destination = downloads / file_name
-    if destination.exists():
-        logger.info(f"Loading {url} from bulk file cache")
-        return destination
-
-    _stream_to_file(url, headers, destination)
-    return destination
-
-
-def _get_temp_file(file_url: str, use_cache: bool = True) -> tuple[Path, bool]:
-    """Download file to a temporary location and return the path and a cleanup flag.
-
-    Args:
-        file_url: URL to download
-        use_cache: If True, cache the file. If False, use a temp file.
-
-    Returns:
-        tuple[Path, bool]: Path to file and whether it should be cleaned up
+    On stream failure the partial temp file is removed so callers don't have
+    to track a partial download to clean up.
     """
-    headers = {"Accept-Encoding": "gzip"}
-    if use_cache:
-        temp_zip = _cached_stream_to_file(file_url, headers)
-        cleanup = False
-    else:
-        temp_zip = _stream_to_tempfile(file_url, headers)
-        cleanup = True
-    return temp_zip, cleanup
+    fd, name = tempfile.mkstemp()
+    os.close(fd)
+    path = Path(name)
+    try:
+        _stream_to_file(url, headers, path)
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
+def _drain_then_unlink(
+    iterable: typing.Iterable[pd.DataFrame], path: Path
+) -> typing.Iterator[pd.DataFrame]:
+    """Wrap an iterable so the source temp file is deleted on completion or close.
+
+    Cleanup runs on normal exhaustion, on caller-side exceptions during
+    iteration, and on generator close (CPython guarantees close() during
+    garbage collection of the wrapping generator).
+    """
+    try:
+        yield from iterable
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def _consume_bulk_zip(
+    *,
+    zip_path: Path,
+    save_to_path: Path | str | None,
+    as_iterator: bool,
+    use_raw_cache: bool,
+    manager: typing.Any,  # CacheManager | None — typed loosely to avoid an import cycle here
+    url_key: str,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
+    """Run extraction with cleanup tied to the no-cache temp file lifecycle.
+
+    Three exit paths leak the temp file unless they're handled explicitly:
+    BadZipFile, any other extraction error, and the lazy-iterator early
+    return. This helper covers all three.
+    """
+    try:
+        files = _save_or_return_parquet_files_from_content(
+            response_content=zip_path,
+            save_to_path=save_to_path,
+            as_iterator=as_iterator,
+        )
+    except zipfile.BadZipFile:
+        if manager is not None:
+            manager.clear(url_key)
+        else:
+            zip_path.unlink(missing_ok=True)
+        raise BulkPayloadCorruptError(
+            zip_path,
+            reason="zipfile.BadZipFile raised when reading members",
+        )
+    except BaseException:
+        if not use_raw_cache:
+            zip_path.unlink(missing_ok=True)
+        raise
+
+    if as_iterator:
+        if files is None:
+            # save_to_path was provided; files were written to disk and there
+            # is no iteration to wrap. Clean up immediately.
+            if not use_raw_cache:
+                zip_path.unlink(missing_ok=True)
+            return None
+        # Iterator construction is lazy. For the no-cache path, defer unlink
+        # until the wrapping generator completes or is closed (CPython
+        # guarantees close() on garbage collection).
+        if not use_raw_cache:
+            return _drain_then_unlink(files, zip_path)
+        return files
+
+    if not use_raw_cache:
+        zip_path.unlink(missing_ok=True)
+
+    if files:
+        combined_df = pd.concat(files, ignore_index=True)
+        logger.info("File downloaded / retrieved correctly.")
+        return combined_df
+
+    return None
 
 
 def bulk_download_parquet(
@@ -512,6 +494,7 @@ def bulk_download_parquet(
     is_txt: bool | None = None,
     *,
     as_iterator: bool = False,
+    use_raw_cache: bool = True,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """Download data from the stats.oecd.org file download service.
 
@@ -520,17 +503,25 @@ def bulk_download_parquet(
     The file type is auto-detected from the zip contents.
 
     Args:
-        file_id (str): The ID of the file to download.
-        save_to_path (Path | str | None): The path to save the file to. Optional.
+        file_id: The ID of the file to download.
+        save_to_path: The path to save the file to. Optional.
             If not provided, the contents are returned.
-        is_txt (bool | None): Deprecated. File type is now auto-detected.
+        is_txt: Deprecated. File type is now auto-detected.
             This parameter is ignored and will be removed in a future version.
-        as_iterator (bool): When ``True`` return an iterator over ``DataFrame``
+        as_iterator: When ``True`` return an iterator over ``DataFrame``
             chunks instead of a single ``DataFrame``. Useful for large files.
             Only supported for parquet files.
+        use_raw_cache: If True (default), the raw zip is cached on disk and
+            reused across calls. If False, the zip is downloaded to a
+            temporary directory and deleted after extraction; each call hits
+            the network. Integrity validation (is_zipfile + testzip) still
+            runs in both modes.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
+
+    Raises:
+        BulkPayloadCorruptError: If the downloaded zip fails integrity validation.
     """
     if is_txt is not None:
         warnings.warn(
@@ -539,44 +530,38 @@ def bulk_download_parquet(
             DeprecationWarning,
             stacklevel=2,
         )
-    # Construct the URL
-    file_url = BULK_DOWNLOAD_URL + file_id
 
-    # Inform the user about what the function will do (save or return)
+    file_url = BULK_DOWNLOAD_URL + file_id
+    headers = {"Accept-Encoding": "gzip"}
+
     if save_to_path:
         logger.info(f"The file will be saved to {save_to_path}.")
     else:
-        logger.info("The file will be returned as a DataFrame. ")
+        logger.info("The file will be returned as a DataFrame.")
 
-    # Download the zip file to avoid loading it fully in memory
-    temp_zip_path, cleanup = _get_temp_file(file_url)
+    url_key = hashlib.sha1(file_url.encode()).hexdigest()
 
-    try:
-        # Auto-detect file type (parquet or txt) and process
-        files = _save_or_return_parquet_files_from_content(
-            response_content=temp_zip_path,
-            save_to_path=save_to_path,
-            as_iterator=as_iterator,
+    if use_raw_cache:
+        entry = CacheEntry(
+            key=url_key,
+            filename=f"{url_key}.zip",
+            fetcher=lambda p: _stream_to_file(file_url, headers, p),
         )
-        if as_iterator:
-            return files
-    except zipfile.BadZipFile:
-        if cleanup:
-            os.unlink(temp_zip_path)
-        raise Exception(
-            f"Failed to read parquet files from {temp_zip_path}. "
-            "Ensure the file is a valid zip archive containing parquet files."
-        )
+        manager = bulk_cache_manager()
+        zip_path = manager.ensure(entry)
+    else:
+        manager = None
+        zip_path = _stream_to_tempfile(file_url, headers)
+        validate_zip_or_raise(zip_path)
 
-    if cleanup:
-        os.unlink(temp_zip_path)
-
-    if files:
-        combined_df = pd.concat(files, ignore_index=True)
-        logger.info("File downloaded / retrieved correctly.")
-        return combined_df
-
-    return None
+    return _consume_bulk_zip(
+        zip_path=zip_path,
+        save_to_path=save_to_path,
+        as_iterator=as_iterator,
+        use_raw_cache=use_raw_cache,
+        manager=manager,
+        url_key=url_key,
+    )
 
 
 def _download_aiddata_response() -> bytes:
@@ -587,11 +572,18 @@ def _download_aiddata_response() -> bytes:
     """
     logger.info("Downloading AidData. This may take a while...")
     headers = {"Accept-Encoding": "gzip"}
-    status, response, from_cache = _get_response_content(
+    status, response, _from_cache = _get_response_content(
         AIDDATA_DOWNLOAD_URL, headers=headers
     )
     if status > 299:
-        raise ConnectionError(f"Error {status}: {response}")
+        body = (
+            response.decode("utf-8", errors="replace")
+            if isinstance(response, bytes)
+            else str(response)
+        )
+        raise BulkDownloadHTTPError(
+            status_code=status, url=AIDDATA_DOWNLOAD_URL, body=body
+        )
     return response
 
 
@@ -711,9 +703,7 @@ def get_bulk_file_id(
             if result is not None:
                 return result
         except (ConnectionError, ValueError):
-            logger.info(
-                "Version discovery failed; falling back to version scan."
-            )
+            logger.info("Version discovery failed; falling back to version scan.")
 
     # --- Step 3: fall back to a decrement scan from 2.0 ---
     start = latest_flow if latest_flow is not None else 2.0

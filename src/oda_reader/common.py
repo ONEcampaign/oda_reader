@@ -6,18 +6,38 @@ from pathlib import Path
 
 import pandas as pd
 
-import oda_reader._http_primitives as _http_primitives
+from oda_reader import _http_primitives
 from oda_reader._http_primitives import (
     API_RATE_LIMITER,
     RateLimiter,
     _get_http_session,
-    get_response_content as _get_response_content,
+)
+from oda_reader._http_primitives import (
+    get_response_content as _get_response_content,  # noqa: F401  # re-exported
+)
+from oda_reader._http_primitives import (
     get_response_text as _get_response_text,
 )
 from oda_reader.download.version_discovery import (
     discover_latest_version,
     get_dimension_count,
 )
+
+# Re-exports of rate-limiting primitives. They live in _http_primitives
+# to break a circular import with version_discovery; this module is the
+# stable public re-export surface.
+__all__ = [
+    "API_RATE_LIMITER",
+    "RateLimiter",
+    "api_response_to_df",
+    "clear_http_cache",
+    "disable_http_cache",
+    "enable_http_cache",
+    "get_data_from_api",
+    "get_http_cache_info",
+    "logger",
+    "text_to_stringio",
+]
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -276,7 +296,7 @@ def get_data_from_api(url: str, compressed: bool = True) -> str:
 
 
 def api_response_to_df(
-    url: str, read_csv_options: dict = None, compressed: bool = True
+    url: str, read_csv_options: dict | None = None, compressed: bool = True
 ) -> pd.DataFrame:
     """Download a CSV file from an API endpoint and return it as a DataFrame.
 

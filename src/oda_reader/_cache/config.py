@@ -5,16 +5,24 @@ Directory specifications on Linux and platform conventions elsewhere.
 """
 
 import os
+import socket
+from collections.abc import Callable
+from importlib.metadata import version
 from pathlib import Path
 
 from platformdirs import user_cache_dir
 
-# Version for cache versioning (hardcoded to avoid circular import)
-# This should match the version in __init__.py
-__version__ = "1.3.1"
+# Resolved at import time so the cache path tracks the installed package version.
+_CACHE_VERSION = version("oda_reader")
 
-# Global override for cache directory (set via set_cache_dir)
+_HOSTNAME = socket.gethostname()
+
 _CACHE_DIR_OVERRIDE: Path | None = None
+
+# Callbacks invoked when the cache root changes, so module-level singletons
+# (CacheManager, DataFrameCache) can rebuild against the new path. Modules
+# register on import via ``register_cache_dir_change_listener``.
+_CACHE_DIR_LISTENERS: list[Callable[[], None]] = []
 
 
 def get_cache_dir() -> Path:
@@ -30,25 +38,22 @@ def get_cache_dir() -> Path:
     Returns:
         Path: The cache directory path.
     """
-    # Priority 1: Programmatic override
     if _CACHE_DIR_OVERRIDE is not None:
         return _CACHE_DIR_OVERRIDE
 
-    # Priority 2: Environment variable
     if env_dir := os.getenv("ODA_READER_CACHE_DIR"):
         return Path(env_dir).expanduser().resolve()
 
-    # Priority 3: Platform default with version
-    # This ensures cache is invalidated on package upgrades
     base = Path(user_cache_dir("oda-reader", "oda-reader"))
-    return base / __version__
+    return base / _CACHE_VERSION
 
 
 def set_cache_dir(path: str | Path) -> None:
     """Set a custom cache directory path.
 
     This takes precedence over environment variables and platform defaults.
-    Changes affect all future cache operations.
+    Changes affect all future cache operations and reset any module-level
+    cache singletons so they pick up the new directory.
 
     Args:
         path: The directory path to use for caching.
@@ -59,16 +64,34 @@ def set_cache_dir(path: str | Path) -> None:
     """
     global _CACHE_DIR_OVERRIDE
     _CACHE_DIR_OVERRIDE = Path(path).expanduser().resolve()
+    _notify_cache_dir_changed()
 
 
 def reset_cache_dir() -> None:
     """Reset cache directory to default (remove override).
 
     After calling this, cache directory will be determined by environment
-    variable or platform default.
+    variable or platform default. Resets module-level cache singletons.
     """
     global _CACHE_DIR_OVERRIDE
     _CACHE_DIR_OVERRIDE = None
+    _notify_cache_dir_changed()
+
+
+def register_cache_dir_change_listener(callback: Callable[[], None]) -> None:
+    """Register a callback to fire when the cache directory changes.
+
+    Args:
+        callback: Zero-argument callable invoked after set_cache_dir or
+            reset_cache_dir mutates the override. Used by cache singletons
+            to rebuild against the new directory.
+    """
+    _CACHE_DIR_LISTENERS.append(callback)
+
+
+def _notify_cache_dir_changed() -> None:
+    for callback in _CACHE_DIR_LISTENERS:
+        callback()
 
 
 def get_http_cache_path() -> Path:

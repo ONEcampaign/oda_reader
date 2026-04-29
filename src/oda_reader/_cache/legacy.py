@@ -14,6 +14,9 @@ import time
 from pathlib import Path
 
 from oda_reader._cache.config import get_cache_dir
+from oda_reader._cache.config import set_cache_dir as _impl_set_cache_dir
+from oda_reader._cache.dataframe import dataframe_cache
+from oda_reader.common import disable_http_cache, enable_http_cache
 
 logger = logging.getLogger("oda_reader")
 
@@ -58,9 +61,7 @@ def set_cache_dir(path) -> None:
 
     Use oda_reader._cache.config.set_cache_dir() instead.
     """
-    from oda_reader._cache.config import set_cache_dir as new_set_cache_dir
-
-    new_set_cache_dir(path)
+    _impl_set_cache_dir(path)
 
 
 def _human_mb(byte_count: float) -> float:
@@ -195,9 +196,6 @@ def disable_cache() -> None:
 
     This disables HTTP caching and DataFrame caching.
     """
-    from oda_reader._cache.dataframe import dataframe_cache
-    from oda_reader.common import disable_http_cache
-
     disable_http_cache()
     dataframe_cache().disable()
     logger.info("Caching disabled globally.")
@@ -208,9 +206,6 @@ def enable_cache() -> None:
 
     This enables HTTP caching and DataFrame caching.
     """
-    from oda_reader._cache.dataframe import dataframe_cache
-    from oda_reader.common import enable_http_cache
-
     enable_http_cache()
     dataframe_cache().enable()
     logger.info("Caching enabled globally.")

@@ -19,9 +19,9 @@ def assert_dataframe_schema(df: pd.DataFrame, expected_columns: dict[str, str]) 
     """
     for col, dtype in expected_columns.items():
         assert col in df.columns, f"Column '{col}' not found in DataFrame"
-        assert (
-            str(df[col].dtype) == dtype
-        ), f"Column '{col}' has dtype {df[col].dtype}, expected {dtype}"
+        assert str(df[col].dtype) == dtype, (
+            f"Column '{col}' has dtype {df[col].dtype}, expected {dtype}"
+        )
 
 
 def load_json_fixture(fixtures_dir: Path, fixture_name: str) -> Any:

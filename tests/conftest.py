@@ -4,15 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from oda_reader import disable_http_cache, enable_http_cache
+from oda_reader import _http_primitives, disable_http_cache, enable_http_cache
 from oda_reader.common import RateLimiter
 
 
 @pytest.fixture(autouse=True)
 def disable_cache_for_tests():
     """Disable HTTP cache for all tests by default."""
-    import oda_reader._http_primitives as _http_primitives
-
     disable_http_cache()
     yield
     # Reset session before re-enabling to avoid SQLite contention
@@ -32,8 +30,6 @@ def temp_cache_dir(tmp_path, monkeypatch):
     Yields:
         Path: Path to the temporary cache directory
     """
-    import oda_reader._http_primitives as _http_primitives
-
     cache_dir = tmp_path / "test_cache"
     cache_dir.mkdir()
     monkeypatch.setenv("ODA_READER_CACHE_DIR", str(cache_dir))

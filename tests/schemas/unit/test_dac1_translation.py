@@ -72,9 +72,9 @@ class TestDAC1Translation:
         result = area_code_mapping()
 
         for value in result.values():
-            assert isinstance(
-                value, str
-            ), f"Value {value} is not a string, got {type(value)}"
+            assert isinstance(value, str), (
+                f"Value {value} is not a string, got {type(value)}"
+            )
 
     def test_area_code_mapping_no_empty_values(self):
         """Test that area_code_mapping has no empty values."""

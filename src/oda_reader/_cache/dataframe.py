@@ -15,12 +15,17 @@ This two-tier approach prevents cache explosion while maintaining correctness.
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from oda_reader._cache.config import get_dataframe_cache_dir
+from oda_reader._cache.config import (
+    _HOSTNAME,
+    get_dataframe_cache_dir,
+    register_cache_dir_change_listener,
+)
 
 logger = logging.getLogger("oda_reader")
 
@@ -63,12 +68,12 @@ def _make_cache_key(
         **kwargs,
     }
 
-    # Create a deterministic JSON string (sorted keys)
-    params_json = json.dumps(params, sort_keys=True)
+    # default=str so non-JSON-serializable kwargs (Path, datetime, ...) hash
+    # by their str() rather than crashing inside the cache layer.
+    params_json = json.dumps(params, sort_keys=True, default=str)
 
-    # Hash it to create a short key
-    hash_obj = hashlib.sha256(params_json.encode())
-    return hash_obj.hexdigest()[:16]  # First 16 chars of hash
+    # 16 hex chars = 64 bits of namespace; ample for any realistic workload.
+    return hashlib.sha256(params_json.encode()).hexdigest()[:16]
 
 
 class DataFrameCache:
@@ -170,10 +175,17 @@ class DataFrameCache:
 
         cache_file = self.cache_dir / f"{cache_key}.parquet"
 
+        # Cache writes are best-effort: a full disk or unwritable cache dir
+        # must not turn a successful download into a user-visible failure.
+        # We still write atomically (tmp + rename) so a crash mid-write can't
+        # leave a half-baked parquet at the destination.
+        tmp_path = Path(f"{cache_file}.tmp-{_HOSTNAME}-{os.getpid()}")
         try:
-            df.to_parquet(cache_file)
+            df.to_parquet(tmp_path)
+            tmp_path.replace(cache_file)
             logger.info(f"Cached DataFrame (key: {cache_key})")
         except Exception as e:
+            tmp_path.unlink(missing_ok=True)
             logger.warning(f"Failed to cache DataFrame: {e}")
 
     def clear(self) -> None:
@@ -205,7 +217,6 @@ class DataFrameCache:
         self._enabled = False
 
 
-# Global singleton
 _DATAFRAME_CACHE: DataFrameCache | None = None
 
 
@@ -219,3 +230,12 @@ def dataframe_cache() -> DataFrameCache:
     if _DATAFRAME_CACHE is None:
         _DATAFRAME_CACHE = DataFrameCache()
     return _DATAFRAME_CACHE
+
+
+def _reset_dataframe_cache() -> None:
+    """Reset the singleton so the next access rebuilds against the current cache dir."""
+    global _DATAFRAME_CACHE
+    _DATAFRAME_CACHE = None
+
+
+register_cache_dir_change_listener(_reset_dataframe_cache)
