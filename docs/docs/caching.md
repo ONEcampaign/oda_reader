@@ -4,12 +4,14 @@ ODA Reader uses caching to make repeated queries fast and reduce dependency on O
 
 ## How Caching Works
 
-ODA Reader caches two types of data:
+ODA Reader caches three types of data:
 
 1. **HTTP responses**: Raw API responses before processing
 2. **DataFrames**: Processed pandas DataFrames after schema translation
+3. **Bulk files**: Large parquet/zip files downloaded by `bulk_download_crs`,
+   `download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`
 
-Both caches are automatic and transparent - you don't need to change your code to benefit from caching.
+All three caches are automatic and transparent - you don't need to change your code to benefit from caching.
 
 **Example of caching in action**:
 
@@ -103,9 +105,16 @@ This removes all cached API responses and DataFrames. Your next query will hit t
 - Cache has grown too large
 - You're troubleshooting unexpected results
 
+**Using `oda_reader` alongside `oda_data`?** `clear_cache`, `set_cache_dir`,
+`enable_cache` and `disable_cache` are deprecated under the umbrella package
+and emit a `DeprecationWarning` pointing at the `oda_data.cache.*` API
+(e.g. `oda_data.cache.clear("all")`). Standalone `oda_reader` users see no
+warning. The shims continue to work through the `1.x` series and will be
+removed in `2.0`.
+
 ### Automatic Cache Cleanup
 
-ODA Reader automatically enforces cache limits:
+ODA Reader automatically enforces cache limits across the cache root:
 
 - **Max size**: 2.5 GB
 - **Max age**: 7 days
@@ -115,6 +124,58 @@ When you import oda_reader, it checks cache limits:
 - If cache exceeds 2.5 GB, oldest files are deleted first
 
 This happens automatically - you don't need to do anything.
+
+### Bulk File Cache
+
+The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
+`bulk_download_dac2a` and `bulk_download_multisystem`) is governed separately
+because the files are large (~1 GB each):
+
+- **LRU eviction**: only the two most recent bulk files are kept; older
+  entries are removed automatically the next time you import oda_reader.
+- **Per-entry TTL**: an entry is considered stale after 30 days and refetched
+  on next use.
+- **Integrity validation**: every freshly downloaded zip is end-to-end checked
+  before being trusted. A corrupt download is removed from the cache and
+  raises `BulkPayloadCorruptError` so you can simply retry. Cached files are
+  trusted on hit (no recheck on every call).
+- **Self-healing**: temp files left behind by interrupted downloads (older
+  than 24 hours) are swept on startup, so an aborted download can't pollute
+  the cache directory indefinitely.
+
+#### Bypassing the Bulk File Cache
+
+If you need a fresh download every call (e.g. for a CI job that should always
+hit the source), pass `use_raw_cache=False`:
+
+```python
+from oda_reader import bulk_download_crs
+
+# Download to a temp directory and discard the zip after extraction
+crs = bulk_download_crs(use_raw_cache=False)
+```
+
+Validation still runs in this mode; only the on-disk caching is skipped. The
+flag is available on `bulk_download_crs`, `download_crs_file`,
+`bulk_download_dac2a` and `bulk_download_multisystem`. `download_aiddata`
+takes a different code path and is not affected.
+
+#### Handling Corrupt Downloads
+
+The OECD's bulk endpoint occasionally serves a truncated or malformed file.
+When that happens, a `BulkPayloadCorruptError` is raised and the bad entry is
+already removed from disk by the time you see it, so the next call cleanly
+re-downloads:
+
+```python
+from oda_reader import bulk_download_crs, BulkPayloadCorruptError
+
+try:
+    crs = bulk_download_crs()
+except BulkPayloadCorruptError:
+    # Bad entry already removed — just retry
+    crs = bulk_download_crs()
+```
 
 ## HTTP Caching (Separate from DataFrame Cache)
 

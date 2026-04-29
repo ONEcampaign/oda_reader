@@ -1,6 +1,6 @@
 [project]
 name = "oda_reader"
-version = "1.5.1"
+version = "1.6.0"
 description = "A simple package to import ODA data from the OECD's API and AidData's database"
 readme = "README.md"
 license = "MIT"
@@ -53,6 +53,7 @@ docs = [
     "mkdocstrings[python]>=0.24.0",
 ]
 test = [
+    "freezegun>=1.4.0",
     "pytest>=9.0.3",
     "pytest-mock>=3.12",
     "pytest-cov>=4.1",
@@ -120,9 +121,10 @@ unfixable = []
 # Allow longer lines in tests and examples
 "tests/**/*.py" = ["E501"]
 "docs/examples/**/*.py" = ["E501"]
-# Allow global variable usage in cache and common modules (architectural decision)
+# Allow global variable usage in singleton-managing modules (architectural decision)
 "src/oda_reader/_cache/*.py" = ["PLW0603"]
 "src/oda_reader/common.py" = ["PLW0603"]
+"src/oda_reader/_http_primitives.py" = ["PLW0603"]
 # Allow try-except without from (external libraries may not support cause chaining)
 "src/oda_reader/download/download_tools.py" = ["B904"]
 # Allow camelcase import in tools (QueryBuilder is the standard name)
@@ -149,6 +151,7 @@ python_functions = ["test_*"]
 markers = [
     "unit: Fast unit tests (no external dependencies)",
     "integration: Tests that call real OECD API",
+    "network: Tests that require live network access (opt-in via RUN_NETWORK_TESTS=1)",
     "slow: Long-running tests (bulk downloads)",
     "cache: Tests that verify cache behavior",
 ]

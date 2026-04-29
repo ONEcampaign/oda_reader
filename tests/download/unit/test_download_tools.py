@@ -53,7 +53,9 @@ class TestDownloadWithMocks:
             return_value=7,
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         result = get_data_from_api(url)
 
         assert mock_get_response.call_count == 2
@@ -70,7 +72,9 @@ class TestDownloadWithMocks:
             return_value="2.0",  # same as URL version
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         with pytest.raises(ConnectionError, match="matches the attempted version"):
             get_data_from_api(url)
 
@@ -92,7 +96,9 @@ class TestDownloadWithMocks:
             side_effect=[7, 8],  # old has 7, new has 8 — breaking change
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         with pytest.raises(ConnectionError, match="breaking schema change"):
             get_data_from_api(url)
 
@@ -114,7 +120,9 @@ class TestDownloadWithMocks:
             return_value=7,  # same count — compatible
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         result = get_data_from_api(url)
         assert result == "DONOR,VALUE\n1,100"
 
@@ -136,7 +144,9 @@ class TestDownloadWithMocks:
             side_effect=ConnectionError("DSD endpoint down"),
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         result = get_data_from_api(url)
         assert result == "DONOR,VALUE\n1,100"
 
@@ -155,7 +165,9 @@ class TestDownloadWithMocks:
             return_value=7,
         )
 
-        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        url = (
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        )
         with pytest.raises(ConnectionError, match="even after version discovery"):
             get_data_from_api(url)
 
@@ -397,49 +409,40 @@ class TestFileTypeAutoDetection:
 class TestDeprecationWarnings:
     """Test deprecation warnings for backward compatibility."""
 
-    def test_is_txt_parameter_emits_deprecation_warning(self, mocker):
-        """Test that using is_txt parameter emits a deprecation warning."""
-        # Mock the internal functions to avoid actual downloads
+    @staticmethod
+    def _mock_download_pipeline(mocker):
+        """Stub the cache manager + content extractor to avoid real downloads."""
+        fake_manager = mocker.Mock()
+        fake_manager.ensure.return_value = "/fake/path"
         mocker.patch(
-            "oda_reader.download.download_tools._get_temp_file",
-            return_value=("/fake/path", False),
+            "oda_reader.download.download_tools.bulk_cache_manager",
+            return_value=fake_manager,
         )
         mocker.patch(
             "oda_reader.download.download_tools._save_or_return_parquet_files_from_content",
             return_value=[pd.DataFrame({"col": [1, 2]})],
         )
+
+    def test_is_txt_parameter_emits_deprecation_warning(self, mocker):
+        """Test that using is_txt parameter emits a deprecation warning."""
+        self._mock_download_pipeline(mocker)
 
         with pytest.warns(DeprecationWarning, match="is_txt.*deprecated"):
             bulk_download_parquet("fake-id", is_txt=True)
 
     def test_is_txt_false_also_emits_warning(self, mocker):
         """Test that is_txt=False also emits deprecation warning."""
-        mocker.patch(
-            "oda_reader.download.download_tools._get_temp_file",
-            return_value=("/fake/path", False),
-        )
-        mocker.patch(
-            "oda_reader.download.download_tools._save_or_return_parquet_files_from_content",
-            return_value=[pd.DataFrame({"col": [1, 2]})],
-        )
+        self._mock_download_pipeline(mocker)
 
         with pytest.warns(DeprecationWarning, match="is_txt.*deprecated"):
             bulk_download_parquet("fake-id", is_txt=False)
 
     def test_no_warning_when_is_txt_not_provided(self, mocker):
         """Test that no warning is emitted when is_txt is not provided."""
-        mocker.patch(
-            "oda_reader.download.download_tools._get_temp_file",
-            return_value=("/fake/path", False),
-        )
-        mocker.patch(
-            "oda_reader.download.download_tools._save_or_return_parquet_files_from_content",
-            return_value=[pd.DataFrame({"col": [1, 2]})],
-        )
+        self._mock_download_pipeline(mocker)
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", DeprecationWarning)
-            # Should not raise any DeprecationWarning
             bulk_download_parquet("fake-id")
 
 
@@ -473,7 +476,9 @@ class TestExtractDataflowIdFromFlowUrl:
         assert _extract_dataflow_id_from_flow_url(url) == expected
 
     def test_unrecognized_url_returns_none(self):
-        assert _extract_dataflow_id_from_flow_url("https://example.com/other/path") is None
+        assert (
+            _extract_dataflow_id_from_flow_url("https://example.com/other/path") is None
+        )
 
 
 FLOW_URL = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/"
@@ -519,7 +524,11 @@ class TestGetBulkFileId:
             "oda_reader.download.download_tools._get_response_text",
             side_effect=[
                 (404, "Not found", False),  # explicit version fails
-                (200, f"{SEARCH_STRING}rescued</end>", False),  # discovered version works
+                (
+                    200,
+                    f"{SEARCH_STRING}rescued</end>",
+                    False,
+                ),  # discovered version works
             ],
         )
         mocker.patch(

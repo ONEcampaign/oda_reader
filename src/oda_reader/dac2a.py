@@ -84,6 +84,7 @@ def bulk_download_dac2a(
     save_to_path: Path | str | None = None,
     *,
     as_iterator: bool = False,
+    use_raw_cache: bool = True,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the DAC2a data from the bulk download service. The file is very large.
@@ -93,6 +94,8 @@ def bulk_download_dac2a(
     Args:
         save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.
         as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
+        use_raw_cache: If False, the raw zip is downloaded to a temporary directory and
+            deleted after extraction. Each call hits the network. Validation still runs.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -104,4 +107,5 @@ def bulk_download_dac2a(
         file_id=file_id,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
+        use_raw_cache=use_raw_cache,
     )

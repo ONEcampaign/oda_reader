@@ -110,6 +110,24 @@ print(f"Education projects: {education_count}")
 print(f"Total commitments: ${education_amount/1e9:.1f}B")
 ```
 
+## Forcing a Fresh Download
+
+By default, bulk downloads are cached on disk so a second call returns
+instantly. If you need to bypass that cache (for example, in a CI job that
+should always pull the latest file), pass `use_raw_cache=False`:
+
+```python
+# Always download fresh; the zip is extracted to a temp dir and discarded
+crs = bulk_download_crs(use_raw_cache=False)
+```
+
+The integrity check on the freshly downloaded zip still runs; only the
+on-disk caching is skipped. This flag is available on `bulk_download_crs`,
+`download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`.
+
+See [Caching & Performance](caching.md#bulk-file-cache) for how the bulk
+cache is managed (LRU eviction, TTL, integrity validation).
+
 ## Year-Specific CRS Files
 
 OECD also provides individual files for specific years:
@@ -214,6 +232,11 @@ See [Schema Translation](schema-translation.md) for detailed comparison.
 **Column names don't match examples**: You're likely comparing bulk downloads (.Stat schema) to API downloads. See [Schema Translation](schema-translation.md).
 
 **File not found errors**: Older CRS year-specific files use grouped years (e.g., "1995-99"). Check which grouping includes your target year.
+
+**`BulkPayloadCorruptError`**: The OECD's bulk endpoint occasionally serves a
+truncated or malformed zip. The corrupt entry is removed automatically before
+the exception is raised, so the next call cleanly re-downloads. Retry the
+call, or pass `use_raw_cache=False` to skip the cache for that invocation.
 
 ## Next Steps
 

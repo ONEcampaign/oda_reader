@@ -24,7 +24,7 @@ class QueryBuilder:
     def __init__(
         self,
         dataflow_id: str,
-        dataflow_version: str = None,
+        dataflow_version: str | None = None,
         api_version: int = 1,
     ) -> None:
         """

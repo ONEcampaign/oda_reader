@@ -1,5 +1,6 @@
 """Unit tests for DAC2a bulk download functionality."""
 
+import pandas as pd
 import pytest
 
 from oda_reader.dac2a import bulk_download_dac2a, get_full_dac2a_parquet_id
@@ -28,8 +29,6 @@ class TestDAC2aBulkDownload:
 
     def test_bulk_download_dac2a_returns_dataframe(self, mocker):
         """Test that bulk_download_dac2a returns DataFrame when no save path."""
-        import pandas as pd
-
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
         mocker.patch(
@@ -48,6 +47,7 @@ class TestDAC2aBulkDownload:
             file_id="mock-file-id",
             save_to_path=None,
             as_iterator=False,
+            use_raw_cache=True,
         )
 
     def test_bulk_download_dac2a_saves_to_path(self, mocker, tmp_path):
@@ -68,11 +68,11 @@ class TestDAC2aBulkDownload:
             file_id="mock-file-id",
             save_to_path=tmp_path,
             as_iterator=False,
+            use_raw_cache=True,
         )
 
     def test_bulk_download_dac2a_as_iterator(self, mocker):
         """Test that bulk_download_dac2a passes as_iterator flag correctly."""
-        import pandas as pd
 
         def mock_iterator():
             yield pd.DataFrame({"col1": [1]})
@@ -95,4 +95,5 @@ class TestDAC2aBulkDownload:
             file_id="mock-file-id",
             save_to_path=None,
             as_iterator=True,
+            use_raw_cache=True,
         )

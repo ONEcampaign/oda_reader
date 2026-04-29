@@ -14,12 +14,14 @@ class TestCRSIntegration:
         """Test CRS microdata query returns project-level data."""
         enable_http_cache()
 
-        # Small query: US education projects (microdata)
-        # Using pre_process=False and dotstat_codes=False to test raw API
+        # Small query: US Primary Education projects (microdata).
+        # CRS microdata (MD_DIM=DD) is keyed on *leaf* DAC purpose codes
+        # (11220 = Primary Education), not the parent category 110.
+        # Using pre_process=False and dotstat_codes=False to test raw API.
         df = download_crs(
             start_year=2023,
             end_year=2023,
-            filters={"donor": "USA", "sector": "110"},  # US, Education sector
+            filters={"donor": "USA", "sector": "11220"},
             pre_process=False,
             dotstat_codes=False,
         )

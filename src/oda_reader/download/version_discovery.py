@@ -137,9 +137,7 @@ def get_dimension_count(dataflow_id: str, version: str) -> int:
         if local_name == "Dimension":
             count += 1
     if count == 0:
-        raise ValueError(
-            f"No dimensions found in DSD '{dsd_id}' version {version}."
-        )
+        raise ValueError(f"No dimensions found in DSD '{dsd_id}' version {version}.")
     return count
 
 

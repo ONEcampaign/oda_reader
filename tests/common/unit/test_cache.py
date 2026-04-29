@@ -2,8 +2,8 @@
 
 import pytest
 
-import oda_reader._http_primitives as _http_primitives
 from oda_reader import (
+    _http_primitives,
     clear_http_cache,
     disable_http_cache,
     enable_http_cache,

@@ -1,5 +1,30 @@
 # Changelog for oda_reader
 
+## 1.6.0 (2026-04-28)
+- Adds `use_raw_cache=False` to `bulk_download_crs`, `download_crs_file`, `bulk_download_dac2a`
+  and `bulk_download_multisystem` for the cases where you want to bypass the bulk cache and
+  re-download fresh on every call. Caching remains on by default.
+- Adds a typed `BulkPayloadCorruptError` (importable from `oda_reader`) for the rare case
+  where a freshly downloaded zip arrives corrupt. The corrupt entry is removed before the
+  exception is raised, so the next call cleanly re-downloads. The error message tells you
+  what to do next.
+- Strengthens corruption detection by validating freshly downloaded zips end-to-end (full
+  member CRC check), not just the central directory. Cached files are trusted on hit so
+  this doesn't slow normal use.
+- The bulk cache now self-maintains: it keeps the two most recent downloads per dataset
+  and evicts older ones, and sweeps stale temp files left behind by interrupted downloads
+  (older than 24h) on startup. No more manually clearing the cache directory to free space.
+- Temp-file naming now includes the hostname alongside the PID, preventing collisions when
+  the cache directory lives on a shared / NFS mount used by multiple machines.
+- `clear_cache`, `set_cache_dir`, `enable_cache` and `disable_cache` now emit a
+  `DeprecationWarning` for users who also import `oda_data`, pointing at the umbrella
+  `oda_data.cache.*` API. Standalone `oda_reader` users see no warning. The shims continue
+  to work through the `1.x` series and will be removed in `2.0`.
+- Cache directory is now versioned by the installed package version (via `importlib.metadata`) rather than a hardcoded string, so upgrades automatically invalidate old caches that may contain partial or corrupt downloads from prior versions.
+- Bulk-download cache writes are now atomic: downloads stream into a sibling temp file and are only renamed over the destination on success, so partial downloads no longer pollute the cache on interruption or error.
+- On `BadZipFile`, the corrupt cached archive is removed so the next call cleanly re-downloads instead of looping on the same poisoned entry.
+- Cached archives are validated with `zipfile.is_zipfile` before reuse; a corrupt entry is removed and re-downloaded transparently.
+
 ## 1.5.1 (2026-04-15)
 - Adds support for Deflate64-compressed ZIP files in bulk downloads. The OECD switched the full CRS bulk file to Deflate64 compression, which Python's standard library does not support. This release patches `zipfile` at runtime using the `inflate64` library to handle Deflate64 transparently.
 - Adds `inflate64` as a dependency.

@@ -1,5 +1,7 @@
 """Unit tests for the version_discovery module."""
 
+from xml.etree.ElementTree import ParseError
+
 import pytest
 
 from oda_reader.download.version_discovery import (
@@ -115,7 +117,7 @@ class TestParseVersionFromXml:
             _parse_version_from_xml(_MISSING_VERSION_XML)
 
     def test_malformed_xml_raises(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ParseError):
             _parse_version_from_xml("<not valid xml >>>")
 
 
@@ -332,5 +334,5 @@ class TestDiscoverLatestVersionEdgeCases:
         """200 with unparseable XML should raise ValueError."""
         _mock_http.return_value = (200, "<not><valid><xml", False)
 
-        with pytest.raises(Exception):
+        with pytest.raises(ParseError):
             discover_latest_version("DSD_DAC1@DF_DAC1")
