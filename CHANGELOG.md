@@ -20,8 +20,6 @@
   `DeprecationWarning` for users who also import `oda_data`, pointing at the umbrella
   `oda_data.cache.*` API. Standalone `oda_reader` users see no warning. The shims continue
   to work through the `1.x` series and will be removed in `2.0`.
-
-## 1.5.2 (2026-04-28)
 - Cache directory is now versioned by the installed package version (via `importlib.metadata`) rather than a hardcoded string, so upgrades automatically invalidate old caches that may contain partial or corrupt downloads from prior versions.
 - Bulk-download cache writes are now atomic: downloads stream into a sibling temp file and are only renamed over the destination on success, so partial downloads no longer pollute the cache on interruption or error.
 - On `BadZipFile`, the corrupt cached archive is removed so the next call cleanly re-downloads instead of looping on the same poisoned entry.
