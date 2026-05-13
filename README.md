@@ -1,7 +1,7 @@
-[![](https://img.shields.io/pypi/v/oda-reader?label=PyPI%20-%20version)](https://pypi.org/project/oda-reader/)
-[![](https://img.shields.io/conda/vn/conda-forge/oda-reader?label=conda%20-%20version)](https://anaconda.org/channels/conda-forge/packages/oda-reader)
-![](https://img.shields.io/pypi/dm/oda-reader?label=PyPI%20downloads)
-![](https://img.shields.io/conda/dn/conda-forge/oda-reader?label=conda%20downloads)
+[![PyPI version](https://img.shields.io/pypi/v/oda-reader?label=PyPI%20-%20version)](https://pypi.org/project/oda-reader/)
+[![Anaconda version](https://img.shields.io/conda/vn/conda-forge/oda-reader?label=conda%20-%20version)](https://anaconda.org/channels/conda-forge/packages/oda-reader)
+![PyPI monthly downloads](https://img.shields.io/pypi/dm/oda-reader?label=PyPI%20downloads)
+![Anaconda monthly downloads](https://img.shields.io/conda/dn/conda-forge/oda-reader?label=conda%20downloads)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 # ODA Reader
