@@ -1,5 +1,7 @@
-[![pypi](https://img.shields.io/pypi/v/oda_reader.svg)](https://pypi.org/project/oda_reader/)
-[![python](https://img.shields.io/pypi/pyversions/oda_reader.svg)](https://pypi.org/project/oda_reader/)
+[![](https://img.shields.io/pypi/v/oda-reader?label=PyPI%20-%20version)](https://pypi.org/project/oda-reader/)
+[![](https://img.shields.io/conda/vn/conda-forge/oda-reader?label=conda%20-%20version)](https://anaconda.org/channels/conda-forge/packages/oda-reader)
+![](https://img.shields.io/pypi/dm/oda-reader?label=PyPI%20downloads)
+![](https://img.shields.io/conda/dn/conda-forge/oda-reader?label=conda%20downloads)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 # ODA Reader
@@ -45,13 +47,20 @@ and Other Official Flows (OOFs) directly from the OECD API.
 
 ## Installation
 
-The ODA Reader can be installed directly from the Python Package Index (PyPI) using pip.
+The ODA Reader can be installed directly from the Python Package Index (PyPI) using `pip` or from Anaconda.org using `conda`.
 
-To install from pip, simply run the following command:
+To install using `pip`:
 
 ```bash
 pip install oda-reader
 ```
+
+To install using `conda`:
+
+```bash
+conda install oda-reader
+```
+
 
 ## Basic Usage
 
