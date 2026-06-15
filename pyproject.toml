@@ -131,7 +131,9 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 # Tests don't need annotations, pylint-magic-value gates, or line-length limits.
-"tests/**/*.py" = ["ANN", "PLR2004", "E501"]
+# PLC0415: in-test imports are a deliberate pattern for monkeypatching module
+# objects (monkeypatch.setattr needs the module, not just the symbol).
+"tests/**/*.py" = ["ANN", "PLR2004", "E501", "PLC0415"]
 "docs/examples/**/*.py" = ["E501"]
 # Notebooks: exploration style — don't require annotations; allow REPL patterns.
 "**/*.ipynb" = ["ANN", "F401", "F811", "E402"]
@@ -162,6 +164,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["."]
 markers = [
     "unit: Fast unit tests (no external dependencies)",
     "integration: Tests that call real OECD API",
@@ -179,7 +182,7 @@ addopts = [
 python-version = "3.11"
 
 [tool.ty.src]
-include = ["src/oda_reader"]
+include = ["src/oda_reader", "scripts"]
 
 [tool.ty.analysis]
 # Replace pandas / numpy type information with `Any`. Eliminates the cascade of
