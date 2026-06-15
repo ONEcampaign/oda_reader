@@ -3,6 +3,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 # ODA Reader
+
 The OECD DAC Data Importer
 
 **ODA Reader** is a Python package that simplifies access to the **OECD DAC data**, leveraging
@@ -19,15 +20,15 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Features](#features)
-3. [Installation](#installation)
-4. [DAC1](#downloading-dac1-data)
-5. [DAC2a](#downloading-dac2a-data)
-6. [CRS](#downloading-crs-data)
-7. [Multisystem](#downloading-multisystem-data)
-8. [Using filters](#using-filters)
-9. [Rate limiting](#rate-limiting)
-10. [Contribute](#contributing-to-oda-reader)
+1. [Features](#features)
+1. [Installation](#installation)
+1. [DAC1](#downloading-dac1-data)
+1. [DAC2a](#downloading-dac2a-data)
+1. [CRS](#downloading-crs-data)
+1. [Multisystem](#downloading-multisystem-data)
+1. [Using filters](#using-filters)
+1. [Rate limiting](#rate-limiting)
+1. [Contribute](#contributing-to-oda-reader)
 
 ## Getting Started
 
@@ -325,9 +326,9 @@ The `bulk_download_crs()` function allows you to download the full CRS data (as 
 It accepts a few different arguments:
 
 - `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
-saved. If not provided, `bulk_download_crs` will return a Pandas DataFrame.
+  saved. If not provided, `bulk_download_crs` will return a Pandas DataFrame.
 - `reduced_version`: A boolean which defaults to `False`. If `True` smaller file (removing certain
-columns) is downloaded and saved/returned instead.
+  columns) is downloaded and saved/returned instead.
 - `as_iterator`: If `True` the function yields one `DataFrame` per row group
   instead of returning the entire file at once. This greatly reduces the peak
   memory usage when working with very large files.
@@ -369,6 +370,7 @@ bulk_download_crs(save_to_path="./example-folder/", reduced_version=True)
 ```
 
 To keep the smaller file in memory as a Pandas DataFrame:
+
 ```python
 from oda_reader import bulk_download_crs
 
@@ -393,6 +395,7 @@ download_crs_file(year=2022, save_to_path="./example-folder/")
 ```
 
 For older years, the years are grouped in a single file. For example:
+
 - 2004-05
 - 2002-03
 - 2000-01
@@ -415,7 +418,6 @@ from oda_reader import download_crs_file
 
 crs_data = download_crs_file(year=2017)
 ```
-
 
 ### Downloading Multisystem Data
 
@@ -536,6 +538,7 @@ full_multisystem = bulk_download_multisystem()
 ```
 
 ## Using filters
+
 When using ODA Reader, you can apply filters to refine the data you retrieve from the API. This applies to all tools except for the bulk download functions.
 
 Filters allow you to specify subsets of data, making it easy to focus on the information that is most relevant to your needs.
@@ -573,12 +576,11 @@ crs_filters = get_available_filters(source="crs")
 multisystem_filters = get_available_filters(source="multisystem")
 ```
 
-
 ## Rate limiting
 
 ODA Reader limits outgoing requests to avoid hitting the OECD API too often.
 Network calls pause automatically when the limit (20 calls per minute by default)
-is reached. The limit can be changed via the ``API_RATE_LIMITER`` object:
+is reached. The limit can be changed via the `API_RATE_LIMITER` object:
 
 ```python
 from oda_reader import API_RATE_LIMITER
@@ -602,3 +604,51 @@ If you have an idea for a new feature, additional functionality, or if you have 
 To contribute code, you can fork the repository, implement your changes, and then open a pull request (PR). Please ensure that you submit an issue beforehand to discuss your proposed changes.
 
 Your contributions are invaluable in making ODA Reader better for everyone.
+
+### Development setup
+
+This project uses [uv](https://docs.astral.sh/uv/) and follows the
+[`bblocks-projects`](https://github.com/ONEcampaign/bblocks-projects) standard
+(linting with [ruff](https://docs.astral.sh/ruff/), type checking with
+[ty](https://github.com/astral-sh/ty), and pre-commit hooks).
+
+```bash
+uv sync --all-groups          # install runtime + dev/test/docs dependencies
+uv run pre-commit install     # enable the git hooks
+
+# Run the quality checks locally (these also run in CI):
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check src/oda_reader
+uv run pytest -m "not integration"
+```
+
+### Releasing
+
+Releases are published to [PyPI](https://pypi.org/project/oda_reader/)
+automatically by the `release.yml` GitHub Actions workflow using
+[trusted publishing](https://docs.pypi.org/trusted-publishers/) (OIDC — no API
+tokens or secrets). The workflow runs only on tags matching `v*`, builds the
+sdist and wheel with `uv build`, and publishes from the `pypi` deployment
+environment.
+
+To cut a release:
+
+1. Bump `version` in `pyproject.toml` and add a dated entry to `CHANGELOG.md`.
+
+1. Merge those changes to `main`.
+
+1. Tag the release and push the tag:
+
+   ```bash
+   git tag v1.2.3
+   git push origin v1.2.3
+   ```
+
+1. The `release.yml` workflow builds and publishes to PyPI. Watch the run in the
+   repository's **Actions** tab.
+
+The tag version should match the `version` in `pyproject.toml`. Trusted
+publishing is configured on the PyPI project (publisher: `ONEcampaign/oda_reader`,
+workflow `release.yml`, environment `pypi`); no maintainer credentials are
+needed to publish.

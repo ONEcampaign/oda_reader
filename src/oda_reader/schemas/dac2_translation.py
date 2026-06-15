@@ -19,7 +19,7 @@ MAPPINGS = {
 }
 
 
-def update_dac2_translation_mappings():
+def update_dac2_translation_mappings() -> None:
     """Pipeline to update the DAC2A translation mappings"""
     xml_data = parse_xml(xml_url=DAC2_TRANSLATION_SCHEMA_URL)["Structures"]
 

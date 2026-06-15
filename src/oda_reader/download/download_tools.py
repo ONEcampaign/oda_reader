@@ -56,7 +56,7 @@ AIDDATA_DOWNLOAD_URL = (
 )
 
 
-def _detect_delimiter(file_obj, sample_size: int = 8192) -> str:
+def _detect_delimiter(file_obj: typing.IO[bytes], sample_size: int = 8192) -> str:
     """Detect the delimiter used in a CSV/text file.
 
     Reads a sample of the file and uses csv.Sniffer to detect the delimiter.

@@ -26,11 +26,13 @@ print(filter_string)
 This filter string can be used to manually construct API URLs.
 
 **When to use QueryBuilder directly**:
+
 - Building custom SDMX queries
 - Debugging filter construction
 - Understanding dimension order for a dataset
 
 **Methods available**:
+
 - `build_dac1_filter(donor, sector, measure, flow_type, unit_measure, price_base)`
 - `build_dac2a_filter(donor, recipient, measure, price_base, ...)`
 - `build_crs_filter(donor, recipient, sector, channel, modality, microdata, ...)`
@@ -47,8 +49,8 @@ OECD occasionally changes dataflow versions (schema updates). ODA Reader handles
 When a dataflow version returns an error (not found), ODA Reader automatically queries the OECD's SDMX metadata endpoint to discover the latest published version and retries with it:
 
 1. Tries the configured default version
-2. If not found, queries the metadata endpoint for the authoritative latest version
-3. Retries once with the discovered version
+1. If not found, queries the metadata endpoint for the authoritative latest version
+1. Retries once with the discovered version
 
 This means your code keeps working even when OECD updates schema versions. You'll see a log message indicating which version was discovered.
 
@@ -75,10 +77,12 @@ data = download_dac1(
 ```
 
 **When to override**:
+
 - You know the correct version for reproducibility
 - Debugging version-specific issues
 
 **Available for**:
+
 - `download_dac1(dataflow_version=...)`
 - `download_dac2a(dataflow_version=...)`
 - `download_crs(dataflow_version=...)`
@@ -89,16 +93,19 @@ data = download_dac1(
 OECD uses two SDMX API versions:
 
 **API v1** (legacy):
+
 ```
 https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DF_DAC1,1.0/...
 ```
 
 **API v2** (current):
+
 ```
 https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DF_DAC1/1.0/...
 ```
 
 ODA Reader uses the appropriate version for each dataset:
+
 - **DAC1, DAC2a**: API v2
 - **CRS, Multisystem**: Custom endpoint (CRS-specific API)
 
@@ -167,6 +174,7 @@ combined = pd.merge(
 ```
 
 **Tips**:
+
 - Use same `pre_process` and `dotstat_codes` settings for compatibility
 - Column names and codes must align
 - Filter carefully to avoid double-counting

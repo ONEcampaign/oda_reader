@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 22c0aa6abc4acb083663b817bb58202193e9c3ef
+_src_path: gh:ONEcampaign/bblocks-projects
+project_name: oda_reader
+project_slug: oda_reader
+project_description: A simple package to import ODA data from the OECD's API and AidData's database
+project_type: package
+author_name: Jorge Rivera
+author_email: jorge.rivera@one.org
+python_version: "3.11"
+license: mit
+github_username: ONEcampaign

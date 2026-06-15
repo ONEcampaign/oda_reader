@@ -2,37 +2,38 @@
 
 This document provides a comprehensive guide to the caching system in `oda_reader`, including architecture details, usage instructions, and backward compatibility notes.
 
----
+______________________________________________________________________
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Quick Start](#quick-start)
-4. [Configuration](#configuration)
-5. [Cache Management](#cache-management)
-6. [Backward Compatibility](#backward-compatibility)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting](#troubleshooting)
-9. [Technical Details](#technical-details)
+1. [Architecture](#architecture)
+1. [Quick Start](#quick-start)
+1. [Configuration](#configuration)
+1. [Cache Management](#cache-management)
+1. [Backward Compatibility](#backward-compatibility)
+1. [Performance Considerations](#performance-considerations)
+1. [Troubleshooting](#troubleshooting)
+1. [Technical Details](#technical-details)
 
----
+______________________________________________________________________
 
 ## Overview
 
 The `oda_reader` package uses a **three-tier caching system** to optimize data downloads from the OECD API:
 
 1. **HTTP Cache** (requests-cache): Caches raw API responses for 7 days
-2. **DataFrame Cache**: Caches processed DataFrames with preprocessing parameters
-3. **Bulk File Cache**: Caches large bulk downloads (CRS, Multisystem, AidData)
+1. **DataFrame Cache**: Caches processed DataFrames with preprocessing parameters
+1. **Bulk File Cache**: Caches large bulk downloads (CRS, Multisystem, AidData)
 
 This multi-layer approach provides:
+
 - **Fast repeated queries** (10-90x speedup on cache hits)
 - **Correct data** (cache keys include all processing parameters)
 - **Efficient storage** (parquet format, automatic cleanup)
 - **Platform-aware paths** (follows OS conventions)
 
----
+______________________________________________________________________
 
 ## Architecture
 
@@ -79,7 +80,7 @@ Default location: `~/.cache/oda-reader/{version}/` (macOS/Linux) or `%LOCALAPPDA
 
 **Note**: Cache is automatically versioned - upgrading `oda_reader` creates a new cache directory, ensuring compatibility.
 
----
+______________________________________________________________________
 
 ## Quick Start
 
@@ -115,7 +116,7 @@ print(oda_reader.bulk_cache_manager().stats())
 # {'total_entries': 1, 'total_size_mb': 878.5, 'stale_entries': 0}
 ```
 
----
+______________________________________________________________________
 
 ## Configuration
 
@@ -144,9 +145,10 @@ export ODA_READER_CACHE_DIR="/custom/cache/path"
 ```
 
 Priority order:
+
 1. `set_cache_dir()` (programmatic override)
-2. `ODA_READER_CACHE_DIR` (environment variable)
-3. Platform default (via platformdirs)
+1. `ODA_READER_CACHE_DIR` (environment variable)
+1. Platform default (via platformdirs)
 
 ### Disable Caching
 
@@ -180,7 +182,7 @@ oda_reader.API_RATE_LIMITER.max_calls = 10
 oda_reader.API_RATE_LIMITER.period = 60
 ```
 
----
+______________________________________________________________________
 
 ## Cache Management
 
@@ -231,7 +233,7 @@ oda_reader.enforce_cache_limits(
 
 **Note**: This is called automatically on first cache access, not at import time.
 
----
+______________________________________________________________________
 
 ## Backward Compatibility
 
@@ -255,6 +257,7 @@ oda_reader.enforce_cache_limits()  #  Enforces size/age limits
 If you have code using the old caching system:
 
 **Before** (oda_reader < 1.2.2):
+
 ```python
 from oda_reader._cache import memory, set_cache_dir
 
@@ -267,6 +270,7 @@ set_cache_dir("/custom/path")
 ```
 
 **After** (oda_reader >= 1.2.2):
+
 ```python
 from oda_reader import get_cache_dir, set_cache_dir
 
@@ -276,6 +280,7 @@ set_cache_dir("/custom/path")
 ```
 
 **Key Changes**:
+
 - ✅ No breaking changes - old code continues to work
 - ✅ Cache location moved from `src/oda_reader/.cache/` to platform directory
 - ✅ joblib replaced with requests-cache + parquet files
@@ -287,6 +292,7 @@ set_cache_dir("/custom/path")
 The old caching system had several issues:
 
 1. **Data correctness bug**: Cache didn't include `pre_process` or `dotstat_codes` parameters
+
    ```python
    # Before: These returned the SAME cached data (wrong!)
    df1 = download_dac1(2022, 2022, pre_process=True, dotstat_codes=True)
@@ -295,25 +301,27 @@ The old caching system had several issues:
    # After: These correctly return different data
    ```
 
-2. **Bad cache location**: Cache was in `src/oda_reader/.cache/` (polluted source tree)
+1. **Bad cache location**: Cache was in `src/oda_reader/.cache/` (polluted source tree)
 
-3. **Import-time slowdown**: `enforce_cache_limits()` walked entire cache on every import
+1. **Import-time slowdown**: `enforce_cache_limits()` walked entire cache on every import
 
-4. **No observability**: No way to inspect cache contents or hit/miss rates
+1. **No observability**: No way to inspect cache contents or hit/miss rates
 
 All these issues are now fixed while maintaining full backward compatibility.
 
----
+______________________________________________________________________
 
 ## Performance Considerations
 
 ### Cache Hit Performance
 
 Typical speedups with cache hits:
+
 - **HTTP cache hit**: ~2-5x faster (avoids network request)
 - **DataFrame cache hit**: ~10-90x faster (avoids parsing + processing)
 
 Example benchmark:
+
 ```
 First download:  2.71s (API + processing)
 Second download: 0.03s (DataFrame cache) - 90x faster
@@ -322,6 +330,7 @@ Second download: 0.03s (DataFrame cache) - 90x faster
 ### Storage Usage
 
 Typical cache sizes:
+
 - HTTP cache: 1-10 MB per response (filesystem backend, can handle >2GB responses)
 - DataFrame cache: 0.1-1 MB per query (compressed parquet)
 - Bulk files: 100-1000 MB per file (CRS full dataset ~900 MB)
@@ -335,17 +344,19 @@ Typical cache sizes:
 ### When Cache Is NOT Used
 
 Cache is bypassed when:
-1. Caching is disabled (`disable_cache()` or `disable_http_cache()`)
-2. Cache entry has expired (HTTP: 7 days, bulk files: per-entry TTL)
-3. Different parameters are used (cache keys are unique per parameter combination)
 
----
+1. Caching is disabled (`disable_cache()` or `disable_http_cache()`)
+1. Cache entry has expired (HTTP: 7 days, bulk files: per-entry TTL)
+1. Different parameters are used (cache keys are unique per parameter combination)
+
+______________________________________________________________________
 
 ## Troubleshooting
 
 ### Cache Not Working
 
 **Check if caching is enabled:**
+
 ```python
 import oda_reader
 
@@ -355,6 +366,7 @@ print(oda_reader.dataframe_cache().stats())
 ```
 
 **Common issues:**
+
 - Caching disabled: Call `oda_reader.enable_cache()`
 - Cache full: Call `oda_reader.clear_cache()` or increase limits
 - Different parameters: Cache keys are unique per parameter combination
@@ -362,6 +374,7 @@ print(oda_reader.dataframe_cache().stats())
 ### Cache Growing Too Large
 
 **Check cache size:**
+
 ```python
 import oda_reader
 
@@ -375,6 +388,7 @@ print(oda_reader.bulk_cache_manager().stats())
 ```
 
 **Solutions:**
+
 ```python
 # Clear specific caches
 oda_reader.dataframe_cache().clear()  # Usually the culprit
@@ -390,6 +404,7 @@ oda_reader.enforce_cache_limits(max_size_mb=1000)  # 1 GB limit
 ### Cache Returning Stale Data
 
 **Force fresh data:**
+
 ```python
 # Option 1: Clear cache before download
 oda_reader.clear_http_cache()
@@ -423,7 +438,7 @@ manager = CacheManager()
 manager._lock = FileLock(manager.lock_path, timeout=2000)
 ```
 
----
+______________________________________________________________________
 
 ## Technical Details
 
@@ -441,6 +456,7 @@ oda_reader/_cache/
 ### Cache Key Generation
 
 **DataFrame cache keys** are SHA256 hashes of:
+
 ```python
 {
     "dataflow_id": "DSD_DAC1@DF_DAC1",
@@ -459,6 +475,7 @@ This ensures different preprocessing options get separate cache entries.
 ### HTTP Cache Backend
 
 Uses `requests-cache` with filesystem backend:
+
 - Directory: `{cache_dir}/http_cache/`
 - Stores responses, redirects, and metadata as individual files
 - Handles large responses (>2GB) without issues
@@ -475,6 +492,7 @@ Uses `requests-cache` with filesystem backend:
 ### Bulk File Cache
 
 Follows pydeflate design:
+
 - Manifest: `{cache_dir}/bulk_files/manifest.json`
 - Lock file: `{cache_dir}/bulk_files/.cache.lock` (FileLock)
 - Atomic writes: temp-file-then-rename pattern
@@ -483,17 +501,19 @@ Follows pydeflate design:
 ### Version-Based Cache Invalidation
 
 Cache directory includes package version:
+
 ```
 ~/.cache/oda-reader/1.2.2/  # Version 1.2.2
 ~/.cache/oda-reader/1.3.0/  # Version 1.3.0 (new cache)
 ```
 
 This ensures:
+
 - No cache corruption after upgrades
 - Schema changes don't break existing cache
 - Automatic cleanup of old versions
 
----
+______________________________________________________________________
 
 ## API Reference
 
@@ -533,4 +553,4 @@ This ensures:
 - `clear_cache() -> None`: Clear entire cache directory
 - `enforce_cache_limits() -> None`: Enforce size/age limits
 
----
+______________________________________________________________________

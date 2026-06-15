@@ -66,6 +66,7 @@ dac1_filters = get_available_filters("dac1")
 ```
 
 **Output:**
+
 ```
 OrderedDict([('donor', typing.Union[str, list, NoneType]),
              ('sector', typing.Union[str, list, NoneType]),
@@ -104,7 +105,7 @@ Common dimensions:
 
 - `donor` - Donor country (ISO3 codes like "USA", "GBR", "FRA")
 - `recipient` - Recipient country or region (DAC2a only)
-- `sector` - Sector code (DAC1 only, use "_Z" for not applicable)
+- `sector` - Sector code (DAC1 only, use "\_Z" for not applicable)
 - `measure` - Type of flow (ODA, OOF, grants, loans, etc.)
 - `flow_type` - Commitments, disbursements, net flows, etc.
 - `price_base` - "V" for current prices, "Q" for constant prices
@@ -156,8 +157,8 @@ education_projects = download_crs(
 The online OECD Data Explorer shows semi-aggregated CRS data, not microdata. To match that view:
 
 1. Set `microdata: False`
-2. Specify `channel: "_T"` (total across channels)
-3. Specify `modality: "_T"` (total across modalities)
+1. Specify `channel: "_T"` (total across channels)
+1. Specify `modality: "_T"` (total across modalities)
 
 **Example**: Get semi-aggregated data matching Data Explorer:
 
@@ -216,7 +217,7 @@ print(data['measure'].unique())  # See all measure codes
 
 2. **Check OECD documentation**: Code lists are in the [OECD DAC Glossary](https://www.oecd.org/dac/financing-sustainable-development/development-finance-standards/)
 
-3. **Use trial and error**: Download a small query and examine column values
+1. **Use trial and error**: Download a small query and examine column values
 
 **Note**: Codes differ between API schema and .Stat schema. When making API calls, you must use the
 API schema. However by default, ODA Reader returns .Stat codes. See [Schema Translation](schema-translation.md) for details.

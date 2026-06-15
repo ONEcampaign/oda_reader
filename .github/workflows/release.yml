@@ -1,44 +1,58 @@
-name: release
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # Required for PyPI trusted publishing
 
 jobs:
-  release:
-    name: Create Release
+  build:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-versions: ["3.13"]
-
-    permissions:
-      contents: write  # needed by action-gh-release
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Extract version from tag
-        id: tag_name
-        run: echo "current_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-        shell: bash
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
 
-      - name: Set up uv (and Python)
-        uses: astral-sh/setup-uv@v6
+      - name: Cache uv
+        uses: actions/cache@v5
         with:
-          python-version: ${{ matrix.python-versions }}
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
-      - name: Build sdist and wheel (uv)
+      - name: Set up Python 3.11
+        run: uv python install '3.11'
+
+      - name: Build package
         run: uv build --no-sources
 
-      - name: Show dist/
-        run: ls -l dist
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
 
-      - name: Publish to PyPI (uv)
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/oda_reader
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
         run: uv publish

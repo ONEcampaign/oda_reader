@@ -65,36 +65,38 @@ class QueryBuilder:
         )
 
         # Initialize the query parameters with the default format
-        self.params = {"format": FORMAT}
+        self.params: dict[str, str | int] = {"format": FORMAT}
 
         # Store the API version
         self.api_version = api_version
 
-    def _to_filter_str(self, param: str | list[str] | None) -> str:
-        """Convert a string parameter to a list, if it is not already a list.
+    def _to_filter_str(self, param: str | int | list[str] | list[int] | None) -> str:
+        """Convert a parameter to a filter string.
 
         Args:
-            param (str | list[str] | None): The parameter to convert.
-            api_version (int): The version of the API to use.
+            param (str | int | list[str] | list[int] | None): The parameter to convert.
 
         Returns:
-            list[str]: The parameter as a list.
+            str: The parameter as a filter string.
         """
 
         if param is None:
             return "*" if self.api_version == 2 else ""
-        if isinstance(param, str):
-            param = [param]
 
-        if (self.api_version == 2) & (len(param) > 1):
+        items: list[str | int] = (
+            [param] if isinstance(param, (str, int)) else list(param)
+        )
+        str_param = [str(p) for p in items]
+
+        if (self.api_version == 2) & (len(str_param) > 1):
             logger.info(
                 f"API version 2 does not support filtering on multiple values:"
-                f"\n{(', '.join(param))} \n"
+                f"\n{(', '.join(str_param))} \n"
                 "Returning all values."
             )
             return "*"
 
-        return "+".join(param)
+        return "+".join(str_param)
 
     def set_time_period(
         self, start: int | str | None, end: int | str | None
@@ -167,7 +169,7 @@ class QueryBuilder:
         self,
         donor: str | list[str] | None = None,
         recipient: str | list[str] | None = None,
-        measure: int | list[int] | None = None,
+        measure: str | int | list[str] | list[int] | None = None,
         unit_measure: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
     ) -> str:
@@ -200,9 +202,9 @@ class QueryBuilder:
         self,
         donor: str | list[str] | None = None,
         recipient: str | list[str] | None = None,
-        sector: int | list[int] | None = None,
-        measure: int | list[int] | None = None,
-        channel: str | list[str] | None = None,
+        sector: str | int | list[str] | list[int] | None = None,
+        measure: str | int | list[str] | list[int] | None = None,
+        channel: str | int | list[str] | list[int] | None = None,
         modality: str | list[str] | None = None,
         flow_type: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
@@ -259,9 +261,9 @@ class QueryBuilder:
         self,
         donor: str | list[str] | None = None,
         recipient: str | list[str] | None = None,
-        sector: int | list[int] | None = None,
-        measure: int | list[int] | None = None,
-        channel: int | list[int] | None = None,
+        sector: str | int | list[str] | list[int] | None = None,
+        measure: str | int | list[str] | list[int] | None = None,
+        channel: str | int | list[str] | list[int] | None = None,
         flow_type: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
     ) -> str:
@@ -336,7 +338,7 @@ class QueryBuilder:
         self.params["lastNObservations"] = n
         return self
 
-    def set_format(self, file_format) -> "QueryBuilder":
+    def set_format(self, file_format: str) -> "QueryBuilder":
         """Set the format of the output file.
 
         Args:

@@ -29,6 +29,7 @@ Pytest configuration is in `pyproject.toml` under `[tool.pytest.ini_options]`.
 ## Running Tests
 
 ### Run all unit tests (default, fast)
+
 ```bash
 uv run pytest tests/
 ```
@@ -36,6 +37,7 @@ uv run pytest tests/
 By default, integration tests are excluded to keep test runs fast. Only unit tests with mocked dependencies will run.
 
 ### Run all tests including integration
+
 ```bash
 uv run pytest tests/ -m ""
 ```
@@ -43,21 +45,25 @@ uv run pytest tests/ -m ""
 This will run the full suite, including integration tests that make real API calls.
 
 ### Run only integration tests
+
 ```bash
 uv run pytest tests/ -m integration
 ```
 
 ### Run only unit tests (explicit)
+
 ```bash
 uv run pytest tests/ -m unit
 ```
 
 ### Run specific test file
+
 ```bash
 uv run pytest tests/common/unit/test_rate_limiter.py -v
 ```
 
 ### Run specific test class or function
+
 ```bash
 # Run a specific test class
 uv run pytest tests/common/unit/test_rate_limiter.py::TestRateLimiterBlocking -v
@@ -67,6 +73,7 @@ uv run pytest tests/common/unit/test_rate_limiter.py::TestRateLimiterBlocking::t
 ```
 
 ### Run with coverage
+
 ```bash
 uv run pytest tests/ --cov=src/oda_reader --cov-report=html
 ```
@@ -74,6 +81,7 @@ uv run pytest tests/ --cov=src/oda_reader --cov-report=html
 This generates an HTML coverage report in `htmlcov/index.html`.
 
 ### Run in parallel (unit tests only)
+
 ```bash
 uv run pytest tests/ -n auto -m "not integration"
 ```
@@ -110,13 +118,15 @@ def test_real_api_call():
 ### Unit Tests
 
 Unit tests should:
+
 - Mock external dependencies (HTTP calls, file I/O)
-- Be fast (<100ms per test)
+- Be fast (\<100ms per test)
 - Test business logic in isolation
 - Use parametrization for comprehensive coverage
 - Focus on edge cases and error handling
 
 Example:
+
 ```python
 import pytest
 
@@ -134,6 +144,7 @@ def test_query_builder_filter(mocker):
 ### Integration Tests
 
 Integration tests should:
+
 - Use real API calls (no mocking)
 - Be marked with `@pytest.mark.integration`
 - Use small queries (single year, specific filters) to minimize API load
@@ -142,6 +153,7 @@ Integration tests should:
 - Test critical user-facing functionality
 
 Example:
+
 ```python
 import pytest
 from oda_reader import dac1, enable_http_cache
@@ -191,6 +203,7 @@ def test_filter_conversion(input_val, expected):
 Key fixtures available in all tests (defined in `conftest.py`):
 
 ### `temp_cache_dir`
+
 Creates a temporary cache directory for testing cache behavior.
 
 ```python
@@ -201,6 +214,7 @@ def test_cache_behavior(temp_cache_dir):
 ```
 
 ### `rate_limiter_fast`
+
 Provides a fast rate limiter for testing (2 calls per 0.5 seconds).
 
 ```python
@@ -212,6 +226,7 @@ def test_rate_limiting(rate_limiter_fast):
 ```
 
 ### `sample_csv_response`
+
 Returns sample CSV data for mocking API responses.
 
 ```python
@@ -221,6 +236,7 @@ def test_csv_parsing(sample_csv_response):
 ```
 
 ### `fixtures_dir`
+
 Returns the path to the fixtures directory.
 
 ```python
@@ -239,6 +255,7 @@ The `disable_cache_for_tests` fixture runs automatically for all tests, ensuring
 Helper functions are available in `tests/utils.py`:
 
 ### `assert_dataframe_schema(df, expected_columns)`
+
 Validates DataFrame has expected columns and types.
 
 ```python
@@ -253,6 +270,7 @@ def test_dataframe_structure():
 ```
 
 ### `load_json_fixture(fixtures_dir, fixture_name)`
+
 Loads a JSON fixture file.
 
 ```python
@@ -264,6 +282,7 @@ def test_with_fixture(fixtures_dir):
 ```
 
 ### `mock_api_response(status_code, text, from_cache=False)`
+
 Creates a mock API response tuple.
 
 ```python
@@ -282,11 +301,13 @@ def test_api_error_handling(mocker):
 Tests run automatically in GitHub Actions:
 
 ### On Every Commit
+
 - **Unit tests only** (~1-2 minutes)
 - Runs on Python 3.10 - 3.13
 - Must pass before merge
 
 ### On Pull Requests to Main
+
 - **Full suite** including integration tests (~5-10 minutes)
 - Runs on Python 3.12
 - Lint checks with ruff
@@ -319,6 +340,7 @@ open htmlcov/index.html
 ```
 
 Coverage goals:
+
 - Overall: >80%
 - Core modules (common, download, query_builder): >90%
 - Dataset modules (dac1, dac2a, crs): >70%
@@ -326,47 +348,55 @@ Coverage goals:
 ## Troubleshooting
 
 ### Tests are slow
+
 By default, integration tests are skipped. If tests are still slow:
+
 - Ensure you're running unit tests only: `uv run pytest tests/ -m "not integration"`
 - Use parallel execution: `uv run pytest tests/ -n auto`
 
 ### Integration tests fail with rate limit errors
+
 - Reduce the number of concurrent test runs
 - Check that `enable_http_cache()` is called in integration tests
 - Wait a minute between test runs to respect API rate limits
 
 ### Import errors
+
 Make sure dependencies are installed:
+
 ```bash
 uv sync --group test
 ```
 
 ### Cache-related test failures
+
 The cache is disabled by default in tests. If you need to test cache behavior:
+
 1. Use the `@pytest.mark.cache` marker
-2. Manually enable cache in the test with `enable_http_cache()`
-3. Use the `temp_cache_dir` fixture for isolation
+1. Manually enable cache in the test with `enable_http_cache()`
+1. Use the `temp_cache_dir` fixture for isolation
 
 ## Best Practices
 
 1. **Test behavior, not implementation**: Focus on what the code does, not how it does it
-2. **Keep tests independent**: Each test should be able to run in isolation
-3. **Use descriptive names**: Test names should clearly describe what they test
-4. **Arrange-Act-Assert**: Structure tests with clear setup, execution, and verification phases
-5. **Don't test the framework**: Trust that pandas, requests, etc. work correctly
-6. **Mock at boundaries**: Mock HTTP calls and file I/O, not internal functions
-7. **Keep integration tests focused**: Test critical paths only, use small queries
+1. **Keep tests independent**: Each test should be able to run in isolation
+1. **Use descriptive names**: Test names should clearly describe what they test
+1. **Arrange-Act-Assert**: Structure tests with clear setup, execution, and verification phases
+1. **Don't test the framework**: Trust that pandas, requests, etc. work correctly
+1. **Mock at boundaries**: Mock HTTP calls and file I/O, not internal functions
+1. **Keep integration tests focused**: Test critical paths only, use small queries
 
 ## Adding New Tests
 
 When adding functionality, follow this pattern:
 
 1. **Add unit tests first**: Test the new function/class in isolation
-2. **Use TDD when possible**: Write failing test, implement code, verify it passes
-3. **Add integration test if needed**: For user-facing features, add end-to-end test
-4. **Update this README**: Document any new fixtures or utilities you create
+1. **Use TDD when possible**: Write failing test, implement code, verify it passes
+1. **Add integration test if needed**: For user-facing features, add end-to-end test
+1. **Update this README**: Document any new fixtures or utilities you create
 
 Example workflow:
+
 ```bash
 # Create test file
 touch tests/download/unit/test_new_feature.py

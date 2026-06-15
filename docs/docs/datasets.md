@@ -4,13 +4,13 @@ ODA Reader provides access to five datasets covering official development assist
 
 ## Quick Reference
 
-| Dataset | What It Contains | Use When |
-|---------|------------------|----------|
-| **DAC1** | Aggregate flows by donor | Analyzing overall ODA trends, donor performance |
-| **DAC2a** | Bilateral flows by donor-recipient | Recipient-level analysis |
-| **CRS** | Project-level microdata | Sector analysis, project details, activity-level data |
-| **Multisystem** | Multilateral system usage | Analyzing multilateral channels and contributions |
-| **AidData** | Chinese development finance | Chinese aid flows |
+| Dataset         | What It Contains                   | Use When                                              |
+| --------------- | ---------------------------------- | ----------------------------------------------------- |
+| **DAC1**        | Aggregate flows by donor           | Analyzing overall ODA trends, donor performance       |
+| **DAC2a**       | Bilateral flows by donor-recipient | Recipient-level analysis                              |
+| **CRS**         | Project-level microdata            | Sector analysis, project details, activity-level data |
+| **Multisystem** | Multilateral system usage          | Analyzing multilateral channels and contributions     |
+| **AidData**     | Chinese development finance        | Chinese aid flows                                     |
 
 ## DAC1: Aggregate Flows
 

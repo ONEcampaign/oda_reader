@@ -3,7 +3,7 @@
 import io
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,7 +36,7 @@ def _make_manifest_entry(filename: str, downloaded_at: str) -> dict:
 
 
 def _ts(year: int, month: int, day: int) -> str:
-    return datetime(year, month, day, tzinfo=timezone.utc).strftime(ISO_FORMAT)
+    return datetime(year, month, day, tzinfo=UTC).strftime(ISO_FORMAT)
 
 
 def test_keeps_n_most_recent(tmp_path: Path) -> None:

@@ -5,6 +5,7 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 ## When to Use Bulk Downloads
 
 **Use bulk downloads when**:
+
 - You need the full CRS dataset (millions of rows)
 - You're analyzing large year ranges
 - You want all columns and dimensions
@@ -12,6 +13,7 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 - You need reproducible research with exact dataset versions
 
 **Use API downloads when**:
+
 - You need filtered subsets (specific donors, recipients, sectors)
 - Working with smaller datasets (DAC1, DAC2a)
 - Exploratory analysis with changing queries
@@ -90,6 +92,7 @@ for chunk in bulk_download_crs(as_iterator=True):
 **How it works**: `as_iterator=True` yields one DataFrame per parquet row group (typically 10,000-100,000 rows). You process each chunk sequentially, which keeps memory usage low.
 
 **Example use cases**:
+
 - Filtering large files: Process each chunk, save matches
 - Computing aggregates: Accumulate statistics across chunks
 - Converting formats: Read parquet chunks, write to CSV/Excel
@@ -143,6 +146,7 @@ download_crs_file(year=2022, save_to_path="./data/crs_2022.parquet")
 ```
 
 **Grouped years**: Older years are grouped in single files:
+
 - Recent years: Individual files (2006-present)
 - `"2004-05"`: 2004-2005 combined
 - `"2002-03"`: 2002-2003 combined
@@ -206,6 +210,7 @@ download_aiddata(save_to_path="./data/aiddata.parquet")
 **Critical difference**: Bulk download files from OECD use the **OECD.Stat schema**, not the Data Explorer API schema.
 
 This means:
+
 - Column names differ from API downloads
 - Dimension codes may differ
 - No `pre_process` or `dotstat_codes` parameters (files are already in .Stat format)
@@ -213,15 +218,16 @@ This means:
 **Example**:
 
 API download has columns like:
+
 - `DONOR` → becomes `donor_code` after processing
 - `RECIPIENT` → becomes `recipient_code` after processing
 
 Bulk downloads already have:
+
 - `DonorCode`
 - `RecipientCode`
 
 See [Schema Translation](schema-translation.md) for detailed comparison.
-
 
 ## Troubleshooting
 

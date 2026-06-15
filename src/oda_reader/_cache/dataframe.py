@@ -36,7 +36,7 @@ def _make_cache_key(
     url: str,
     pre_process: bool,
     dotstat_codes: bool,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """Generate a deterministic cache key for a DataFrame query.
 
@@ -82,7 +82,7 @@ class DataFrameCache:
     Uses parquet files for efficient storage and fast loading.
     """
 
-    def __init__(self, cache_dir: Path | None = None):
+    def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize DataFrame cache.
 
         Args:
@@ -99,7 +99,7 @@ class DataFrameCache:
         url: str,
         pre_process: bool,
         dotstat_codes: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> pd.DataFrame | None:
         """Get a cached DataFrame if it exists.
 
@@ -148,7 +148,7 @@ class DataFrameCache:
         url: str,
         pre_process: bool,
         dotstat_codes: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Cache a processed DataFrame.
 

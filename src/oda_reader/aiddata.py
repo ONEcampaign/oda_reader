@@ -15,8 +15,8 @@ from oda_reader.schemas.schema_tools import (
 
 def filter_years(
     df: pd.DataFrame,
-    start_year: int = None,
-    end_year: int = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
 ) -> pd.DataFrame:
     """Filters a dataframe by year range. If the provided time range is not a subset of the available years, it returns
     the entire dataframe.
