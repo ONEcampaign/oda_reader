@@ -1,0 +1,61 @@
+name: OECD codelist drift
+
+# Detects drift between the committed DAC area codelists and the live OECD source.
+# Runs OFF the PR path (the live endpoint is an external dependency and must never
+# block contributors). On a schedule it refreshes from the live source and, if the
+# committed mappings are out of date, opens a pull request with the proposed diff
+# for a maintainer to review and merge.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {} # allow manual runs
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Refresh and open PR on drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Set up Python 3.11
+        run: uv python install '3.11'
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Refresh DAC codelists from the live OECD source
+        run: uv run python -m scripts.data_maintenance.refresh_dac_codelists --write
+
+      - name: Open a pull request if the codelists drifted
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/refresh-oecd-codelists
+          base: main
+          commit-message: "chore: refresh OECD DAC area codelists"
+          title: "chore: refresh OECD DAC area codelists"
+          body: |
+            Automated refresh of the DAC area codelists from the live OECD source
+            (`development-finance-codelists.oecd.org`).
+
+            This PR exists because the committed `dac{1,2}_codes_area.json` are out of
+            date with the live codelists. Review the diff before merging:
+
+            - **Added** codes are new active DAC areas — confirm they look legitimate.
+            - **Changed** values are codes whose `.stat` (dotstatcode) was updated
+              upstream — confirm the change is intended (these affect translation output).
+            - Historical codes are preserved (never deleted), so old data still translates.
+
+            Merging runs the normal CI suite. If nothing here looks right, close the PR
+            and investigate the source rather than merging.
+          labels: |
+            maintenance
+            automated
+          delete-branch: true

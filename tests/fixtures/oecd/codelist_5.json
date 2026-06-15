@@ -1,0 +1,4433 @@
+{
+  "codelists": {
+    "date-last-modified": "2026-06-15T12:16:53",
+    "codelist": [
+      {
+        "name": "Provider",
+        "xml:lang": "en",
+        "CRS": "1",
+        "TOSSD": "1",
+        "complete": "1",
+        "metadata": {
+          "name": {
+            "narrative": "Provider"
+          },
+          "url": "https://www.oecd.org/dac/stats/dacandcrscodelists.htm"
+        },
+        "codelist-items": {
+          "codelist-item": [
+            {
+              "status": "Active",
+              "code": "1",
+              "name": {
+                "narrative": [
+                  "Austria",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Autriche"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "AUT",
+              "iso-alpha-2-code": "AT",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "AUT"
+            },
+            {
+              "status": "Active",
+              "code": "2",
+              "name": {
+                "narrative": [
+                  "Belgium",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Belgique"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "BEL",
+              "iso-alpha-2-code": "BE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "BEL"
+            },
+            {
+              "status": "Active",
+              "code": "3",
+              "name": {
+                "narrative": [
+                  "Denmark",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Danemark"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "DNK",
+              "iso-alpha-2-code": "DK",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "DNK"
+            },
+            {
+              "status": "Active",
+              "code": "4",
+              "name": {
+                "narrative": [
+                  "France",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "France"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "FRA",
+              "iso-alpha-2-code": "FR",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "FRA"
+            },
+            {
+              "status": "Active",
+              "code": "5",
+              "name": {
+                "narrative": [
+                  "Germany",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Allemagne"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "DEU",
+              "iso-alpha-2-code": "DE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "DEU"
+            },
+            {
+              "status": "Active",
+              "code": "6",
+              "name": {
+                "narrative": [
+                  "Italy",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Italie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "ITA",
+              "iso-alpha-2-code": "IT",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ITA"
+            },
+            {
+              "status": "Active",
+              "code": "7",
+              "name": {
+                "narrative": [
+                  "Netherlands",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Pays-Bas"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "NLD",
+              "iso-alpha-2-code": "NL",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "NLD"
+            },
+            {
+              "status": "Active",
+              "code": "8",
+              "name": {
+                "narrative": [
+                  "Norway",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Norv\u00e8ge"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "NOR",
+              "iso-alpha-2-code": "NO",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "NOR"
+            },
+            {
+              "status": "Active",
+              "code": "9",
+              "name": {
+                "narrative": [
+                  "Portugal",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Portugal"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "PRT",
+              "iso-alpha-2-code": "PT",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "PRT"
+            },
+            {
+              "status": "Active",
+              "code": "10",
+              "name": {
+                "narrative": [
+                  "Sweden",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Su\u00e8de"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "SWE",
+              "iso-alpha-2-code": "SE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "SWE"
+            },
+            {
+              "status": "Active",
+              "code": "11",
+              "name": {
+                "narrative": [
+                  "Switzerland",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Suisse"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "CHE",
+              "iso-alpha-2-code": "CH",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "CHE"
+            },
+            {
+              "status": "Active",
+              "code": "12",
+              "name": {
+                "narrative": [
+                  "United Kingdom",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Royaume-Uni"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "GBR",
+              "iso-alpha-2-code": "GB",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "GBR"
+            },
+            {
+              "status": "Active",
+              "code": "18",
+              "name": {
+                "narrative": [
+                  "Finland",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Finlande"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "FIN",
+              "iso-alpha-2-code": "FI",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "FIN"
+            },
+            {
+              "status": "Active",
+              "code": "20",
+              "name": {
+                "narrative": [
+                  "Iceland",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Islande"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "ISL",
+              "iso-alpha-2-code": "IS",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ISL"
+            },
+            {
+              "status": "Active",
+              "code": "21",
+              "name": {
+                "narrative": [
+                  "Ireland",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Irlande"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "IRL",
+              "iso-alpha-2-code": "IE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "IRL"
+            },
+            {
+              "status": "Active",
+              "code": "22",
+              "name": {
+                "narrative": [
+                  "Luxembourg",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Luxembourg"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "LUX",
+              "iso-alpha-2-code": "LU",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "LUX"
+            },
+            {
+              "status": "Active",
+              "code": "26",
+              "name": {
+                "narrative": [
+                  "Monaco",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Monaco"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "MCO",
+              "iso-alpha-2-code": "MC",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "MCO"
+            },
+            {
+              "status": "Active",
+              "code": "30",
+              "name": {
+                "narrative": [
+                  "Cyprus",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Chypre"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "CYP",
+              "iso-alpha-2-code": "CY",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "CYP"
+            },
+            {
+              "status": "Active",
+              "code": "40",
+              "name": {
+                "narrative": [
+                  "Greece",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Gr\u00e8ce"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "GRC",
+              "iso-alpha-2-code": "GR",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "GRC"
+            },
+            {
+              "status": "Active",
+              "code": "45",
+              "name": {
+                "narrative": [
+                  "Malta",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Malte"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "MLT",
+              "iso-alpha-2-code": "MT",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "MLT"
+            },
+            {
+              "status": "Active",
+              "code": "50",
+              "name": {
+                "narrative": [
+                  "Spain",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Espagne"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "ESP",
+              "iso-alpha-2-code": "ES",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ESP"
+            },
+            {
+              "status": "Active",
+              "code": "55",
+              "name": {
+                "narrative": [
+                  "T\u00fcrkiye",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "T\u00fcrkiye"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "TUR",
+              "iso-alpha-2-code": "TR",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "TUR"
+            },
+            {
+              "status": "Active",
+              "code": "61",
+              "name": {
+                "narrative": [
+                  "Slovenia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Slov\u00e9nie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "SVN",
+              "iso-alpha-2-code": "SI",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "SVN"
+            },
+            {
+              "status": "Active",
+              "code": "62",
+              "name": {
+                "narrative": [
+                  "Croatia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Croatie"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "HRV",
+              "iso-alpha-2-code": "HR",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "HRV"
+            },
+            {
+              "status": "Active",
+              "code": "68",
+              "name": {
+                "narrative": [
+                  "Czechia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Tch\u00e9quie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "CZE",
+              "iso-alpha-2-code": "CZ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "CZE"
+            },
+            {
+              "status": "Active",
+              "code": "69",
+              "name": {
+                "narrative": [
+                  "Slovak Republic",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "R\u00e9publique slovaque"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "SVK",
+              "iso-alpha-2-code": "SK",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "SVK"
+            },
+            {
+              "status": "Active",
+              "code": "70",
+              "name": {
+                "narrative": [
+                  "Liechtenstein",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Liechtenstein"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "LIE",
+              "iso-alpha-2-code": "LI",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "LIE"
+            },
+            {
+              "status": "Active",
+              "code": "72",
+              "name": {
+                "narrative": [
+                  "Bulgaria",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Bulgarie"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "BGR",
+              "iso-alpha-2-code": "BG",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "BGR"
+            },
+            {
+              "status": "Active",
+              "code": "75",
+              "name": {
+                "narrative": [
+                  "Hungary",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Hongrie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "HUN",
+              "iso-alpha-2-code": "HU",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "HUN"
+            },
+            {
+              "status": "Active",
+              "code": "76",
+              "name": {
+                "narrative": [
+                  "Poland",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Pologne"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "POL",
+              "iso-alpha-2-code": "PL",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "POL"
+            },
+            {
+              "status": "Active",
+              "code": "77",
+              "name": {
+                "narrative": [
+                  "Romania",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Roumanie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "ROU",
+              "iso-alpha-2-code": "RO",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ROU"
+            },
+            {
+              "status": "Active",
+              "code": "82",
+              "name": {
+                "narrative": [
+                  "Estonia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Estonie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "EST",
+              "iso-alpha-2-code": "EE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "EST"
+            },
+            {
+              "status": "Active",
+              "code": "83",
+              "name": {
+                "narrative": [
+                  "Latvia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Lettonie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "LVA",
+              "iso-alpha-2-code": "LV",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "LVA"
+            },
+            {
+              "status": "Active",
+              "code": "84",
+              "name": {
+                "narrative": [
+                  "Lithuania",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Lituanie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "LTU",
+              "iso-alpha-2-code": "LT",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "LTU"
+            },
+            {
+              "status": "Active",
+              "code": "87",
+              "name": {
+                "narrative": [
+                  "Russia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Russie"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "RUS",
+              "iso-alpha-2-code": "RU",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "RUS"
+            },
+            {
+              "status": "Active",
+              "code": "104",
+              "name": {
+                "narrative": [
+                  "Nordic Development Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds du d\u00e9v. nordique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "NDF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FDN"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH019"
+            },
+            {
+              "status": "Active",
+              "code": "130",
+              "name": {
+                "narrative": [
+                  "Algeria",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Alg\u00e9rie"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "DZA",
+              "iso-alpha-2-code": "DZ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "DZA"
+            },
+            {
+              "status": "Active",
+              "code": "133",
+              "name": {
+                "narrative": [
+                  "Libya",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Libye"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "LBY",
+              "iso-alpha-2-code": "LY",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "LBY"
+            },
+            {
+              "status": "Active",
+              "code": "139",
+              "name": {
+                "narrative": [
+                  "Tunisia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Tunisie"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "TUN",
+              "iso-alpha-2-code": "TN",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "261",
+              "name": {
+                "narrative": [
+                  "Nigeria",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Nig\u00e9ria"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "NGA",
+              "iso-alpha-2-code": "NG",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "301",
+              "name": {
+                "narrative": [
+                  "Canada",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Canada"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "CAN",
+              "iso-alpha-2-code": "CA",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "CAN"
+            },
+            {
+              "status": "Active",
+              "code": "302",
+              "name": {
+                "narrative": [
+                  "United States",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Etats-Unis"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "USA",
+              "iso-alpha-2-code": "US",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "USA"
+            },
+            {
+              "status": "Active",
+              "code": "336",
+              "name": {
+                "narrative": [
+                  "Costa Rica",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Costa Rica"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "CRI",
+              "iso-alpha-2-code": "CR",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "340",
+              "name": {
+                "narrative": [
+                  "Dominican Republic",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "R\u00e9publique dominicaine"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "DOM",
+              "iso-alpha-2-code": "DO",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "347",
+              "name": {
+                "narrative": [
+                  "Guatemala",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Guatemala"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "GTM",
+              "iso-alpha-2-code": "GT",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "358",
+              "name": {
+                "narrative": [
+                  "Mexico",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Mexique"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "MEX",
+              "iso-alpha-2-code": "MX",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "MEX"
+            },
+            {
+              "status": "Active",
+              "code": "425",
+              "name": {
+                "narrative": [
+                  "Argentina",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Argentine"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "ARG",
+              "iso-alpha-2-code": "AR",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "431",
+              "name": {
+                "narrative": [
+                  "Brazil",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Br\u00e9sil"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "BRA",
+              "iso-alpha-2-code": "BR",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "434",
+              "name": {
+                "narrative": [
+                  "Chile",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Chili"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "CHL",
+              "iso-alpha-2-code": "CL",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "437",
+              "name": {
+                "narrative": [
+                  "Colombia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Colombie"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "COL",
+              "iso-alpha-2-code": "CO",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "440",
+              "name": {
+                "narrative": [
+                  "Ecuador",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Equateur"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "ECU",
+              "iso-alpha-2-code": "EC",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "454",
+              "name": {
+                "narrative": [
+                  "Peru",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "P\u00e9rou"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "PER",
+              "iso-alpha-2-code": "PE",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "460",
+              "name": {
+                "narrative": [
+                  "Uruguay",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Uruguay"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "URY",
+              "iso-alpha-2-code": "UY",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "543",
+              "name": {
+                "narrative": [
+                  "Iraq",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Irak"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "IRQ",
+              "iso-alpha-2-code": "IQ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "IRQ"
+            },
+            {
+              "status": "Active",
+              "code": "546",
+              "name": {
+                "narrative": [
+                  "Israel",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Isra\u00ebl"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "ISR",
+              "iso-alpha-2-code": "IL",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ISR"
+            },
+            {
+              "status": "Active",
+              "code": "551",
+              "name": {
+                "narrative": [
+                  "Palestinian Authority",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Palestinian Authority"
+                  }
+                ]
+              },
+              "type": "Country",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "552",
+              "name": {
+                "narrative": [
+                  "Kuwait",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Koweit"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "KWT",
+              "iso-alpha-2-code": "KW",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "KWT"
+            },
+            {
+              "status": "Active",
+              "code": "561",
+              "name": {
+                "narrative": [
+                  "Qatar",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Qatar"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "QAT",
+              "iso-alpha-2-code": "QA",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "QAT"
+            },
+            {
+              "status": "Active",
+              "code": "566",
+              "name": {
+                "narrative": [
+                  "Saudi Arabia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Arabie saoudite"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "SAU",
+              "iso-alpha-2-code": "SA",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "SAU"
+            },
+            {
+              "status": "Active",
+              "code": "576",
+              "name": {
+                "narrative": [
+                  "United Arab Emirates",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Emirats arabes unis"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "ARE",
+              "iso-alpha-2-code": "AE",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "ARE"
+            },
+            {
+              "status": "Active",
+              "code": "611",
+              "name": {
+                "narrative": [
+                  "Azerbaijan",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Azerba\u00efdjan"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "AZE",
+              "iso-alpha-2-code": "AZ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "AZE"
+            },
+            {
+              "status": "Active",
+              "code": "613",
+              "name": {
+                "narrative": [
+                  "Kazakhstan",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Kazakhstan"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "KAZ",
+              "iso-alpha-2-code": "KZ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "KAZ"
+            },
+            {
+              "status": "Active",
+              "code": "701",
+              "name": {
+                "narrative": [
+                  "Japan",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Japon"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "JPN",
+              "iso-alpha-2-code": "JP",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "JPN"
+            },
+            {
+              "status": "Active",
+              "code": "732",
+              "name": {
+                "narrative": [
+                  "Chinese Taipei",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Taipei chinois"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "TWN",
+              "iso-alpha-2-code": "TW",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "TWN"
+            },
+            {
+              "status": "Active",
+              "code": "738",
+              "name": {
+                "narrative": [
+                  "Indonesia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Indon\u00e9sie"
+                  }
+                ]
+              },
+              "type": "Country",
+              "iso-alpha-3-code": "IDN",
+              "iso-alpha-2-code": "ID",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "742",
+              "name": {
+                "narrative": [
+                  "Korea",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Cor\u00e9e"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "KOR",
+              "iso-alpha-2-code": "KR",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "KOR"
+            },
+            {
+              "status": "Active",
+              "code": "764",
+              "name": {
+                "narrative": [
+                  "Thailand",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Tha\u00eflande"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "THA",
+              "iso-alpha-2-code": "TH",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "THA"
+            },
+            {
+              "status": "Active",
+              "code": "765",
+              "name": {
+                "narrative": [
+                  "Timor-Leste",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Timor oriental"
+                  }
+                ]
+              },
+              "type": "Non-DAC member",
+              "iso-alpha-3-code": "TLS",
+              "iso-alpha-2-code": "TL",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "TLS"
+            },
+            {
+              "status": "Active",
+              "code": "801",
+              "name": {
+                "narrative": [
+                  "Australia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Australie"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "AUS",
+              "iso-alpha-2-code": "AU",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "AUS"
+            },
+            {
+              "status": "Active",
+              "code": "807",
+              "name": {
+                "narrative": [
+                  "UNEP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PNUE"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNEP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PNUE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN016"
+            },
+            {
+              "status": "Active",
+              "code": "811",
+              "name": {
+                "narrative": [
+                  "Global Environment Facility",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds pour l'environnement mondial"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GEF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FEM"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH011"
+            },
+            {
+              "status": "Active",
+              "code": "812",
+              "name": {
+                "narrative": [
+                  "Montreal Protocol",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Protocole de Montr\u00e9al"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH018"
+            },
+            {
+              "status": "Active",
+              "code": "820",
+              "name": {
+                "narrative": [
+                  "New Zealand",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Nouvelle-Z\u00e9lande"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "iso-alpha-3-code": "NZL",
+              "iso-alpha-2-code": "NZ",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "NZL"
+            },
+            {
+              "status": "Active",
+              "code": "901",
+              "name": {
+                "narrative": [
+                  "International Bank for Reconstruction and Development",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque internationale pour la reconstruction et le d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IBRD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BIRD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "5WB001"
+            },
+            {
+              "status": "Active",
+              "code": "902",
+              "name": {
+                "narrative": [
+                  "Multilateral Investment Guarantee Agency",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Agence\u00a0multilat\u00e9rale\u00a0de garantie des investissements"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "MIGA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "AMGI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "5WB004"
+            },
+            {
+              "status": "Active",
+              "code": "903",
+              "name": {
+                "narrative": [
+                  "International Finance Corporation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Soci\u00e9t\u00e9 financi\u00e8re international"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IFC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "SFI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "5WBG002"
+            },
+            {
+              "status": "Active",
+              "code": "905",
+              "name": {
+                "narrative": [
+                  "International Development Association",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Association internationale de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IDA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "IDA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "5WB002"
+            },
+            {
+              "status": "Active",
+              "code": "906",
+              "name": {
+                "narrative": [
+                  "Caribbean Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque de d\u00e9veloppement des Cara\u00efbes"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CarDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BDC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB004"
+            },
+            {
+              "status": "Active",
+              "code": "907",
+              "name": {
+                "narrative": [
+                  "International Monetary Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fond mon\u00e9taire international"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IMF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FMI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5IMF01"
+            },
+            {
+              "status": "Active",
+              "code": "909",
+              "name": {
+                "narrative": [
+                  "Inter-American Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque Interam\u00e9ricaine de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BID"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5IDB001"
+            },
+            {
+              "status": "Active",
+              "code": "910",
+              "name": {
+                "narrative": [
+                  "Central American Bank for Economic Integration",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque centram\u00e9ricaine d'int\u00e9gration \u00e9conomique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CABEI",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BCIE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB003"
+            },
+            {
+              "status": "Active",
+              "code": "913",
+              "name": {
+                "narrative": [
+                  "African Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque Africaine de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AfDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BAfD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5AFDB001"
+            },
+            {
+              "status": "Active",
+              "code": "914",
+              "name": {
+                "narrative": [
+                  "African Development Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds Africaine de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AfDF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FAfD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5AFDB002"
+            },
+            {
+              "status": "Active",
+              "code": "915",
+              "name": {
+                "narrative": [
+                  "Asian Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque Asiatique de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AsDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BAsD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5ASDB01"
+            },
+            {
+              "status": "Active",
+              "code": "918",
+              "name": {
+                "narrative": [
+                  "EU Institutions",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Institutions de l'UE"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "EU",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UE"
+                  }
+                ]
+              },
+              "type": "DAC member",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "4EU001"
+            },
+            {
+              "status": "Active",
+              "code": "921",
+              "name": {
+                "narrative": [
+                  "Arab Fund (AFESD)",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds arabe (FADES)"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH003"
+            },
+            {
+              "status": "Active",
+              "code": "923",
+              "name": {
+                "narrative": [
+                  "UN Peacebuilding Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds de consolidation de la paix-ONU"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNPBF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FCP"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN011"
+            },
+            {
+              "status": "Active",
+              "code": "926",
+              "name": {
+                "narrative": [
+                  "Council of Europe",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Conseil de l'Europe"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CoE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CoE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "928",
+              "name": {
+                "narrative": [
+                  "World Health Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation mondiale de la sant\u00e9"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "WHO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OMS"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN026"
+            },
+            {
+              "status": "Active",
+              "code": "932",
+              "name": {
+                "narrative": [
+                  "Food and Agriculture Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation pour l'alimentation et l'agriculture"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "FAO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FAO"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN003"
+            },
+            {
+              "status": "Active",
+              "code": "940",
+              "name": {
+                "narrative": [
+                  "International Labour Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation internationale du Travail"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "ILO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OIT"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN006"
+            },
+            {
+              "status": "Active",
+              "code": "944",
+              "name": {
+                "narrative": [
+                  "International Atomic Energy Agency",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Agence internationale de l'\u00e9nergie atomique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IAEA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "AIEA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "1UN005"
+            },
+            {
+              "status": "Active",
+              "code": "948",
+              "name": {
+                "narrative": [
+                  "UNECE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CEE-ONU"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN015"
+            },
+            {
+              "status": "Active",
+              "code": "951",
+              "name": {
+                "narrative": [
+                  "OPEC Fund for International Development",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds OPEP pour le d\u00e9veloppement international"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "OPEC Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds OPEP"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH020"
+            },
+            {
+              "status": "Active",
+              "code": "952",
+              "name": {
+                "narrative": [
+                  "OAPEC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OAPEC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "953",
+              "name": {
+                "narrative": [
+                  "Arab Bank for Economic Development in Africa",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque arabe pour le d\u00e9veloppement \u00e9conomique en Afrique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "BADEA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BADEA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH002"
+            },
+            {
+              "status": "Active",
+              "code": "954",
+              "name": {
+                "narrative": [
+                  "Special Arab Aid Fund for Africa",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds sp\u00e9cial arabe d'aide \u00e0 l'Afrique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "SAAFA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "SAAFA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "956",
+              "name": {
+                "narrative": [
+                  "IMF Trust Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "IMF Trust Fund"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "958",
+              "name": {
+                "narrative": [
+                  "IMF (Concessional Trust Funds)",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FMI (Fonds fiduciaires concessionnels)"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5IMF02"
+            },
+            {
+              "status": "Active",
+              "code": "959",
+              "name": {
+                "narrative": [
+                  "UNDP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PNUD"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNDP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PNUD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN014"
+            },
+            {
+              "status": "Active",
+              "code": "960",
+              "name": {
+                "narrative": [
+                  "UNTA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ATNU"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNTA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ATNU"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN023"
+            },
+            {
+              "status": "Active",
+              "code": "962",
+              "name": {
+                "narrative": [
+                  "United Nations Conference on Trade and Development",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Conf\u00e9rence des Nations Unies sur le commerce et le d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNCTAD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CNUCED"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN020"
+            },
+            {
+              "status": "Active",
+              "code": "963",
+              "name": {
+                "narrative": [
+                  "UNICEF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNICEF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN019"
+            },
+            {
+              "status": "Active",
+              "code": "964",
+              "name": {
+                "narrative": [
+                  "UNRWA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNRWA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN022"
+            },
+            {
+              "status": "Active",
+              "code": "966",
+              "name": {
+                "narrative": [
+                  "WFP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PAM"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "WFP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PAM"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN024"
+            },
+            {
+              "status": "Active",
+              "code": "967",
+              "name": {
+                "narrative": [
+                  "UNHCR",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "HCR"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNHCR",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "HCR"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN018"
+            },
+            {
+              "status": "Active",
+              "code": "971",
+              "name": {
+                "narrative": [
+                  "UNAIDS",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNAIDS"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN013"
+            },
+            {
+              "status": "Active",
+              "code": "974",
+              "name": {
+                "narrative": [
+                  "UNFPA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FNUAP"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN017"
+            },
+            {
+              "status": "Active",
+              "code": "976",
+              "name": {
+                "narrative": [
+                  "Islamic Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque de d\u00e9veloppement islamique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IsDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "IsDB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB009"
+            },
+            {
+              "status": "Active",
+              "code": "978",
+              "name": {
+                "narrative": [
+                  "OSCE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OSCE"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "OSCE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OSCE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH021"
+            },
+            {
+              "status": "Active",
+              "code": "979",
+              "name": {
+                "narrative": [
+                  "Islamic Monetary Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fond mon\u00e9taire islamique"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "980",
+              "name": {
+                "narrative": [
+                  "Arab Fund for Technical Assistance to African and Arab Countries",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds arabe pour l'assistance technique aux pays africains et arabes"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AFTAAAC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": ""
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "981",
+              "name": {
+                "narrative": [
+                  "Black Sea Trade & Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque de d\u00e9veloppement de la mer Noire"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "BSTDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BSTDB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB002"
+            },
+            {
+              "status": "Active",
+              "code": "982",
+              "name": {
+                "narrative": [
+                  "GODE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "GODE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "983",
+              "name": {
+                "narrative": [
+                  "Other Arab Agencies",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Autres Agences Arabes"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "988",
+              "name": {
+                "narrative": [
+                  "IFAD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FIDA"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IFAD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FIDA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN004"
+            },
+            {
+              "status": "Active",
+              "code": "990",
+              "name": {
+                "narrative": [
+                  "European Bank for Reconstruction and Development",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque europ\u00e9enne pour la reconstruction et le d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "EBRD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BERD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "5RDB007"
+            },
+            {
+              "status": "Active",
+              "code": "992",
+              "name": {
+                "narrative": [
+                  "UN AGENCIES",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "AGENCES DE L'ONU"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "997",
+              "name": {
+                "narrative": [
+                  "Global Partnership for Education",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Partenariat mondial pour l'\u00c9ducation"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GPE",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "GPE"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH014"
+            },
+            {
+              "status": "Active",
+              "code": "1011",
+              "name": {
+                "narrative": [
+                  "Climate Investment Funds",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds d'investissement climatique"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CIF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FIC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH006"
+            },
+            {
+              "status": "Active",
+              "code": "1012",
+              "name": {
+                "narrative": [
+                  "Adaptation Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds d'adaptation"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH001"
+            },
+            {
+              "status": "Active",
+              "code": "1013",
+              "name": {
+                "narrative": [
+                  "Council of Europe Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque de d\u00e9veloppement du Conseil de l'Europe"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CEB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CEB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB005"
+            },
+            {
+              "status": "Active",
+              "code": "1014",
+              "name": {
+                "narrative": [
+                  "Private Infrastructure Development Group",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Groupe\u00a0du d\u00e9veloppement\u00a0des infrastructures priv\u00e9es"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH022"
+            },
+            {
+              "status": "Active",
+              "code": "1015",
+              "name": {
+                "narrative": [
+                  "Development Bank of Latin America",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque de d\u00e9veloppement de l'Am\u00e9rique latine"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CAF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CAF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB006"
+            },
+            {
+              "status": "Active",
+              "code": "1016",
+              "name": {
+                "narrative": [
+                  "Green Climate Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds vert pour le climat"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GCF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FVC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH015"
+            },
+            {
+              "status": "Active",
+              "code": "1017",
+              "name": {
+                "narrative": [
+                  "Credit Guarantee and Investment Facility",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Credit Guarantee and Investment Facility"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CGIF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CGIF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH007"
+            },
+            {
+              "status": "Active",
+              "code": "1018",
+              "name": {
+                "narrative": [
+                  "Global Energy Efficiency and Renewable Energy Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds mondial de l'efficacit\u00e9 \u00e9nerg\u00e9tique et des \u00e9nergies renouvelables"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GEEREF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "GEEREF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH010"
+            },
+            {
+              "status": "Active",
+              "code": "1019",
+              "name": {
+                "narrative": [
+                  "IDB Invest",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BID Invest"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5IDB003"
+            },
+            {
+              "status": "Active",
+              "code": "1020",
+              "name": {
+                "narrative": [
+                  "Central Emergency Response Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds central d'intervention pour les urgences humanitaires"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CERF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CERF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN001"
+            },
+            {
+              "status": "Active",
+              "code": "1022",
+              "name": {
+                "narrative": [
+                  "UN inter-agency pooled funds",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds communs inter-institutions des Nations Unies"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1023",
+              "name": {
+                "narrative": [
+                  "World Tourism Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation mondiale du tourisme"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNWTO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OMT"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN027"
+            },
+            {
+              "status": "Active",
+              "code": "1024",
+              "name": {
+                "narrative": [
+                  "Asian Infrastructure Investment Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque asiatique d'investissement dans les infrastructures"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AIIB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "AIIB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB001"
+            },
+            {
+              "status": "Active",
+              "code": "1025",
+              "name": {
+                "narrative": [
+                  "Center of Excellence in Finance",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Centre d'excellence en finance"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CEF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CEF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH005"
+            },
+            {
+              "status": "Active",
+              "code": "1026",
+              "name": {
+                "narrative": [
+                  "SESRIC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "SESRIC"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "SESRIC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "SESRIC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1036",
+              "name": {
+                "narrative": [
+                  "UN Secretariat",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Secretariat des Nations Unies"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1037",
+              "name": {
+                "narrative": [
+                  "International Investment Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Banque internationale d'investissement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IIB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "IIB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB008"
+            },
+            {
+              "status": "Active",
+              "code": "1038",
+              "name": {
+                "narrative": [
+                  "UN Institute for Disarmament Research",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Institut des Nations unies pour la recherche sur le d\u00e9sarmement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNIDIR",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNIDIR"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN010"
+            },
+            {
+              "status": "Active",
+              "code": "1039",
+              "name": {
+                "narrative": [
+                  "UN Capital Development Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UN Capital Development Fund"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNCDF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNCDF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN008"
+            },
+            {
+              "status": "Active",
+              "code": "1040",
+              "name": {
+                "narrative": [
+                  "UN Office on Drugs and Crime",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Office des Nations Unies contre la drogue et le crime"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNODC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNODC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN032"
+            },
+            {
+              "status": "Active",
+              "code": "1041",
+              "name": {
+                "narrative": [
+                  "Eurasian Fund for Stabilization and Development",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Eurasian Fund for Stabilization and Development"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "EFSD",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "EFSD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1",
+              "dotstatcode": "9OTH008"
+            },
+            {
+              "status": "Active",
+              "code": "1042",
+              "name": {
+                "narrative": [
+                  "UN Office of Counter-Terrorism",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Bureau de l'ONU de lutte contre le terrorisme"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNOCT",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BLT"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1043",
+              "name": {
+                "narrative": [
+                  "Interpol",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Interpol"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1044",
+              "name": {
+                "narrative": [
+                  "New Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "New Development Bank"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "NDB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "NDB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1",
+              "dotstatcode": "5RDB010"
+            },
+            {
+              "status": "Active",
+              "code": "1045",
+              "name": {
+                "narrative": [
+                  "North American Development Bank",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "North American Development Bank"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "NADB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "NADB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5RDB011"
+            },
+            {
+              "status": "Active",
+              "code": "1046",
+              "name": {
+                "narrative": [
+                  "UN Women",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONU Femmes"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UN Women",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONU Femmes"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN012"
+            },
+            {
+              "status": "Active",
+              "code": "1047",
+              "name": {
+                "narrative": [
+                  "COVID-19 Response and Recovery Multi-Partner Trust Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "COVID-19 Response and Recovery Multi-Partner Trust Fund"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UN COVID-19 MPTF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UN COVID-19 MPTF"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN002"
+            },
+            {
+              "status": "Active",
+              "code": "1048",
+              "name": {
+                "narrative": [
+                  "Joint Sustainable Development Goals Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds conjoint des objectifs de d\u00e9veloppement durable"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "Joint SDG Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds conjoint des ODD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN007"
+            },
+            {
+              "status": "Active",
+              "code": "1049",
+              "name": {
+                "narrative": [
+                  "International Commission on Missing Persons",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Commission internationale pour les personnes disparues"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "ICMP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CIPD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH017"
+            },
+            {
+              "status": "Active",
+              "code": "1050",
+              "name": {
+                "narrative": [
+                  "WHO-Strategic Preparedness and Response Plan",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OMS-Plan strat\u00e9gique de pr\u00e9paration et de r\u00e9ponse"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "SPRP",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "PSPR"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN025"
+            },
+            {
+              "status": "Active",
+              "code": "1051",
+              "name": {
+                "narrative": [
+                  "United Nations Office for Disarmament Affairs",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Bureau des Affaires de D\u00e9sarmement des Nations Unies"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNODA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "UNODA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1052",
+              "name": {
+                "narrative": [
+                  "International Centre for Genetic Engineering and Biotechnology",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Centre international de g\u00e9nie g\u00e9n\u00e9tique et de biotechnologie"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "ICGEB",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ICGEB"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH016"
+            },
+            {
+              "status": "Active",
+              "code": "1053",
+              "name": {
+                "narrative": [
+                  "Asian Forest Cooperation Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation asiatique de coop\u00e9ration foresti\u00e8re"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "AFoCO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "AFoCO"
+                  }
+                ]
+              },
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH004"
+            },
+            {
+              "status": "Active",
+              "code": "1054",
+              "name": {
+                "narrative": [
+                  "World Organisation for Animal Health",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation mondiale de la sant\u00e9 animale"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "WOAH",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OMSA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH023"
+            },
+            {
+              "status": "Active",
+              "code": "1055",
+              "name": {
+                "narrative": [
+                  "CGIAR",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CGIAR"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CGIAR",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CGIAR"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH024"
+            },
+            {
+              "status": "Active",
+              "code": "1056",
+              "name": {
+                "narrative": [
+                  "Organisation of American States",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation des \u00c9tats am\u00e9ricains"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "OAS",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OEA"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1057",
+              "name": {
+                "narrative": [
+                  "UN Development Coordination Office",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONU-Bureau de la coordination des activit\u00e9s de d\u00e9veloppement"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNDCO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "BCAD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN030"
+            },
+            {
+              "status": "Active",
+              "code": "1058",
+              "name": {
+                "narrative": [
+                  "IMF Resilience and Sustainability Trust",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds de r\u00e9silience et de durabilit\u00e9 du FMI"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "IMF-RST",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "FMI-FRD"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "5IMF03"
+            },
+            {
+              "status": "Active",
+              "code": "1059",
+              "name": {
+                "narrative": [
+                  "Arab Monetary Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds mon\u00e9taire arabe"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "0",
+              "tossd": "1"
+            },
+            {
+              "status": "Active",
+              "code": "1311",
+              "name": {
+                "narrative": [
+                  "Global Alliance for Vaccines and Immunization",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Alliance mondiale pour les vaccins et la vaccination"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GAVI",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "GAVI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH009"
+            },
+            {
+              "status": "Active",
+              "code": "1312",
+              "name": {
+                "narrative": [
+                  "Global Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fonds mondial"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH012"
+            },
+            {
+              "status": "Active",
+              "code": "1313",
+              "name": {
+                "narrative": [
+                  "Global Green Growth Institute",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Institut mondial de la croissance verte"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "GGGI",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "GGGI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "9OTH013"
+            },
+            {
+              "status": "Active",
+              "code": "1401",
+              "name": {
+                "narrative": [
+                  "WTO - International Trade Centre",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Centre du commerce international de l'OMC"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "ITC",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CCI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN029"
+            },
+            {
+              "status": "Active",
+              "code": "1403",
+              "name": {
+                "narrative": [
+                  "UN Economic and Social Commission for Western Asia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONU Commission \u00e9conomique et sociale pour l'Asie occidentale"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNESCWA",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CESAO"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN031"
+            },
+            {
+              "status": "Active",
+              "code": "1404",
+              "name": {
+                "narrative": [
+                  "World Trade Organisation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Organisation mondiale du commerce"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "WTO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "OMC"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN028"
+            },
+            {
+              "status": "Active",
+              "code": "1406",
+              "name": {
+                "narrative": [
+                  "United Nations Industrial Development Organization",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONUDI"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "UNIDO",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "ONUDI"
+                  }
+                ]
+              },
+              "type": "Multilateral donor",
+              "crs": "1",
+              "tossd": "1",
+              "dotstatcode": "1UN021"
+            },
+            {
+              "status": "Active",
+              "code": "1601",
+              "name": {
+                "narrative": [
+                  "Gates Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Gates"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1601"
+            },
+            {
+              "status": "Active",
+              "code": "1602",
+              "name": {
+                "narrative": [
+                  "Dutch Postcode Lottery",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Dutch Postcode Lottery"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PLG0_NL"
+            },
+            {
+              "status": "Active",
+              "code": "1603",
+              "name": {
+                "narrative": [
+                  "Swedish Postcode Lottery",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Swedish Postcode Lottery"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PLG0_SE"
+            },
+            {
+              "status": "Active",
+              "code": "1604",
+              "name": {
+                "narrative": [
+                  "People's Postcode Lottery",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "People's Postcode Lottery"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PLG0_GB"
+            },
+            {
+              "status": "Active",
+              "code": "1605",
+              "name": {
+                "narrative": [
+                  "MetLife Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation MetLife"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "MetLife",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "MetLife"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1605"
+            },
+            {
+              "status": "Active",
+              "code": "1606",
+              "name": {
+                "narrative": [
+                  "Mastercard Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Mastercard"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1606"
+            },
+            {
+              "status": "Active",
+              "code": "1608",
+              "name": {
+                "narrative": [
+                  "IKEA Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation IKEA"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1608"
+            },
+            {
+              "status": "Active",
+              "code": "1609",
+              "name": {
+                "narrative": [
+                  "Van Leer Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Van Leer"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1609"
+            },
+            {
+              "status": "Active",
+              "code": "1610",
+              "name": {
+                "narrative": [
+                  "MAVA Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "MAVA, Fondation pour la nature"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1610"
+            },
+            {
+              "status": "Active",
+              "code": "1611",
+              "name": {
+                "narrative": [
+                  "Oak Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Oak"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1611"
+            },
+            {
+              "status": "Active",
+              "code": "1612",
+              "name": {
+                "narrative": [
+                  "H&M Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation H&M"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1612"
+            },
+            {
+              "status": "Active",
+              "code": "1613",
+              "name": {
+                "narrative": [
+                  "Laudes Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Laudes"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1613"
+            },
+            {
+              "status": "Active",
+              "code": "1614",
+              "name": {
+                "narrative": [
+                  "Charity Projects Ltd (Comic Relief)",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Charity Projects Ltd (Comic Relief)"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1614"
+            },
+            {
+              "status": "Active",
+              "code": "1615",
+              "name": {
+                "narrative": [
+                  "Children's Investment Fund Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Children's Investment Fund Foundation"
+                  }
+                ]
+              },
+              "acronym": {
+                "narrative": [
+                  "CIFF",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "CIFF"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1615"
+            },
+            {
+              "status": "Active",
+              "code": "1616",
+              "name": {
+                "narrative": [
+                  "Gatsby Charitable Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Gatsby Charitable Foundation"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1616"
+            },
+            {
+              "status": "Active",
+              "code": "1617",
+              "name": {
+                "narrative": [
+                  "Conrad N. Hilton Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Conrad N. Hilton"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1617"
+            },
+            {
+              "status": "Active",
+              "code": "1618",
+              "name": {
+                "narrative": [
+                  "David and Lucile Packard Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation David et Lucile Packard"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1618"
+            },
+            {
+              "status": "Active",
+              "code": "1619",
+              "name": {
+                "narrative": [
+                  "John D. and Catherine T. MacArthur Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation John D. et Catherine T. MacArthur"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1619"
+            },
+            {
+              "status": "Active",
+              "code": "1620",
+              "name": {
+                "narrative": [
+                  "Carnegie Corporation of New York",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Carnegie Corporation of New York"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1620"
+            },
+            {
+              "status": "Active",
+              "code": "1621",
+              "name": {
+                "narrative": [
+                  "Michael & Susan Dell Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Michael et Susan Dell"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1621"
+            },
+            {
+              "status": "Active",
+              "code": "1622",
+              "name": {
+                "narrative": [
+                  "Omidyar Network Fund, Inc.",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Omidyar Network Fund, Inc."
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1622"
+            },
+            {
+              "status": "Active",
+              "code": "1623",
+              "name": {
+                "narrative": [
+                  "Rockefeller Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Rockefeller"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1623"
+            },
+            {
+              "status": "Active",
+              "code": "1624",
+              "name": {
+                "narrative": [
+                  "William and Flora Hewlett Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation William et Flora Hewlett"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1624"
+            },
+            {
+              "status": "Active",
+              "code": "1625",
+              "name": {
+                "narrative": [
+                  "Arcus Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Arcus"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1625"
+            },
+            {
+              "status": "Active",
+              "code": "1626",
+              "name": {
+                "narrative": [
+                  "Gordon and Betty Moore Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Gordon et Betty Moore"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1626"
+            },
+            {
+              "status": "Active",
+              "code": "1627",
+              "name": {
+                "narrative": [
+                  "Ford Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Ford"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1627"
+            },
+            {
+              "status": "Active",
+              "code": "1628",
+              "name": {
+                "narrative": [
+                  "Wellcome Trust",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Wellcome Trust"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1628"
+            },
+            {
+              "status": "Active",
+              "code": "1629",
+              "name": {
+                "narrative": [
+                  "UBS Optimus Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation UBS Optimus"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1629"
+            },
+            {
+              "status": "Active",
+              "code": "1630",
+              "name": {
+                "narrative": [
+                  "World Diabetes Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "World Diabetes Foundation"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1630"
+            },
+            {
+              "status": "Active",
+              "code": "1631",
+              "name": {
+                "narrative": [
+                  "McKnight Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation McKnight"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1631"
+            },
+            {
+              "status": "Active",
+              "code": "1632",
+              "name": {
+                "narrative": [
+                  "Citi Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Citi"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1632"
+            },
+            {
+              "status": "Active",
+              "code": "1633",
+              "name": {
+                "narrative": [
+                  "LEGO Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation LEGO"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1633"
+            },
+            {
+              "status": "Active",
+              "code": "1634",
+              "name": {
+                "narrative": [
+                  "Norwegian Postcode Lottery",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Norwegian Postcode Lottery"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PLG0_NO"
+            },
+            {
+              "status": "Active",
+              "code": "1636",
+              "name": {
+                "narrative": [
+                  "Jacobs Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Jacobs"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1636"
+            },
+            {
+              "status": "Active",
+              "code": "1637",
+              "name": {
+                "narrative": [
+                  "Arcadia",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Arcadia"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1637"
+            },
+            {
+              "status": "Active",
+              "code": "1638",
+              "name": {
+                "narrative": [
+                  "Margaret A. Cargill Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Margaret A. Cargill"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1638"
+            },
+            {
+              "status": "Active",
+              "code": "1639",
+              "name": {
+                "narrative": [
+                  "La Caixa Banking Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation la Caixa"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1639"
+            },
+            {
+              "status": "Active",
+              "code": "1640",
+              "name": {
+                "narrative": [
+                  "Bloomberg Family Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Bloomberg Family Foundation"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1640"
+            },
+            {
+              "status": "Active",
+              "code": "1641",
+              "name": {
+                "narrative": [
+                  "Susan T. Buffett Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Susan T. Buffett"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1641"
+            },
+            {
+              "status": "Active",
+              "code": "1642",
+              "name": {
+                "narrative": [
+                  "Howard G. Buffett Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Howard G. Buffett"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1642"
+            },
+            {
+              "status": "Active",
+              "code": "1643",
+              "name": {
+                "narrative": [
+                  "Open Society Foundations",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Open Society Foundations"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1643"
+            },
+            {
+              "status": "Active",
+              "code": "1644",
+              "name": {
+                "narrative": [
+                  "Fondation Botnar",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation Botnar"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1644"
+            },
+            {
+              "status": "Active",
+              "code": "1645",
+              "name": {
+                "narrative": [
+                  "CHANEL Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Fondation CHANEL"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1645"
+            },
+            {
+              "status": "Active",
+              "code": "1646",
+              "name": {
+                "narrative": [
+                  "Bezos Earth Fund",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Bezos Earth Fund"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1646"
+            },
+            {
+              "status": "Active",
+              "code": "1647",
+              "name": {
+                "narrative": [
+                  "German Postcode Lottery",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "German Postcode Lottery"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PLG0_DE"
+            },
+            {
+              "status": "Active",
+              "code": "1648",
+              "name": {
+                "narrative": [
+                  "Leona M. and Harry B. Helmsley Charitable Trust",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Leona M. and Harry B. Helmsley Charitable Trust"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1648"
+            },
+            {
+              "status": "Active",
+              "code": "1649",
+              "name": {
+                "narrative": [
+                  "Novo Nordisk Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Novo Nordisk Foundation"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1649"
+            },
+            {
+              "status": "Active",
+              "code": "1650",
+              "name": {
+                "narrative": [
+                  "Good Ventures Foundation",
+                  {
+                    "xml:lang": "fr",
+                    "#text": "Good Ventures Foundation"
+                  }
+                ]
+              },
+              "type": "Private donor",
+              "crs": "1",
+              "tossd": "0",
+              "dotstatcode": "9PRIV1650"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
