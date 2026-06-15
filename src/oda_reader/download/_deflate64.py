@@ -17,8 +17,8 @@ import zipfile
 import inflate64
 
 _DEFLATE64 = 9
-_original_check = zipfile._check_compression
-_original_decompressor = zipfile._get_decompressor
+_original_check = zipfile._check_compression  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
+_original_decompressor = zipfile._get_decompressor  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
 
 
 class _Deflate64Decompressor:
@@ -26,28 +26,28 @@ class _Deflate64Decompressor:
     expected by ``zipfile.ZipExtFile``: a ``decompress(data)`` method
     and an ``eof`` attribute."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._inflater = inflate64.Inflater()
 
-    def decompress(self, data):
+    def decompress(self, data: bytes) -> bytes:
         return self._inflater.inflate(data)
 
     @property
-    def eof(self):
+    def eof(self) -> bool:
         return self._inflater.eof
 
 
-def _check_compression_with_deflate64(compression):
+def _check_compression_with_deflate64(compression: int) -> None:
     if compression == _DEFLATE64:
         return
     return _original_check(compression)
 
 
-def _get_decompressor_with_deflate64(compress_type):
+def _get_decompressor_with_deflate64(compress_type: int) -> object:
     if compress_type == _DEFLATE64:
         return _Deflate64Decompressor()
     return _original_decompressor(compress_type)
 
 
-zipfile._check_compression = _check_compression_with_deflate64
-zipfile._get_decompressor = _get_decompressor_with_deflate64
+zipfile._check_compression = _check_compression_with_deflate64  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
+zipfile._get_decompressor = _get_decompressor_with_deflate64  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]

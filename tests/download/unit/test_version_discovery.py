@@ -331,7 +331,7 @@ class TestDiscoverLatestVersionEdgeCases:
     """Edge cases for discover_latest_version."""
 
     def test_bad_xml_in_200_raises_valueerror(self, _mock_http):
-        """200 with unparseable XML should raise ValueError."""
+        """200 with unparsable XML should raise ValueError."""
         _mock_http.return_value = (200, "<not><valid><xml", False)
 
         with pytest.raises(ParseError):

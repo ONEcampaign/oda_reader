@@ -203,11 +203,11 @@ def _extract_dataflow_id(url: str) -> str | None:
         The dataflow identifier (e.g. ``"DSD_DAC1@DF_DAC1"``) if found,
         ``None`` if the URL does not match a recognised pattern.
     """
-    # v1: AGENCY,DATAFLOW_ID,VERSION
+    # v1 pattern: AGENCY,DATAFLOW_ID,VERSION (comma-separated)
     match = re.search(r"OECD\.DCD\.FSD,([^,/]+),\d+\.\d+", url)
     if match:
         return match.group(1)
-    # v2: AGENCY/DATAFLOW_ID/VERSION
+    # v2 pattern: AGENCY/DATAFLOW_ID/VERSION (slash-separated)
     match = re.search(r"OECD\.DCD\.FSD/([^/]+)/\d+\.\d+", url)
     return match.group(1) if match else None
 

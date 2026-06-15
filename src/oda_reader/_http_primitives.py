@@ -11,6 +11,7 @@ circular imports.
 import logging
 import time
 from collections import deque
+from typing import cast
 
 import requests
 import requests_cache
@@ -57,7 +58,7 @@ API_RATE_LIMITER = RateLimiter()
 
 # Global HTTP cache session (initialized lazily)
 _HTTP_SESSION: requests_cache.CachedSession | None = None
-_CACHE_ENABLED = True
+_CACHE_ENABLED: bool = True
 
 
 def _get_http_session() -> requests_cache.CachedSession:
@@ -112,7 +113,7 @@ def get_response_text(url: str, headers: dict) -> tuple[int, str, bool]:
         from_cache = False
         logger.info(f"Fetching data from API (cache disabled): {url}")
 
-    return response.status_code, response.text, from_cache
+    return cast(int, response.status_code), response.text, from_cache
 
 
 def get_response_content(url: str, headers: dict) -> tuple[int, bytes, bool]:
@@ -142,4 +143,4 @@ def get_response_content(url: str, headers: dict) -> tuple[int, bytes, bool]:
         from_cache = False
         logger.info(f"Fetching data from API (cache disabled): {url}")
 
-    return response.status_code, response.content, from_cache
+    return cast(int, response.status_code), response.content, from_cache

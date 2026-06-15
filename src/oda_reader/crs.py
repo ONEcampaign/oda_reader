@@ -17,21 +17,21 @@ DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
 # Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.6"
 
-# CRS filter structure:
-# {donor}.{recipient}.{sector}.{measure}.{channel}.
-# {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}.{unit_measure}.
-# {time_period}
+# CRS filter structure (dimension order):
+# donor, recipient, sector, measure, channel,
+# modality, flow_type, price_base, md_dim, md_id, unit_measure,
+# time_period
 
 
-def get_full_crs_parquet_id():
+def get_full_crs_parquet_id() -> str:
     return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-Parquet")
 
 
-def get_reduced_crs_parquet_id():
+def get_reduced_crs_parquet_id() -> str:
     return get_bulk_file_id(flow_url=CRS_FLOW_URL, search_string="CRS-reduced-parquet")
 
 
-def get_year_crs_zip_id(year: int):
+def get_year_crs_zip_id(year: int | str) -> str:
     return get_bulk_file_id(
         flow_url=CRS_FLOW_URL, search_string=f"CRS {year} (dotStat format)"
     )

@@ -1,6 +1,19 @@
 # Changelog for oda_reader
 
+## Unreleased
+
+- Project maintenance: adopted the [`bblocks-projects`](https://github.com/ONEcampaign/bblocks-projects)
+  template standard so the repo is now managed (`bblocks-projects update` / `doctor` work via
+  `.copier-answers.yml`). Adds the `ty` type checker (enforced in CI and pre-commit) and full
+  public-API type annotations, expands ruff rules (annotations, perflint, eradicate), refreshes
+  pre-commit hooks (codespell, actionlint, mdformat, ty), and adds a `py.typed` marker so type
+  information ships with the wheel.
+- **Minimum supported Python is now 3.11** (was 3.10). Python 3.10 reaches end-of-life in
+  October 2026.
+- CI release now uses PyPI trusted publishing (OIDC) instead of an API token.
+
 ## 1.6.0 (2026-04-28)
+
 - Adds `use_raw_cache=False` to `bulk_download_crs`, `download_crs_file`, `bulk_download_dac2a`
   and `bulk_download_multisystem` for the cases where you want to bypass the bulk cache and
   re-download fresh on every call. Caching remains on by default.
@@ -26,25 +39,31 @@
 - Cached archives are validated with `zipfile.is_zipfile` before reuse; a corrupt entry is removed and re-downloaded transparently.
 
 ## 1.5.1 (2026-04-15)
+
 - Adds support for Deflate64-compressed ZIP files in bulk downloads. The OECD switched the full CRS bulk file to Deflate64 compression, which Python's standard library does not support. This release patches `zipfile` at runtime using the `inflate64` library to handle Deflate64 transparently.
 - Adds `inflate64` as a dependency.
 
 ## 1.5.0 (2026-04-09)
+
 - Replaces blind version-decrement fallback with authoritative SDMX metadata endpoint lookup for all datasets.
 - Adds `clear_version_cache()` to the public API for forcing fresh version discovery mid-session.
 
 ## 1.4.3 (2026-04-09)
+
 - Fixes DAC1 query filter dimension order to match the current DSD schema, which added SECTOR at position 2.
 - Bumps DAC1 dataflow version from 1.7 to 1.8.
 
 ## 1.4.2 (2026-01-23)
+
 - Updates DAC1 dataflow version from 1.5 to 1.7.
 - Updates DAC2a dataflow version from 1.6 to 1.4.
 
 ## 1.4.1 (2025-12-19)
+
 - Extends bulk download auto-detection to support `.csv` files in addition to `.txt` files.
 
 ## 1.4.0 (2025-12-19)
+
 - Adds `bulk_download_dac2a()` function for bulk downloading the full DAC2A dataset.
 - Auto-detects file types (parquet or txt) in bulk downloads, removing the need for the `is_txt` parameter.
 - Auto-detects CSV delimiters (comma, pipe, tab, semicolon) when reading txt files from bulk downloads.
@@ -52,80 +71,100 @@
 - Adds pytest and pytest-mock to dev dependencies for improved testing support.
 
 ## 1.3.5 (2025-12-19)
+
 - Fixes `_get_dataflow_version()` to gracefully handle URLs without a version pattern instead of crashing.
 
 ## 1.3.4 (2025-12-19)
+
 - Improves robustness of dataflow version fallback logic. The API error detection now checks response content regardless of HTTP status code, handling cases where error messages like "Could not find Dataflow" are returned with various status codes.
 
 ## 1.3.3 (2025-12-19)
+
 - Reverts DAC1 dataflow version from 1.6 to 1.5 to ensure compatibility with published data.
 
 ## 1.3.2 (2025-12-19)
+
 - Updates bulk file dataflow version to 1.6 to match OECD's latest schema.
 
 ## 1.3.1 (2025-06-27)
+
 - Improves cache management for very large files. Introduces tests and improved documentation
 
 ## 1.3.0 (2025-06-16)
+
 - Improves cache management.
 
 ## 1.2.2 (2025-06-16)
+
 - Fixes a bug with AidData where passing None for end year would raise
-a type error.
+  a type error.
 
 ## 1.2.1 (2025-06-10)
+
 - Introduces rate limiting (20 requests per minute).This is to better manage the OECD's aggressive rate throttling (20 requests per minute).
 
 ## 1.2.0 (2025-06-05)
+
 - Introduces importer tools for the AidData's Global Chinese development finance dataset.
 - Introduces functionality to stream bulk files to avoid loading too much data to memory
 
 ## 1.1.5 (2025-05-15)
+
 - The OECD has unexpectedly (and quietly) changed the naming convention
-for the bulk Multisystem data. This is a small fix to address that.
+  for the bulk Multisystem data. This is a small fix to address that.
 
 ## 1.1.4 (2025-04-22)
+
 - fix small cache bug
 
 ## 1.1.3 (2025-04-22)
+
 - Small caching improvements
 
 ## 1.1.2 (2025-04-22)
+
 - Extends caching to bulk downloaded files.
 - Other minor tweaks to how caching works.
 
 ## 1.1.1 (2025-04-16)
-- Manages an issue created by the OECD when they are about to release new data. In that case
-certain dataflows return `NoRecordsFound`, even though the query is valid for lower dataflows.
-This version of `oda_reader` defends against that.
 
+- Manages an issue created by the OECD when they are about to release new data. In that case
+  certain dataflows return `NoRecordsFound`, even though the query is valid for lower dataflows.
+  This version of `oda_reader` defends against that.
 
 ## 1.1.0 (2025-04-9)
+
 - Introduces configurable and persistent caching via `joblib`. By default, the reader
   will keep a cache on disk (up to 1GB, for up to 7 days). This is to better manage the
   OECD's aggressive rate throttling (20 requests per minute). Entries older than 7
   days are automatically cleared and `clear_cache` can be used to manually clear it.
 
-
 ## 1.0.6 (2025-02-15)
+
 - Improves warnings for duplicates on the multisystem dataset
 
 ## 1.0.5 (2025-02-15)
+
 - Improves automatic handling of dataflows.
 
 ## 1.0.4 (2025-02-15)
+
 - Improves automatic handling of DE CRS data.
 
 ## 1.0.3 (2025-02-15)
+
 - Improves automatic handling of DE CRS data.
 
 ## 1.0.2 (2025-01-06)
+
 - Improves automatic handling of dataflows when a dataflow exists but has no data.
 
 ## 1.0.1 (2025-01-06)
+
 - Improves automatic handling of dataflows
 
 ## 1.0.0 (2024-10-06)
+
 - Major release marking version 1.0.0.
 - Adds API support for the CRS and Multisystem datasets.
 - Adds support for bulk downloading of the CRS and Multisystem datasets in parquet format.
@@ -134,24 +173,28 @@ This version of `oda_reader` defends against that.
 - General codebase improvements and documentation updates.
 
 ## 0.2.3 (2024-09-16)
+
 - Fixes an error returned when making an API call to DAC1 without specifying the dataflow version.
 - An option to specify the dataflow version is now provided
 - This release pins dac1 dataflow to 1.2
 
 ## 0.2.2 (2024-06-28)
+
 - The schema provided by the OECD identifies the EU institutions under a code with no data. This update matches the right new code to the old 918.
 - The schema provided by the OECD does not correctly identify the donor code for DAC EU countries + EU Institutions. This update correctly matches it.
 
 ## 0.2.1 (2024-05-05)
-- Allows for direct imports of `download_dac1`, `download_dac2a` and `QueryBuilder` as
-`from oda_reader import download_dac1, download_dac2a, QueryBuilder`.
 
+- Allows for direct imports of `download_dac1`, `download_dac2a` and `QueryBuilder` as
+  `from oda_reader import download_dac1, download_dac2a, QueryBuilder`.
 
 ## 0.2.0 (2024-05-05)
+
 - Fixes a bug with `download_dac2a` which meant filters were not applied properly
-and the wrong schema (dac1) was loaded.
+  and the wrong schema (dac1) was loaded.
 - Added a new method to the query builder to generate a dac2a filter expression.
 
 ## 0.1.0 (2024-05-05)
+
 - Initial release. It includes a basic implementation of an API call for DAC1 and DAC2.
 - This release includes tools to translate the API response into the old .Stat schema.

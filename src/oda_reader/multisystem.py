@@ -17,7 +17,7 @@ DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
 DATAFLOW_VERSION: str = "1.6"
 
 
-def get_full_multisystem_id():
+def get_full_multisystem_id() -> str:
     return get_bulk_file_id(
         flow_url=MULTI_FLOW_URL, search_string="Entire dataset (dotStat format)"
     )

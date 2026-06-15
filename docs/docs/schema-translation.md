@@ -29,6 +29,7 @@ ODA Reader provides two parameters to control schema handling:
 ### `pre_process` (default: `True`)
 
 Performs basic cleaning:
+
 - Renames columns to machine-readable names (e.g., `DONOR` → `donor_code`)
 - Sets proper data types (`int`, `float`, `string`)
 - Removes empty columns
@@ -70,6 +71,7 @@ print(data_clean.columns)
 ### `dotstat_codes` (default: `True`)
 
 Translates dimension **codes** from API format to .Stat format:
+
 - Requires `pre_process=True` to work
 - Converts codes like donor IDs, measure types, flow codes
 - Makes data compatible with .Stat bulk downloads and historical data
@@ -117,12 +119,14 @@ data = download_dac1(start_year=2022, end_year=2022)
 ```
 
 **Result**:
+
 - Clean column names: `donor`, `recipient`, `measure`, etc.
 - .Stat codes: `'USA'`, `'GBR'` for donors
 - Proper data types set
 - **Use when**: General analysis, compatibility with historical .Stat data
 
 **Pros**:
+
 - Works with existing .Stat-based workflows
 - Compatible with bulk download files
 
@@ -138,16 +142,19 @@ data = download_dac1(
 ```
 
 **Result**:
+
 - Raw API column names: `DONOR`, `MEASURE` (all caps)
 - Raw API codes: numeric or internal codes
 - No type conversion
 - **Use when**: Debugging API issues, understanding API structure
 
 **Pros**:
+
 - See exactly what OECD API returns
 - Useful for troubleshooting
 
 **Cons**:
+
 - Harder to work with (inconsistent naming)
 
 ### Mode 3: Preprocessed with API Codes
@@ -162,16 +169,19 @@ data = download_dac1(
 ```
 
 **Result**:
+
 - Clean column names: `donor`, `recipient`, etc.
 - API codes: numeric or internal (not .Stat codes)
 - Proper data types
 - **Use when**: Working exclusively with new API data, don't need .Stat compatibility
 
 **Pros**:
+
 - Clean DataFrame structure
 - Uses OECD's latest code conventions
 
 **Cons**:
+
 - Codes differ from .Stat bulk files
 - May not match historical datasets
 
@@ -179,23 +189,22 @@ data = download_dac1(
 
 ### Donor Codes
 
-| .Stat Code | API code | Country |
-|----------|----------|---------|
-| `1` | `AUS`    | Australia |
-| `2` | `AUT`    | Austria |
-| `12` | `USA`    | United States |
-| `301` | `GBR`    | United Kingdom |
+| .Stat Code | API code | Country        |
+| ---------- | -------- | -------------- |
+| `1`        | `AUS`    | Australia      |
+| `2`        | `AUT`    | Austria        |
+| `12`       | `USA`    | United States  |
+| `301`      | `GBR`    | United Kingdom |
 
 ### Measure Codes (DAC1)
 
-| .Stat Code | API Code | Description |
-|------------|------------|-------------|
-| `100`      | `1010` | Net ODA |
-| `106`      | `1011` | ODA Grants |
-| `11017`    | `11017` | Grant equiv. of loans |
+| .Stat Code | API Code | Description           |
+| ---------- | -------- | --------------------- |
+| `100`      | `1010`   | Net ODA               |
+| `106`      | `1011`   | ODA Grants            |
+| `11017`    | `11017`  | Grant equiv. of loans |
 
 (Note: Some codes are the same across schemas)
-
 
 Translation mappings are maintained in `src/oda_reader/schemas/mappings/` as JSON files.
 
@@ -218,7 +227,7 @@ There are no `pre_process` or `dotstat_codes` parameters for bulk downloads - th
 
 **Combining API and bulk downloads**:
 
-If you mix API (with `.Stat codes) and bulk downloads, they should be compatible. But column **names** may differ slightly:
+If you mix API (with \`.Stat codes) and bulk downloads, they should be compatible. But column **names** may differ slightly:
 
 ```python
 # API download with .Stat codes
@@ -256,23 +265,26 @@ bulk_data = bulk_data.rename(columns={
 
 **Use default mode (pre_process=True, dotstat_codes=True)**:
 
--  General analysis and research
--  Combining API downloads with bulk files
--  Working with historical .Stat exports
--  Human-readable codes (ISO3 country codes)
+- General analysis and research
+- Combining API downloads with bulk files
+- Working with historical .Stat exports
+- Human-readable codes (ISO3 country codes)
 
 **Use raw mode (pre_process=False, dotstat_codes=False)**:
--  Debugging API issues
+
+- Debugging API issues
 - Understanding API response structure
 
 **Use API codes mode (pre_process=True, dotstat_codes=False)**:
--  Working exclusively with new Data Explorer API
--  When you prefer OECD's latest code conventions
--  Avoid if combining with bulk downloads or .Stat files
+
+- Working exclusively with new Data Explorer API
+- When you prefer OECD's latest code conventions
+- Avoid if combining with bulk downloads or .Stat files
 
 ## Finding Code Mappings
 
 Code translation mappings are defined in:
+
 ```
 src/oda_reader/schemas/mappings/
 ├── dac1_mapping.json
@@ -305,16 +317,19 @@ You can inspect these files to understand how specific codes translate.
 ## Troubleshooting
 
 **Codes don't match between downloads**:
+
 - Check if one is API download and other is bulk download
 - Verify `dotstat_codes=True` for API downloads when combining with bulk
 - Column names differ even with same codes - rename if needed
 
 **"Translation failed" errors**:
+
 - Ensure `pre_process=True` when using `dotstat_codes=True`
 - Some newer API codes may not have .Stat mappings yet
 - File an issue if you encounter unmapped codes
 
 **Unexpected column names**:
+
 - Check `pre_process` setting - raw API uses all-caps names
 - Bulk downloads have their own naming (can't be changed)
 

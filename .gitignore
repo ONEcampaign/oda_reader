@@ -162,3 +162,11 @@ cython_debug/
 /src/oda_reader/dev_tests.py
 /docs/site
 /docs/plans
+
+# Ruff
+.ruff_cache/
+
+# AI assistants
+.claude/
+CLAUDE.md
+AGENTS.md

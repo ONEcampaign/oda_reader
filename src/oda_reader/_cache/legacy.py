@@ -11,7 +11,9 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from oda_reader._cache.config import get_cache_dir
 from oda_reader._cache.config import set_cache_dir as _impl_set_cache_dir
@@ -29,7 +31,7 @@ _has_logged_cache_message = False
 _JOBLIB_MEMORY: object | None = None
 
 
-def memory():
+def memory() -> object:
     """Return a dummy memory store (deprecated).
 
     This function is kept for backward compatibility but no longer uses joblib.
@@ -56,7 +58,7 @@ def cache_dir() -> Path:
     return get_cache_dir()
 
 
-def set_cache_dir(path) -> None:
+def set_cache_dir(path: str | Path) -> None:
     """Set a custom cache directory path (deprecated).
 
     Use oda_reader._cache.config.set_cache_dir() instead.
@@ -175,13 +177,13 @@ def enforce_cache_limits(
     )
 
 
-def cache_info(func):
+def cache_info(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator that logs cache info (deprecated).
 
     This decorator is kept for backward compatibility with existing code.
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         global _has_logged_cache_message
         if not _has_logged_cache_message:
             logger.info("[oda-reader] Caching is enabled.")

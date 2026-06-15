@@ -119,7 +119,9 @@ def get_dimension_count(dataflow_id: str, version: str) -> int:
         ValueError: If no dimensions are found in the response.
     """
     # The DSD ID is the part before '@' in the dataflow ID
-    dsd_id = dataflow_id.split("@")[0] if "@" in dataflow_id else dataflow_id
+    dsd_id = (
+        dataflow_id.split("@", maxsplit=1)[0] if "@" in dataflow_id else dataflow_id
+    )
     url = f"{DSD_BASE_URL}/{dsd_id}/{version}"
 
     status_code, text, _ = get_response_text(url, headers={})

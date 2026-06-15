@@ -1,6 +1,5 @@
 # Why ODA Reader?
 
-
 ## The Problem with OECD DAC Data Access
 
 The OECD Development Assistance Committee publishes comprehensive data on official development assistance, but accessing it programmatically is unnecessarily difficult:
@@ -20,6 +19,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 **Approach**: Construct HTTP requests to OECD's SDMX endpoints manually.
 
 **Challenges**:
+
 - No Python library means writing your own HTTP client code
 - Complex URL construction: `https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DF_CRS/1.0/USA.NGA....11220?startPeriod=2020&endPeriod=2022`
 - Manual rate limiting required or risk getting blocked
@@ -33,6 +33,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 **Approach**: Download Parquet, CSV or Excel files from the data-explorer manually.
 
 **Challenges**:
+
 - No automation - manual clicking and downloading
 - Portal URLs change, bookmarks break
 - File format inconsistencies between download dates
@@ -46,6 +47,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 **Approach**: Use general-purpose SDMX Python libraries like `pandasdmx`.
 
 **Challenges**:
+
 - Generic libraries don't handle DAC-specific quirks
 - No built-in knowledge of which datasets exist or their schemas
 - Schema translation between API and .Stat formats still manual
@@ -59,11 +61,13 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 ### Why Both API and Bulk Downloads?
 
 **API downloads** are ideal for:
+
 - Filtered queries (specific donors, recipients, years)
 - Exploratory analysis
 - Smaller datasets (DAC1, DAC2a)
 
 **Bulk downloads** are ideal for:
+
 - Full CRS dataset (millions of rows)
 - Avoiding slow API calls and rate limits
 - Reproducible research requiring exact dataset versions
@@ -73,6 +77,7 @@ ODA Reader provides both because different analysis workflows need different app
 ### Why Automatic Caching?
 
 API calls to OECD are slow (often 10-30 seconds per query) and subject to rate limiting. Caching means:
+
 - Repeated queries are instant
 - Less dependency on OECD's server reliability
 - Iterative analysis doesn't hit rate limits
@@ -80,9 +85,7 @@ API calls to OECD are slow (often 10-30 seconds per query) and subject to rate l
 
 You can disable or clear caching when you need fresh data.
 
-
 ## Limitations and When Not to Use ODA Reader
-
 
 **Requires Python knowledge**: This is a Python package. If you're not comfortable with Python and pandas, the OECD.Stat portal's Excel downloads might be easier.
 

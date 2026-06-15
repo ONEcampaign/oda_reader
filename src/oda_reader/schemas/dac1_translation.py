@@ -27,7 +27,7 @@ DAC1_TRANSLATION_SCHEMA_URL = (
 )
 
 
-def update_dac1_translation_mappings():
+def update_dac1_translation_mappings() -> None:
     """Pipeline to update the DAC1 translation mappings"""
     xml_data = parse_xml(xml_url=DAC1_TRANSLATION_SCHEMA_URL)["Structures"]
 

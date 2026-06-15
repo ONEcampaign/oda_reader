@@ -20,7 +20,7 @@ from oda_reader.download.download_tools import (
 )
 
 
-def _create_deflate64_zip(files: dict[str, bytes]) -> bytes:  # noqa: PLR0915  # binary ZIP layout is inherently statement-heavy
+def _create_deflate64_zip(files: dict[str, bytes]) -> bytes:
     """Create a ZIP archive using Deflate64 (type 9) compression.
 
     Manually constructs the ZIP binary format since Python's ``zipfile``

@@ -33,6 +33,7 @@ print(data.head())
 ```
 
 **Output:**
+
 ```
 Downloaded 40119 rows
    donor_code   donor_name  aidtype_code                               aid_type  flows_code          fund_flows amounttype_code     amount_type sector_code     sector_name  year      value  base_period  unit_multiplier
@@ -66,6 +67,7 @@ print(data['donor_name'].unique())
 ```
 
 **Output:**
+
 ```
 Downloaded 1851 rows for USA and GBR
 ['United States', 'United Kingdom']
@@ -92,6 +94,7 @@ print(f"Recipients: {sorted(data['recipient_name'].unique())}")
 ```
 
 **Output:**
+
 ```
 Downloaded 3724 rows
 Recipients: ['Kenya', 'Nigeria']
@@ -104,9 +107,9 @@ DAC2a includes recipient countries as a dimension, making it ideal for analyzing
 When you ran these examples:
 
 1. **ODA Reader constructed SDMX API queries** - You didn't need to know the complex API syntax
-2. **Results were cached** - Run the same query again and it's instant
-3. **Rate limiting was applied** - Automatic pauses prevent you from hitting API limits
-4. **Schema translation happened** - Codes were converted to .Stat format for compatibility
+1. **Results were cached** - Run the same query again and it's instant
+1. **Rate limiting was applied** - Automatic pauses prevent you from hitting API limits
+1. **Schema translation happened** - Codes were converted to .Stat format for compatibility
 
 ## Next Steps
 

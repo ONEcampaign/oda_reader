@@ -7,8 +7,8 @@ ODA Reader uses caching to make repeated queries fast and reduce dependency on O
 ODA Reader caches three types of data:
 
 1. **HTTP responses**: Raw API responses before processing
-2. **DataFrames**: Processed pandas DataFrames after schema translation
-3. **Bulk files**: Large parquet/zip files downloaded by `bulk_download_crs`,
+1. **DataFrames**: Processed pandas DataFrames after schema translation
+1. **Bulk files**: Large parquet/zip files downloaded by `bulk_download_crs`,
    `download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`
 
 All three caches are automatic and transparent - you don't need to change your code to benefit from caching.
@@ -31,6 +31,7 @@ print(f"Second call: {time.time() - start:.1f} seconds")
 ```
 
 **Typical output**:
+
 ```
 First call: 15.3 seconds
 Second call: 0.1 seconds
@@ -41,6 +42,7 @@ Cached queries are ~100x faster.
 ## Cache Location
 
 By default, caches are stored in:
+
 ```
 src/oda_reader/.cache/
 ```
@@ -101,6 +103,7 @@ clear_cache()
 This removes all cached API responses and DataFrames. Your next query will hit the API again.
 
 **When to clear cache**:
+
 - You need the latest data and suspect OECD has updated
 - Cache has grown too large
 - You're troubleshooting unexpected results
@@ -120,6 +123,7 @@ ODA Reader automatically enforces cache limits across the cache root:
 - **Max age**: 7 days
 
 When you import oda_reader, it checks cache limits:
+
 - Files older than 7 days are deleted
 - If cache exceeds 2.5 GB, oldest files are deleted first
 
@@ -229,6 +233,7 @@ print(f"HTTP cache: {info['cache_size']} responses cached")
 ```
 
 **Difference between caches**:
+
 - **HTTP cache**: Raw API responses (before parsing)
 - **DataFrame cache**: Processed DataFrames (after schema translation)
 
@@ -257,9 +262,9 @@ API_RATE_LIMITER.period = 60
 **How rate limiting works**:
 
 1. ODA Reader tracks each API call timestamp
-2. Before a new call, it checks if limit is reached
-3. If limit reached, it **blocks** (pauses) until period expires
-4. Then allows the call to proceed
+1. Before a new call, it checks if limit is reached
+1. If limit reached, it **blocks** (pauses) until period expires
+1. Then allows the call to proceed
 
 This is transparent - your code just runs slower when rate limit is reached.
 

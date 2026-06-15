@@ -9,7 +9,7 @@ import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -137,7 +137,7 @@ class CacheManager:
 
             manifest[entry.key] = {
                 "filename": entry.filename,
-                "downloaded_at": datetime.now(timezone.utc).strftime(ISO_FORMAT),
+                "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
                 "version": entry.version,
             }
@@ -187,7 +187,7 @@ class CacheManager:
                     size_mb = file_path.stat().st_size / (1024 * 1024)
 
                 downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-                age = datetime.now(timezone.utc) - downloaded
+                age = datetime.now(UTC) - downloaded
 
                 records.append(
                     {
@@ -240,7 +240,7 @@ class CacheManager:
             return True
 
         downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-        age = datetime.now(timezone.utc) - downloaded
+        age = datetime.now(UTC) - downloaded
         ttl = timedelta(days=entry.ttl_days)
 
         return age > ttl
@@ -269,7 +269,7 @@ class CacheManager:
 
     def _sweep_stale_tmp_files(self) -> None:
         """Remove *.tmp-* files in base_dir that are older than 24 hours."""
-        now = datetime.now(timezone.utc).timestamp()
+        now = datetime.now(UTC).timestamp()
         for tmp_file in self.base_dir.glob("*.tmp-*"):
             try:
                 age = now - tmp_file.stat().st_mtime

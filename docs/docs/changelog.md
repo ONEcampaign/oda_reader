@@ -5,6 +5,7 @@ For a complete version history and release notes, see the [CHANGELOG.md](https:/
 ## Recent Releases
 
 The changelog includes:
+
 - New features and enhancements
 - Bug fixes
 - Breaking changes and migration guides
@@ -15,6 +16,7 @@ Visit the [repository changelog](https://github.com/ONEcampaign/oda_reader/blob/
 ## Version History
 
 ODA Reader follows [semantic versioning](https://semver.org/):
+
 - **Major version** (X.0.0): Breaking changes
 - **Minor version** (0.X.0): New features, backwards compatible
 - **Patch version** (0.0.X): Bug fixes, backwards compatible
