@@ -28,6 +28,7 @@ from oda_reader.common import (
     enable_http_cache,
     get_http_cache_info,
 )
+from oda_reader.cpa import download_cpa
 from oda_reader.crs import bulk_download_crs, download_crs, download_crs_file
 from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
@@ -111,6 +112,7 @@ __all__ = [
     "download_crs",
     "bulk_download_crs",
     "download_crs_file",
+    "download_cpa",
     "download_aiddata",
     "get_available_filters",
     # Cache configuration

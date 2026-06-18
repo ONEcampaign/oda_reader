@@ -167,6 +167,10 @@ def download(
             "filter_builder": qb.build_crs_filter,
             "convert_func": convert_crs_to_dotstat_codes,
         },
+        "cpa": {
+            "filter_builder": qb.build_crs_filter,
+            "convert_func": convert_crs_to_dotstat_codes,
+        },
     }
 
     try:
