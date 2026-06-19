@@ -107,7 +107,7 @@ https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DF_DAC1/1.0/...
 ODA Reader uses the appropriate version for each dataset:
 
 - **DAC1, DAC2a**: API v2
-- **CRS, Multisystem**: Custom endpoint (CRS-specific API)
+- **CRS, CPA, Multisystem**: Custom endpoint (CRS-specific API)
 
 You generally don't need to worry about this - ODA Reader handles it automatically.
 

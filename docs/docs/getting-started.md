@@ -115,7 +115,7 @@ When you ran these examples:
 
 Now that you've downloaded your first datasets, explore:
 
-- **[Datasets Overview](datasets.md)** - Learn about all 5 available datasets and when to use each
+- **[Datasets Overview](datasets.md)** - Learn about all 6 available datasets and when to use each
 - **[Filtering Data](filtering.md)** - Discover available filters and build complex queries
 - **[Bulk Downloads](bulk-downloads.md)** - Download full datasets efficiently for large-scale analysis
 - **[Caching & Performance](caching.md)** - Manage cache and configure rate limiting

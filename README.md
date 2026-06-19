@@ -463,14 +463,6 @@ cpa_data = download_cpa(start_year=2022, end_year=2022, filters={"donor": "USA"}
 The available filters for CPA are the same as for CRS and can be retrieved with
 `get_available_filters("cpa")`.
 
-**Note on per-year bulk files:** OECD per-year bulk `.txt` files for CPA are currently malformed
-upstream (32–69 % of rows in 2020–2023 are corrupted), so per-year bulk download (a
-`download_cpa_file` function) has not been added yet — it is not importable from `oda_reader`.
-For a full year of CPA data, use a single-year API call such as
-`download_cpa(start_year=2022, end_year=2022)`. Per-year bulk support is tracked in
-[issue #39](https://github.com/ONEcampaign/oda_reader/issues/39) and will be added once OECD
-fixes the upstream files.
-
 ### Downloading Multisystem Data
 
 The `download_multisystem()` function allows you to download _Members total use of the
