@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Adds `download_cpa()` for the OECD Country Programmable Aid (CPA) dataset
+  (`DSD_CPA@DF_CRS_CPA`), sourced directly from the OECD SDMX API. CPA reuses the CRS filter
+  and `.stat` schema; `get_available_filters("cpa")` is supported. Per-year bulk download is
+  deferred because the OECD bulk files are currently malformed (tracked in
+  [#39](https://github.com/ONEcampaign/oda_reader/issues/39)).
 - Project maintenance: adopted the [`bblocks-projects`](https://github.com/ONEcampaign/bblocks-projects)
   template standard so the repo is now managed (`bblocks-projects update` / `doctor` work via
   `.copier-answers.yml`). Adds the `ty` type checker (enforced in CI and pre-commit) and full

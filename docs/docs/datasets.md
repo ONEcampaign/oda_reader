@@ -1,6 +1,6 @@
 # Datasets Overview
 
-ODA Reader provides access to five datasets covering official development assistance (ODA), other official flows (OOF), and development finance. Each dataset serves different analytical needs.
+ODA Reader provides access to six datasets covering official development assistance (ODA), other official flows (OOF), and development finance. Each dataset serves different analytical needs.
 
 ## Quick Reference
 
@@ -9,6 +9,7 @@ ODA Reader provides access to five datasets covering official development assist
 | **DAC1**        | Aggregate flows by donor           | Analyzing overall ODA trends, donor performance       |
 | **DAC2a**       | Bilateral flows by donor-recipient | Recipient-level analysis                              |
 | **CRS**         | Project-level microdata            | Sector analysis, project details, activity-level data |
+| **CPA**         | Country Programmable Aid           | The share of aid donors programme at country level    |
 | **Multisystem** | Multilateral system usage          | Analyzing multilateral channels and contributions     |
 | **AidData**     | Chinese development finance        | Chinese aid flows                                     |
 
@@ -154,6 +155,38 @@ semi_agg = download_crs(
 
 **Performance note**: The CRS API is slow for large queries. Consider using [bulk downloads](bulk-downloads.md) for full dataset access.
 
+## CPA: Country Programmable Aid
+
+**What it contains**: The share of bilateral ODA that donors programme for individual partner countries. CPA strips out flows a partner country has no say over — debt relief, humanitarian aid, in-donor refugee and student costs, administrative costs, and other non-programmable items. The OECD publishes it as a separate dataflow (`DSD_CPA@DF_CRS_CPA`) derived from the CRS, so it shares the CRS schema, dimensions, and filter set.
+
+**Key dimensions**: Same as the CRS — donor, recipient, sector, channel, modality, flow type, and the microdata flag.
+
+**Use when**:
+
+- You want the country-programmable slice of aid rather than total bilateral ODA
+- Comparing how much of each donor's aid is programmable at country level
+- Tracking programmable aid to specific recipients or sectors over time
+
+**Important**: Like the CRS, `download_cpa` defaults to **microdata** (`microdata=True`, i.e. `MD_DIM=DD`), returning project-level records. There is no grant-equivalent dataflow for CPA, so `as_grant_equivalent` is not available.
+
+**Example**:
+
+```python
+from oda_reader import download_cpa
+
+# Get all CPA records for 2022
+cpa = download_cpa(start_year=2022, end_year=2022)
+
+# Country-programmable aid from the United States to Nigeria
+us_nga = download_cpa(
+    start_year=2022,
+    end_year=2022,
+    filters={"donor": "USA", "recipient": "NGA"}
+)
+```
+
+The available filters match the CRS and can be listed with `get_available_filters("cpa")`.
+
 ## Multisystem: Members' Use of the Multilateral System
 
 **What it contains**: Data on how DAC members use the multilateral aid system, including core contributions to multilateral organizations and earmarked funding.
@@ -235,6 +268,7 @@ from oda_reader import get_available_filters
 dac1_filters = get_available_filters("dac1")
 dac2a_filters = get_available_filters("dac2a")
 crs_filters = get_available_filters("crs")
+cpa_filters = get_available_filters("cpa")
 multisystem_filters = get_available_filters("multisystem")
 ```
 

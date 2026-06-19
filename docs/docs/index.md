@@ -10,7 +10,7 @@ ODA Reader eliminates these headaches. It provides a unified Python interface th
 
 **Key features**:
 
-- **Access 5+ datasets** through simple functions: DAC1, DAC2a, CRS, Multisystem, AidData
+- **Access 6+ datasets** through simple functions: DAC1, DAC2a, CRS, CPA, Multisystem, AidData
 - **Apply filters easily**: `filters={"donor": "USA", "recipient": "NGA"}` works across datasets
 - **Bulk download large files** with memory-efficient streaming for the full CRS (1GB+)
 - **Automatic rate limiting** and caching to work within API constraints
@@ -39,4 +39,4 @@ us_uk_data = download_dac1(
 
 - [Why ODA Reader](why-oda-reader.md) - Understand the rationale and compare to alternatives
 - [Getting Started](getting-started.md) - Install and run your first queries in 5 minutes
-- [Datasets Overview](datasets.md) - Learn about the 5 available datasets
+- [Datasets Overview](datasets.md) - Learn about the 6 available datasets

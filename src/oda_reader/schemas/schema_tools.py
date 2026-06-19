@@ -17,10 +17,13 @@ def read_schema_translation(version: str = "dac1") -> dict:
     """
     logger.info(f"Reading the {version} schema translation")
 
-    schema = "schema" if version == "aidData" else "dotstat"
+    # CPA reuses the full CRS microdata schema; alias to avoid duplicating crs_dotstat.json.
+    file_version = "crs" if version == "cpa" else version
+
+    schema = "schema" if file_version == "aidData" else "dotstat"
 
     # Load the schema translation
-    with open(ImporterPaths.mappings / f"{version}_{schema}.json") as f:
+    with open(ImporterPaths.mappings / f"{file_version}_{schema}.json") as f:
         mapping = json.load(f)
 
     return mapping

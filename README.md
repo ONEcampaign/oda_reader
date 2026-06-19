@@ -27,6 +27,7 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 1. [DAC1](#downloading-dac1-data)
 1. [DAC2a](#downloading-dac2a-data)
 1. [CRS](#downloading-crs-data)
+1. [CPA](#downloading-cpa-data)
 1. [Multisystem](#downloading-multisystem-data)
 1. [Using filters](#using-filters)
 1. [Rate limiting](#rate-limiting)
@@ -427,6 +428,49 @@ from oda_reader import download_crs_file
 
 crs_data = download_crs_file(year=2017)
 ```
+
+### Downloading CPA Data
+
+**Country Programmable Aid (CPA)** is the share of aid that donors programme at country level. ODA Reader
+downloads CPA directly from the OECD SDMX API (dataflow `DSD_CPA@DF_CRS_CPA`). CPA is activity-level
+data and shares the same schema and filter set as the CRS.
+
+The `download_cpa()` function accepts the following arguments:
+
+- `start_year`: An integer like `2018`, specifying the starting year for the data.
+  This parameter is optional - if not provided, the starting date for the dataset is used.
+- `end_year`: An integer like `2022`, specifying the end year for the data.
+  This parameter is optional - if not provided, the returned data goes up to the most recent year.
+- `filters`: An optional dictionary containing additional filters to include in the API call.
+  See the [Using filters](#using-filters) section for more details.
+- `pre_process`: A boolean to specify if light cleaning of the data should be performed.
+  If true, columns will be renamed to unique, machine readable names, and empty columns will be removed.
+- `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
+  For this to work, `pre_process` must be true.
+- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
+  This is an advanced parameter and should be used only if necessary to override the default.
+
+**Note** `download_cpa` defaults to microdata (`microdata=True`, i.e. `MD_DIM=DD`), returning
+project-level CPA records — the same default as `download_crs`.
+
+This basic example will get CPA data for 2022:
+
+```python
+from oda_reader import download_cpa
+
+cpa_data = download_cpa(start_year=2022, end_year=2022)
+```
+
+You can also use filters to, for example, only get data for a specific donor:
+
+```python
+from oda_reader import download_cpa
+
+cpa_data = download_cpa(start_year=2022, end_year=2022, filters={"donor": "USA"})
+```
+
+The available filters for CPA are the same as for CRS and can be retrieved with
+`get_available_filters("cpa")`.
 
 ### Downloading Multisystem Data
 

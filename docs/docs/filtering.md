@@ -17,7 +17,7 @@ data = download_dac1(
 )
 ```
 
-This pattern works across all datasets: DAC1, DAC2a, CRS, and Multisystem.
+This pattern works across all datasets: DAC1, DAC2a, CRS, CPA, and Multisystem.
 
 ## Filtering with Multiple Values
 
@@ -92,6 +92,9 @@ dac2a_filters = get_available_filters("dac2a")
 
 # CRS filters
 crs_filters = get_available_filters("crs")
+
+# CPA filters (same as CRS)
+cpa_filters = get_available_filters("cpa")
 
 # Multisystem filters
 multisystem_filters = get_available_filters("multisystem")
