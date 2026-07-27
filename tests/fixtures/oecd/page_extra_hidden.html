@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>OECD.Stat Codes List</title></head>
+<body>
+<form name="form1" method="post" action="./CodesList.aspx" id="form1">
+<div>
+<input type="hidden" name="__VIEWSTATE" value="VS_EXTRA_TOKEN==" />
+<input type="hidden" name="__VIEWSTATEGENERATOR" value="VSGEN_EXTRA" />
+<input type="hidden" name="__EVENTVALIDATION" value="EV_EXTRA_TOKEN==" />
+<!-- A hidden field we have never seen before. It must be echoed verbatim. -->
+<input type="hidden" name="__NEWTOKEN" value="unseen-value-12345" />
+<!-- Decoy hidden state for the controls the handshake overlays deliberately.
+     These prove the overlay wins: our values must replace these, not
+     merge with or defer to them. -->
+<input type="hidden" name="DDl_codeslist" value="999" />
+<input type="hidden" name="Cblstatus$0" value="off" />
+<input type="hidden" name="Cblstatus$2" value="off" />
+<input type="hidden" name="b_json" value="" />
+</div>
+<div>
+<select name="DDl_codeslist" id="DDl_codeslist">
+<option value="5">Providers</option>
+<option value="13">Recipients</option>
+</select>
+</div>
+</form>
+</body>
+</html>

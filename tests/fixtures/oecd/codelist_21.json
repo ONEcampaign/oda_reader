@@ -1,0 +1,40 @@
+{"codelists":{"date-last-modified":"2026-07-27T20:00:33","codelist":[{"name":"Concessionality","xml:lang":"en","CRS":"0","TOSSD":"1","complete":"1","metadata":{"name":{"narrative":"TOSSD Concessionality"},"url":"https://www.oecd.org/dac/stats/dacandcrscodelists.htm"},"codelist-items":{"codelist-item":[{"status":"active","code":"0",
+"name":{"narrative":[
+"Non-concessional loan",
+{"xml:lang":"fr",
+"#text":"Non-concessional loan"
+}
+]
+},"description":{"narrative":[
+"Does not convey a grant element of at least 35%, currently calculated at a uniform rate of discount of 5% (IMF and WB definition of concessionality).",
+{"xml:lang":"fr",
+"#text":"Does not convey a grant element of at least 35%, currently calculated at a uniform rate of discount of 5% (IMF and WB definition of concessionality)."
+}
+]
+},"crs":"0","tossd":"1"},{"status":"active","code":"1",
+"name":{"narrative":[
+"Concessional loan",
+{"xml:lang":"fr",
+"#text":"Concessional loan"
+}
+]
+},"description":{"narrative":[
+"Conveys a grant element of at least 35%, currently calculated at a uniform rate of discount of 5% (IMF and WB definition of concessionality).",
+{"xml:lang":"fr",
+"#text":"Conveys a grant element of at least 35%, currently calculated at a uniform rate of discount of 5% (IMF and WB definition of concessionality)."
+}
+]
+},"crs":"0","tossd":"1"},{"status":"active","code":"2",
+"name":{"narrative":[
+"(For SSC providers only) Interest-free loan",
+{"xml:lang":"fr",
+"#text":"(For SSC providers only) Interest-free loan"
+}
+]
+},"description":{"narrative":[
+"Loans to a partner without interest charges.",
+{"xml:lang":"fr",
+"#text":"Loans to a partner without interest charges."
+}
+]
+},"crs":"0","tossd":"1"}]}}]}}

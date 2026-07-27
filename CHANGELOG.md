@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+- Adds `oda_reader.codelists`, a new public surface for fetching the OECD DAC area codelists
+  (providers and recipients) directly, without going through a bulk download. Import it
+  explicitly — `from oda_reader.codelists import fetch_codelists` — since `oda_reader.codelists`
+  is deliberately not re-exported from `oda_reader`, to keep `import oda_reader` network-free.
+  `fetch_codelists()` returns a `CodelistSnapshot` whose `frame` has one row per
+  `(codelist_id, code, activation_date)`; `parse_codelists()` builds the same snapshot from bytes
+  already in hand, with no network access, so a pipeline's own stored payloads keep working when
+  the OECD page breaks. Five typed exceptions (`CodelistError` and its four subclasses) are
+  importable from `oda_reader` directly. Only codelists `"5"` (providers) and `"13"` (recipients)
+  are supported; see the [Codelists docs](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/codelists.md)
+  for the frame contract, the row grain, the exception hierarchy, and the support policy.
+  **Documented-provisional** until the earlier of a future `1.x` release or **2026-12-31**:
+  breaking changes to the frame's shape are still possible during this window and will be
+  announced here rather than held to the usual deprecation cadence.
+- Adds `reconcile()` to `oda_reader.codelists`, a pure function that merges a fresh
+  `CodelistSnapshot` into a previous codelist table and returns a `Reconciliation`. Its central
+  guarantee: **it never deletes a row.** A code OECD stops listing comes back with
+  `presence="retired"` and its last known values intact, instead of vanishing the moment a
+  `CREATE OR REPLACE` runs — the only way to lose a code is to not pass `previous`. Retirement is
+  scoped to the codelists actually requested, a code that reappears is a change rather than a new
+  addition, and `previous` is coerced to the frame's contract dtypes on entry so a DuckDB
+  `.df()` result works without manual casting. `Reconciliation.table`, `.added`, `.retired` and
+  `.changed` are documented in the [Codelists docs](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/codelists.md#reconciling-against-history).
+  `reconcile` supports the area contract only; it raises `CodelistValidationError` on a
+  category-contract frame rather than silently mis-keying it.
+- Adds `fetch_code_categories()` / `parse_code_categories()` to `oda_reader.codelists`, the
+  category contract: the same live-fetch/no-network-escape-hatch pair as `fetch_codelists` /
+  `parse_codelists`, over the 23 flat non-area OECD DAC codelists (purpose codes, channels of
+  delivery, markers, and the rest — everything except Provider, Recipient, and Provider agency,
+  which is a different entity keyed on `(code, activation_date, donor-code)` and out of scope
+  entirely). Returns the same `CodelistSnapshot` type with an eleven-column frame keyed on
+  `(codelist_id, code, activation_date, crs, tossd)` — one row per reporting standard, because
+  four of these codelists (Purpose code, Channel of delivery, Type of finance, Co-operation
+  modality) carry the same code with a different meaning under CRS versus TOSSD reporting.
+  `codelist_ids` has no default, unlike `fetch_codelists` — there's no sensible default across 23
+  codelists, and defaulting to all of them would make a ~1.7 MB fetch the accidental behaviour of
+  a bare call. See the [category contract docs](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/codelists.md#the-category-contract)
+  for the frame contract, the five-column key, `parent_code` (the CRS sector hierarchy) and
+  `dac_reference` (opaque provenance text, not a controlled vocabulary). Ships under the same
+  **documented-provisional** window as the area contract.
+- Adds `--audit` to `scripts/data_maintenance/refresh_dac_codelists.py`, which prints the
+  withdrawn-record conflict/orphan/new-candidate findings behind the committed area-code mappings
+  and writes nothing; mutually exclusive with `--write`.
 - Adds `download_cpa()` for the OECD Country Programmable Aid (CPA) dataset
   (`DSD_CPA@DF_CRS_CPA`), sourced directly from the OECD SDMX API. CPA reuses the CRS filter
   and `.stat` schema; `get_available_filters("cpa")` is supported. Per-year bulk download is

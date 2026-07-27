@@ -27,11 +27,21 @@ repos:
     rev: v6.0.0
     hooks:
       # Whitespace & endings
+      #
+      # tests/fixtures/oecd/ holds captured HTTP response bytes, recorded
+      # verbatim so the parser is tested against exactly what OECD sends.
+      # Every hook that rewrites bytes must skip it: trimming whitespace,
+      # appending a final newline or normalising CRLF to LF all silently
+      # turn the fixture into something the source never served. See the
+      # matching `-text` rules in .gitattributes.
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        exclude: ^tests/fixtures/oecd/
       - id: end-of-file-fixer
+        exclude: ^tests/fixtures/oecd/
       - id: mixed-line-ending
         args: [--fix=lf]
+        exclude: ^tests/fixtures/oecd/
 
       # Conflicts & platform quirks
       - id: check-case-conflict
@@ -52,7 +62,8 @@ repos:
           (?x)^(
             \.idea/.*|
             \.vscode/.*|
-            \.claude/.*
+            \.claude/.*|
+            tests/fixtures/oecd/.*
           )$
       - id: check-yaml
         args: [--allow-multiple-documents]
@@ -96,7 +107,8 @@ repos:
             .*\.lock|
             .*\.parquet|
             .*\.feather|
-            .*\.json
+            .*\.json|
+            tests/fixtures/oecd/.*
           )$
 
   # ---------------------------------------------------------------------------

@@ -10,5 +10,6 @@ nav:
   - Bulk Downloads: bulk-downloads.md
   - Caching & Performance: caching.md
   - Schema Translation: schema-translation.md
+  - Codelists: codelists.md
   - Advanced Topics: advanced.md
   - Changelog: changelog.md

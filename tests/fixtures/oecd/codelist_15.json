@@ -1,0 +1,1061 @@
+{"codelists":{"date-last-modified":"2026-07-27T20:00:31","codelist":[{"name":"Type of finance","xml:lang":"en","CRS":"1","TOSSD":"1","complete":"1","metadata":{"name":{"narrative":"Financing instrument"},"url":"https://www.oecd.org/dac/stats/dacandcrscodelists.htm"},"codelist-items":{"codelist-item":[{"status":"Active","code":"0",
+"name":{"narrative":[
+"NON FLOW ITEMS",
+{"xml:lang":"fr",
+"#text":"AUTRE QU’APPORTS "
+}
+]
+},"description":{"narrative":[
+"Non resource flow items requested on DAC table 1",
+{"xml:lang":"fr",
+"#text":"Rubriques requises sur le tableau CAD 1 portant sur des informations autre que des apports"
+}
+]
+},"crs":"1","tossd":"0"},{"status":"Active","code":"1",
+"name":{"narrative":[
+"GNI: Gross National Income",
+{"xml:lang":"fr",
+"#text":"RNB : Revenu national brut"
+}
+]
+},"category":"0","crs":"1","tossd":"0"},{"status":"Active","code":"2",
+"name":{"narrative":[
+"ODA % GNI",
+{"xml:lang":"fr",
+"#text":"APD en % du RNB"
+}
+]
+},"category":"0","crs":"1","tossd":"0"},{"status":"Active","code":"3",
+"name":{"narrative":[
+"Total Flows % GNI",
+{"xml:lang":"fr",
+"#text":"Apports totaux en % du RNB"
+}
+]
+},"category":"0","crs":"1","tossd":"0"},{"status":"Active","code":"4",
+"name":{"narrative":[
+"Population",
+{"xml:lang":"fr",
+"#text":"Population"
+}
+]
+},"category":"0","crs":"1","tossd":"0"},{"status":"Active","code":"100",
+"name":{"narrative":[
+"GRANTS",
+{"xml:lang":"fr",
+"#text":"DONS"
+}
+]
+},"crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"110",
+"name":{"narrative":[
+"Standard grant",
+{"xml:lang":"fr",
+"#text":"Dons ordinaires"
+}
+]
+},"description":{"narrative":[
+"Grants are transfers in cash or in kind for which no legal debt is incurred by the recipient.",
+{"xml:lang":"fr",
+"#text":"Transferts en espèces ou en nature qui n'entraînent pas d'obligation juridique de remboursement pour le bénéficiaire."
+}
+]
+},"category":"100","crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"111",
+"name":{"narrative":[
+"Subsidies to national private investors",
+{"xml:lang":"fr",
+"#text":"Don hors réorganisation de la dette (y compris quasi-dons)"
+}
+]
+},"category":"100","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"200",
+"name":{"narrative":[
+"INTEREST SUBSIDY",
+{"xml:lang":"fr",
+"#text":"BONIFICATION  D’INTERET"
+}
+]
+},"description":{"narrative":[
+"Subsidies to soften the terms of private export credits, or loans or credits by the banking sector.",
+{"xml:lang":"fr",
+"#text":"Subventions visant à assouplir les conditions des crédits à l’exportation ou des prêts/crédits du secteur bancaire."
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"210",
+"name":{"narrative":[
+"Interest subsidy",
+{"xml:lang":"fr",
+"#text":"Bonification d'intérêt"
+}
+]
+},"description":{"narrative":[
+"A payment to soften the terms of private export credits, or loans or credits by the banking sector.",
+{"xml:lang":"fr",
+"#text":"Subventions visant à assouplir les conditions des crédits à l’exportation ou des prêts/crédits du secteur bancaire."
+}
+]
+},"category":"100","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"211",
+"name":{"narrative":[
+"Interest subsidy to national private exporters",
+{"xml:lang":"fr",
+"#text":"Bonification d’intérêt octroyée aux exportateurs privés nationaux"
+}
+]
+},"category":"100","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"300",
+"name":{"narrative":[
+"CAPITAL SUBSCRIPTION",
+{"xml:lang":"fr",
+"#text":"SOUSCRIPTION AU CAPITAL"
+}
+]
+},"description":{"narrative":[
+"Payments to multilateral agencies in the form of notes and similar instruments, unconditionally cashable at sight by the recipient institutions.",
+{"xml:lang":"fr",
+"#text":"Versements aux agences multilatérales sous forme de billets à ordre et effets similaires encaissables à vue sans condition par l'institution bénéficiaire."
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"310",
+"name":{"narrative":[
+"Capital subscription on deposit basis",
+{"xml:lang":"fr",
+"#text":"Souscriptions au capital sur la base des dépôt"
+}
+]
+},"description":{"narrative":[
+"Payments to multilateral agencies in the form of notes and similar instruments, unconditionally encashable at sight by the recipient institutions.",
+{"xml:lang":"fr",
+"#text":"Versements aux agences multilatérales sous forme de billets à ordre et effets similaires encaissables à vue sans condition par l'institution bénéficiaire."
+}
+]
+},"category":"100","crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"311",
+"name":{"narrative":[
+"Capital subscription on encashment basis",
+{"xml:lang":"fr",
+"#text":"Souscriptions au capital sur la base des encaissements "
+}
+]
+},"description":{"narrative":[
+"Payments to multilateral agencies in the form of notes and similar instruments, unconditionally encashable at sight by the recipient institutions.",
+{"xml:lang":"fr",
+"#text":"Versements aux agences multilatérales sous forme de billets à ordre et effets similaires encaissables à vue sans condition par l'institution bénéficiaire."
+}
+]
+},"category":"100","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"400",
+"name":{"narrative":[
+"LOAN",
+{"xml:lang":"fr",
+"#text":"PRÊT"
+}
+]
+},"description":{"narrative":[
+"Transfers in cash or in kind for which the recipient incurs legal debt.",
+{"xml:lang":"fr",
+"#text":"Transferts en espèce ou en nature qui entraînent une obligation juridique de remboursement pour le bénéficiaire."
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"410",
+"name":{"narrative":[
+"Aid loan excluding debt reorganisation",
+{"xml:lang":"fr",
+"#text":"Prêt d’aide hors réorganisation de la dette"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"411",
+"name":{"narrative":[
+"Investment-related loan to developing countries",
+{"xml:lang":"fr",
+"#text":"Prêt lié à un investissement dans les pays en développement"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"412",
+"name":{"narrative":[
+"Loan in a joint venture with the recipient",
+{"xml:lang":"fr",
+"#text":"Prêt dans une coentreprise avec le pays bénéficiaire"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"413",
+"name":{"narrative":[
+"Loan to national private investor",
+{"xml:lang":"fr",
+"#text":"Prêt à un investisseur privé national"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"414",
+"name":{"narrative":[
+"Loan to national private exporter",
+{"xml:lang":"fr",
+"#text":"Prêt à un exportateur privé national"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","activation-date":"2016-01-01","code":"420",
+"name":{"narrative":[
+"DEBT INSTRUMENTS",
+{"xml:lang":"fr",
+"#text":"INSTRUMENTS DE DETTE"
+}
+]
+},"crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"421",
+"name":{"narrative":[
+"Standard loan",
+{"xml:lang":"fr",
+"#text":"Prêt ordinaire"
+}
+]
+},"description":{"narrative":[
+"Loans are transfers in cash or in kind for which the recipient incurs legal debt (and the resulting claim is not intended to be traded). This includes loans repayable in the borrower’s currency whether the lender intends to repatriate the repayments or to use them in the borrowing country. Loans also include ‘instalment sale’ and ‘istisna’a’ of Islamic finance.",
+{"xml:lang":"fr",
+"#text":"Loans are transfers in cash or in kind for which the recipient incurs legal debt (and the resulting claim is not intended to be traded). This includes loans repayable in the borrower’s currency whether the lender intends to repatriate the repayments or to use them in the borrowing country. Loans also include ‘instalment sale’ and ‘istisna’a’ of Islamic finance."
+}
+]
+},"category":"420","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"421",
+"name":{"narrative":[
+"Standard loan",
+{"xml:lang":"fr",
+"#text":"Prêt ordinaire"
+}
+]
+},"description":{"narrative":[
+"Transfers in cash or in kind for which the recipient incurs legal debt (and the resulting claim is not intended to be traded).  Since payment obligations on standard loan are senior obligations, i.e. creditors are entitled to receive payments against their claims before anyone else, they are also referred to as senior loans.",
+{"xml:lang":"fr",
+"#text":"Transferts en espèce ou en nature qui entraînent une obligation juridique de remboursement pour le bénéficiaire (dont la créance n'est pas échangeable.) Lorsque les obligations de remboursement sur les prêts ordinaires sont senior, càd que le créditeur est éligible à percevoir le remboursement de sa créance avant quiconque, on parle de prêt senior."
+}
+]
+},"category":"420","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"422",
+"name":{"narrative":[
+"Reimbursable grant ",
+{"xml:lang":"fr",
+"#text":"Don remboursable"
+}
+]
+},"description":{"narrative":[
+"A contribution provided to a recipient institution for investment purposes, with the expectation of long-term reflows at conditions specified in the financing agreement. The provider assumes the risk of total or partial failure of the investment; it can also decide if and when to reclaim its investment.  ",
+{"xml:lang":"fr",
+"#text":"Contribution fournie à une institution bénéficiaire à des fins d'investissement, dans une perspective de remboursement à long-terme à des conditions spécifiées dans l'accord de financement. Le fournisseur assume le risque partiel ou total de faillite de l'investissement ; il peut aussi décider si et quand il récupère son investissement."
+}
+]
+},"category":"420","crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2023-01-01","code":"4221",
+"name":{"narrative":[
+"Loan-type reimbursable grant",
+{"xml:lang":"fr",
+"#text":"Don remboursable de type prêt"
+}
+]
+},"description":{"narrative":[
+"A contribution provided to a recipient institution for investment purposes, for which the conditions - including a concrete repayment schedule – are specified in the financing agreement.",
+{"xml:lang":"fr",
+"#text":"Contribution fournie à une institution bénéficiaire à des fins d'investissement, dont les conditions – y compris un calendrier de remboursement concret – sont précisées dans l'accord de financement."
+}
+]
+},"category":"420","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"4222",
+"name":{"narrative":[
+"Reflow-based reimbursable grant",
+{"xml:lang":"fr",
+"#text":"Don remboursable par retour de capitaux"
+}
+]
+},"description":{"narrative":[
+"A contribution provided to a recipient institution for investment purposes, for which the details on reflows are unknown at the time of investment as they depend on the performance of the underlying investments.",
+{"xml:lang":"fr",
+"#text":"Contribution fournie à une institution bénéficiaire à des fins d'investissement, pour laquelle les détails des remboursements sont inconnus au moment de l'investissement car ils dépendent de la performance des investissements sous-jacents."
+}
+]
+},"category":"420","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2016-01-01","code":"423",
+"name":{"narrative":[
+"Bonds",
+{"xml:lang":"fr",
+"#text":"Obligations"
+}
+]
+},"description":{"narrative":[
+"Fixed-interest debt instruments, issued by governments, public utilities, banks or companies, tradable in financial markets.",
+{"xml:lang":"fr",
+"#text":"Instruments de dette à intérêts fixes émis par des gouvernements, entités publiques, banques ou sociétés, échangeables sur les marchés financiers."
+}
+]
+},"category":"420","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"423",
+"name":{"narrative":[
+"Bonds",
+{"xml:lang":"fr",
+"#text":"Obligations"
+}
+]
+},"description":{"narrative":[
+"Bonds are fixed-interest debt instruments, issued by governments, public utilities, banks or companies, tradable in financial markets. The issuer of a coupon bond pledges to pay the par value of the bond to the bondholder on a fixed date (maturity date) as well as specified interest over the life of the bond. Alternatively, bonds can be issued at a price lower than their par value in lieu of the periodic interest, with the full par value being paid to the bondholder on maturity (discount bonds).",
+{"xml:lang":"fr",
+"#text":"Bonds are fixed-interest debt instruments, issued by governments, public utilities, banks or companies, tradable in financial markets. The issuer of a coupon bond pledges to pay the par value of the bond to the bondholder on a fixed date (maturity date) as well as specified interest over the life of the bond. Alternatively, bonds can be issued at a price lower than their par value in lieu of the periodic interest, with the full par value being paid to the bondholder on maturity (discount bonds)."
+}
+]
+},"category":"420","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"424",
+"name":{"narrative":[
+"Asset-backed securities ",
+{"xml:lang":"fr",
+"#text":"Titres adossés à des actifs"
+}
+]
+},"description":{"narrative":[
+"Asset-backed securities are securities whose value and income payments are derived from and backed by a specific pool of underlying assets. The Sukuks of Islamic finance are also categorised as debt securities.",
+{"xml:lang":"fr",
+"#text":"Asset-backed securities are securities whose value and income payments are derived from and backed by a specific pool of underlying assets. The Sukuks of Islamic finance are also categorised as debt securities."
+}
+]
+},"category":"420","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"424",
+"name":{"narrative":[
+"Asset-backed securities ",
+{"xml:lang":"fr",
+"#text":"Titres adossés à des actifs"
+}
+]
+},"description":{"narrative":[
+"Securities whose value and income payments are derived from and backed by a specific pool of underlying assets.",
+{"xml:lang":"fr",
+"#text":"Actifs dont la valeur et les revenus sont dérivés de et adossés à un panier d'actifs sous-jacents."
+}
+]
+},"category":"420","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"425",
+"name":{"narrative":[
+"Other debt securities",
+{"xml:lang":"fr",
+"#text":"Autres actifs de dette"
+}
+]
+},"category":"420","crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"430",
+"name":{"narrative":[
+"MEZZANINE FINANCE INSTRUMENTS",
+{"xml:lang":"fr",
+"#text":"INSTRUMENTS DE DETTE"
+}
+]
+},"crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"431",
+"name":{"narrative":[
+"Subordinated loan ",
+{"xml:lang":"fr",
+"#text":"Prêt subordonné"
+}
+]
+},"description":{"narrative":[
+"A loan that, in the event of default, will only be repaid after all senior obligations have been satisfied.  In compensation for the increased risk, mezzanine debt holders require a higher return for their investment than secured or more senior lenders.",
+{"xml:lang":"fr",
+"#text":"Prêt qui, en cas de défaut, ne sera remboursé qu'après que les obligations senior soient satisfaites.  En compensation du risque accru, les détenteurs de dette mezzanine exigent un retour sur investissement plus élevé que les prêteurs garantis ou senior."
+}
+]
+},"category":"430","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"431",
+"name":{"narrative":[
+"Subordinated loan ",
+{"xml:lang":"fr",
+"#text":"Prêt subordonné"
+}
+]
+},"description":{"narrative":[
+"A subordinated (or junior) loan, in the event of default, will only be repaid after all senior obligations have been satisfied.",
+{"xml:lang":"fr",
+"#text":"A subordinated (or junior) loan, in the event of default, will only be repaid after all senior obligations have been satisfied."
+}
+]
+},"category":"430","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"432",
+"name":{"narrative":[
+"Preferred equity ",
+{"xml:lang":"fr",
+"#text":"Action privilégiée"
+}
+]
+},"description":{"narrative":[
+"Preferred equity, in the event of default, will be repaid after all senior obligations and subordinated loans have been satisfied; and will be paid before other equity holders.",
+{"xml:lang":"fr",
+"#text":"Preferred equity, in the event of default, will be repaid after all senior obligations and subordinated loans have been satisfied; and will be paid before other equity holders."
+}
+]
+},"category":"430","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"432",
+"name":{"narrative":[
+"Preferred equity ",
+{"xml:lang":"fr",
+"#text":"Action privilégiée"
+}
+]
+},"description":{"narrative":[
+"Equity that, in the event of default, will be repaid after all senior obligations and subordinated loans have been satisfied; and will be paid before common equity holders. It is a more expensive source of finance than senior debt, a less expensive source than equity.",
+{"xml:lang":"fr",
+"#text":"Action qui, en cas de défaut, ne sera remboursé qu'après que les obligations senior soient satisfaites ; mais avant les détenteurs d'actions ordinaires.  Il s'agit d'une source de financement plus onéreuse que la dette senior mais moins coûteuse que les actions."
+}
+]
+},"category":"430","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"433",
+"name":{"narrative":[
+"Other hybrid instruments ",
+{"xml:lang":"fr",
+"#text":"Autres instruments hybrides"
+}
+]
+},"description":{"narrative":[
+"Including convertible debt or equity.",
+{"xml:lang":"fr",
+"#text":"Incluant les dettes convertibles et les actions."
+}
+]
+},"category":"430","crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2024-01-01","code":"434",
+"name":{"narrative":[
+"Multilateral hybrid capital",
+{"xml:lang":"fr",
+"#text":"Capital hybride multilatéral"
+}
+]
+},"description":{"narrative":[
+" Hybrid capital instruments issued by multilateral institutions",
+{"xml:lang":"fr",
+"#text":"Instruments de capital hybride émis par des institutions multilatérales"
+}
+]
+},"category":"430","crs":"1","tossd":"1",
+"dac:reference":" DCD/DAC/STAT(2024)24/REV2"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"451",
+"name":{"narrative":[
+"Non-banks guaranteed export credits",
+{"xml:lang":"fr",
+"#text":"Crédits à l'exportation garantis du secteur non bancaire"
+}
+]
+},"category":"450","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"452",
+"name":{"narrative":[
+"Non-banks non-guaranteed portions of guaranteed export credits",
+{"xml:lang":"fr",
+"#text":"Fraction non garantie des crédits à l'exportation garantis du secteur bancaire"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"453",
+"name":{"narrative":[
+"Bank export credits",
+{"xml:lang":"fr",
+"#text":"Crédits à l'exportation du secteur bancaire"
+}
+]
+},"category":"400","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"500",
+"name":{"narrative":[
+"EQUITY AND SHARES IN COLLECTIVE INVESTMENT VEHICLES",
+{"xml:lang":"fr",
+"#text":"ACTIONS ET PARTS DANS DES VEHICULES COLLECTIFS D'INVESTISSEMENT"
+}
+]
+},"crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"510",
+"name":{"narrative":[
+"Common equity",
+{"xml:lang":"fr",
+"#text":"Action ordinaire"
+}
+]
+},"description":{"narrative":[
+"A share in the ownership of a corporation that gives the owner claims on the residual value of the corporation after creditors’ claims have been met.",
+{"xml:lang":"fr",
+"#text":"Part de propriété dans une société donnant à son détenteur une créance sur la valeurs résiduelle de la société une fois que les créances de ses créditeurs ont été satisfaites."
+}
+]
+},"category":"500","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","code":"510",
+"name":{"narrative":[
+"Common equity",
+{"xml:lang":"fr",
+"#text":"Action ordinaire"
+}
+]
+},"description":{"narrative":[
+"Common equity is a share in the ownership of a corporation that gives the owner a claim on the residual value of the corporation after creditors’ claims have been met. This category also covers the profit-sharing agreements (Musharaka) of Islamic finance.",
+{"xml:lang":"fr",
+"#text":"Common equity is a share in the ownership of a corporation that gives the owner a claim on the residual value of the corporation after creditors’ claims have been met. This category also covers the profit-sharing agreements (Musharaka) of Islamic finance."
+}
+]
+},"category":"500","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"511",
+"name":{"narrative":[
+"Acquisition of equity not part of joint venture in developing countries",
+{"xml:lang":"fr",
+"#text":"Acquisition de prises de participation en dehors des coentreprises avec les pays en développement"
+}
+]
+},"category":"500","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"512",
+"name":{"narrative":[
+"Other acquisition of equity",
+{"xml:lang":"fr",
+"#text":"Autre acquisition de prises de participation"
+}
+]
+},"category":"500","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Active","activation-date":"2016-01-01","code":"520",
+"name":{"narrative":[
+"Shares in collective investment vehicles ",
+{"xml:lang":"fr",
+"#text":"Parts dans des organismes collectifs d'investissement"
+}
+]
+},"description":{"narrative":[
+"Shares in collective investment vehicles refer to collective undertakings through which investors pool funds for investment in financial or nonfinancial assets or both. These vehicles issue shares (if a corporate structure is used) or units (if a trust structure is used).",
+{"xml:lang":"fr",
+"#text":"Shares in collective investment vehicles refer to collective undertakings through which investors pool funds for investment in financial or nonfinancial assets or both. These vehicles issue shares (if a corporate structure is used) or units (if a trust structure is used)."
+}
+]
+},"category":"500","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"520",
+"name":{"narrative":[
+"Shares in collective investment vehicles ",
+{"xml:lang":"fr",
+"#text":"Parts dans des organismes collectifs d'investissement"
+}
+]
+},"description":{"narrative":[
+"Collective undertakings through which investors pool funds for investment in financial or nonfinancial assets or both. These vehicles issue shares (if a corporate structure is used) or units (if a trust structure is used).",
+{"xml:lang":"fr",
+"#text":"Placement collectif par lequel un groupe d'investisseurs abonde un fond d'actifs financiers ou non financiers ou les deux. Ces véhicules émettent des parts (en cas de structure d'entreprise) ou des unités de compte (en cas de structure fiduciaire.)"
+}
+]
+},"category":"500","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"530",
+"name":{"narrative":[
+"Reinvested earnings",
+{"xml:lang":"fr",
+"#text":"Bénéfices réinvestis"
+}
+]
+},"description":{"narrative":[
+"This item is only applicable to Foreign Direct Investment (FDI). Reinvested earnings on FDI consist of the retained earnings of a direct foreign investment enterprise which are treated as if they were distributed and remitted to foreign direct investors in proportion to their ownership of the equity of the enterprise and then reinvested by them in the enterprise. ",
+{"xml:lang":"fr",
+"#text":"Cet item n'est applicable qu'aux investissement direct étrangers (IDE). Les bénéfices réinvestis sur des IDE consistent en des bénéfices retenus d'un investissement direct à l'étranger qui sont traités comme s'ils étaient redistribués et versés aux investisseurs en proportion de leur part dans l'actionnariat puis réinvestis par eux dans l'entreprise."
+}
+]
+},"category":"500","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","code":"600",
+"name":{"narrative":[
+"DEBT RELIEF",
+{"xml:lang":"fr",
+"#text":"ALLEGEMENT DE LA DETTE"
+}
+]
+},"description":{"narrative":[
+"Debt cancellations, debt conversions, debt rescheduling within or outside the framework of the Paris Club.",
+{"xml:lang":"fr",
+"#text":"Annulation de dette, conversion de dette, rééchelonnement de dette au sein ou en dehors du Club de Paris."
+}
+]
+},"crs":"1","tossd":"0"},{"status":"Active","code":"610",
+"name":{"narrative":[
+"Debt forgiveness:  ODA claims (P)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance APD (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"611",
+"name":{"narrative":[
+"Debt forgiveness: ODA claims (I)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance APD (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"612",
+"name":{"narrative":[
+"Debt forgiveness: OOF claims (P)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance AASP (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"613",
+"name":{"narrative":[
+"Debt forgiveness: OOF claims (I)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance AASP (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"614",
+"name":{"narrative":[
+"Debt forgiveness:  Private claims (P)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance du secteur privé (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"615",
+"name":{"narrative":[
+"Debt forgiveness:  Private claims (I)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance du secteur privé (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"616",
+"name":{"narrative":[
+"Debt forgiveness: OOF claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance AASP (DSR)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"617",
+"name":{"narrative":[
+"Debt forgiveness:  Private claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance du secteur privé (DSR)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"618",
+"name":{"narrative":[
+"Debt forgiveness: Other",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : autre"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"620",
+"name":{"narrative":[
+"Debt rescheduling: ODA claims (P)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance APD (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"621",
+"name":{"narrative":[
+"Debt rescheduling: ODA claims (I)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance APD (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"622",
+"name":{"narrative":[
+"Debt rescheduling: OOF claims (P)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance AASP (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"623",
+"name":{"narrative":[
+"Debt rescheduling: OOF claims (I)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance AASP (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"624",
+"name":{"narrative":[
+"Debt rescheduling:  Private claims (P)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance du secteur privé (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"625",
+"name":{"narrative":[
+"Debt rescheduling:  Private claims (I)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance du secteur privé (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"626",
+"name":{"narrative":[
+"Debt rescheduling: OOF claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance AASP (RSD)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"627",
+"name":{"narrative":[
+"Debt rescheduling:  Private claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance du secteur privé (RSD)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"630",
+"name":{"narrative":[
+"Debt rescheduling: OOF claim (DSR – original loan principal) ",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance AASP (RSD – principal du prêt d’origine)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"631",
+"name":{"narrative":[
+"Debt rescheduling: OOF claim (DSR – original loan interest)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance AASP (RSD – intérêts du prêt d’origine)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","code":"632",
+"name":{"narrative":[
+"Debt rescheduling: Private claim (DSR – original loan principal)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance du secteur privé (RSD – principal du prêt d’origine)"
+}
+]
+},"category":"600","crs":"1","tossd":"0"},{"status":"Active","activation-date":"2016-01-01","code":"633",
+"name":{"narrative":[
+"Debt forgiveness/conversion: export credit claims (P)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance de crédit à l'exportation (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"634",
+"name":{"narrative":[
+"Debt forgiveness/conversion:  export credit claims (I)",
+{"xml:lang":"fr",
+"#text":"Annulation/conversion de la dette : créance de crédit à l'exportation (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"635",
+"name":{"narrative":[
+"Debt forgiveness:  export credit claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Annulation de la dette : créance de crédit à l'exportation (DSR)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"636",
+"name":{"narrative":[
+"Debt rescheduling:  export credit claims (P)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance de crédit à  l'exportation (P)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"637",
+"name":{"narrative":[
+"Debt rescheduling:  export credit claims (I)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance de crédit à  l'exportation (I)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"638",
+"name":{"narrative":[
+"Debt rescheduling:  export credit claims (DSR)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance de crédit à  l'exportation (DSR)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"639",
+"name":{"narrative":[
+"Debt rescheduling:  export credit claim (DSR – original loan principal)",
+{"xml:lang":"fr",
+"#text":"Rééchelonnement de la dette : créance de crédit à  l'exportation (DSR - principal du prêt originel)"
+}
+]
+},"category":"600","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"700",
+"name":{"narrative":[
+"INVESTMENT",
+{"xml:lang":"fr",
+"#text":"INVESTISSEMENTS DIRECTS INTERNATIONAUX"
+}
+]
+},"description":{"narrative":[
+"Investment made by a private entity resident in a reporting country to acquire or add to a lasting interest(1) in an enterprise in a country on the DAC List of ODA Recipients.  ",
+{"xml:lang":"fr",
+"#text":"L’investissement direct est motivé par la volonté d’une entité résidente d’un pays déclarant d’acquérir ou de maintenir un intérêt durable1 dans une entité résidente d’un pays en développement."
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"710",
+"name":{"narrative":[
+"Foreign direct investment, new capital outflow (includes reinvested earnings if separate identification not available) ",
+{"xml:lang":"fr",
+"#text":"Investissement direct international"
+}
+]
+},"category":"700","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"711",
+"name":{"narrative":[
+"Other foreign direct investment, including reinvested earnings",
+{"xml:lang":"fr",
+"#text":"Autre investissement direct international , y compris les bénéfices réinvestis"
+}
+]
+},"category":"700","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"712",
+"name":{"narrative":[
+"Foreign direct investment, reinvested earnings",
+{"xml:lang":"fr",
+"#text":""
+}
+]
+},"category":"700","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"800",
+"name":{"narrative":[
+"BONDS",
+{"xml:lang":"fr",
+"#text":"OBLIGATIONS"
+}
+]
+},"description":{"narrative":[
+"Acquisition of bonds issued by developing countries.",
+{"xml:lang":"fr",
+"#text":"Acquisition d’obligations émises par les pays en développement."
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"810",
+"name":{"narrative":[
+"Bank bonds",
+{"xml:lang":"fr",
+"#text":"Obligations du secteur bancaire"
+}
+]
+},"category":"800","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"811",
+"name":{"narrative":[
+"Non-bank  bonds",
+{"xml:lang":"fr",
+"#text":"Obligations du secteur non bancaire"
+}
+]
+},"category":"800","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"900",
+"name":{"narrative":[
+"OTHER SECURITIES/CLAIMS",
+{"xml:lang":"fr",
+"#text":"AUTRES TITRES/CREANCES"
+}
+]
+},"crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"910",
+"name":{"narrative":[
+"Other bank securities/claims",
+{"xml:lang":"fr",
+"#text":"Autres titres/créances du secteur bancaire"
+}
+]
+},"category":"900","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"911",
+"name":{"narrative":[
+"Other non-bank securities/claims",
+{"xml:lang":"fr",
+"#text":"Autres titres/créances du secteur non bancaire"
+}
+]
+},"category":"900","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"912",
+"name":{"narrative":[
+"Purchase of securities from issuing agencies",
+{"xml:lang":"fr",
+"#text":"Titres et autres instruments émis par les agences multilatérales"
+}
+]
+},"category":"900","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC(2016)3/FINAL"},{"status":"Withdrawn","withdrawal-date":"2015-12-31","code":"913",
+"name":{"narrative":[
+"Securities and other instruments originally issued by multilateral agencies",
+{"xml:lang":"fr",
+"#text":""
+}
+]
+},"category":"900","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"1000",
+"name":{"narrative":[
+"GUARANTEES AND OTHER UNFUNDED CONTINGENT LIABILITIES",
+{"xml:lang":"fr",
+"#text":"GARANTIES ET AUTRES ENGAGEMENTS CONDITIONNELS NON PROVISIONNÉS"
+}
+]
+},"crs":"1","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"1100",
+"name":{"narrative":[
+"Guarantees/insurance ",
+{"xml:lang":"fr",
+"#text":"Garanties/assurances"
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2016-01-01","code":"1100",
+"name":{"narrative":[
+"Guarantees/insurance ",
+{"xml:lang":"fr",
+"#text":"Garanties/assurances"
+}
+]
+},"description":{"narrative":[
+"Guarantees refer to risk-sharing agreements under which the guarantor agrees to pay part or the entire amount due on a loan, equity or other instrument to the lender/investor in the event of non-payment by the borrower or loss of value in case of investment. Other unfunded contingent liabilities include insurances and other instruments that do not constitute a flow.",
+{"xml:lang":"fr",
+"#text":"Guarantees refer to risk-sharing agreements under which the guarantor agrees to pay part or the entire amount due on a loan, equity or other instrument to the lender/investor in the event of non-payment by the borrower or loss of value in case of investment. Other unfunded contingent liabilities include insurances and other instruments that do not constitute a flow."
+}
+]
+},"category":"1000","crs":"0","tossd":"1",
+"dac:reference":"DCD/DAC/STAT/RD(2017)4"},{"status":"Active","activation-date":"2023-01-01","code":"1101",
+"name":{"narrative":[
+"Individual loan guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie individuelle accordée prêt par prêt"
+}
+]
+},"description":{"narrative":[
+"A guarantee on an individual standard loan",
+{"xml:lang":"fr",
+"#text":"Une garantie sur un prêt individuel standard"
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1102",
+"name":{"narrative":[
+"Loan portfolio guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie de portefeuille de prêts"
+}
+]
+},"description":{"narrative":[
+"A guarantee covering a portfolio of standard loans administered by financial intermediaries, such as banks, microfinance institutions or collective investment vehicles.",
+{"xml:lang":"fr",
+"#text":"Une garantie couvrant un portefeuille de prêts standards administrés par des intermédiaires financiers, tels que des banques, des institutions de microfinance ou des véhicules de placement collectif."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1103",
+"name":{"narrative":[
+"Individual mezzanine finance guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie individuelle pour le financement mezzanine"
+}
+]
+},"description":{"narrative":[
+"A guarantee on an individual mezzanine finance investment (subordinated loans or preferred equities). ",
+{"xml:lang":"fr",
+"#text":"Une garantie sur un investissement individuel en financement mezzanine (prêts subordonnés ou actions privilégiées)."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1104",
+"name":{"narrative":[
+"Mezzanine finance portfolio guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie de portefeuille des instruments mezzanine"
+}
+]
+},"description":{"narrative":[
+"A guarantee covering a portfolio of mezzanine finance investments (subordinated loans or preferred equities) administered by financial intermediaries, such as banks, microfinance institutions or collective investment vehicles.",
+{"xml:lang":"fr",
+"#text":"Une garantie couvrant un portefeuille d'investissements en financement mezzanine (prêts subordonnés ou actions privilégiées) administré par des intermédiaires financiers, tels que des banques, des institutions de microfinance ou des véhicules de placement collectif."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1105",
+"name":{"narrative":[
+"Individual equity finance guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie individuelle pour le financement en fonds propres"
+}
+]
+},"description":{"narrative":[
+"A guarantee covering an equity investment.",
+{"xml:lang":"fr",
+"#text":"Une garantie couvrant un investissement en actions."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1106",
+"name":{"narrative":[
+"Equity portfolio guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie de portefeuille d'actions "
+}
+]
+},"description":{"narrative":[
+"A guarantee covering a portfolio of equity investments administered by financial intermediaries, such as banks, microfinance institutions or collective investment vehicles.",
+{"xml:lang":"fr",
+"#text":"Garantie couvrant un portefeuille de participations administré par des intermédiaires financiers, tels que des banques, des institutions de microfinance ou des organismes de placement collectif."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1107",
+"name":{"narrative":[
+"First-loss guarantee",
+{"xml:lang":"fr",
+"#text":"Garantie des premières pertes"
+}
+]
+},"description":{"narrative":[
+"A guarantee specifically designed to absorb the very first loss on one or more investments, such as in the context of collective investment vehicles. Please use other codes for guarantees that are not specifically designed to absorb the very first loss.",
+{"xml:lang":"fr",
+"#text":"Une garantie spécifiquement conçue pour absorber la toute première perte sur un ou plusieurs investissements, comme dans le cadre de véhicules de placement collectif. Veuillez utiliser d'autres codes pour les garanties qui ne sont pas spécifiquement conçues pour absorber la toute première perte."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","activation-date":"2023-01-01","code":"1108",
+"name":{"narrative":[
+"Other guarantees",
+{"xml:lang":"fr",
+"#text":"Autres garanties"
+}
+]
+},"description":{"narrative":[
+"Other guarantees, such as volume guarantees, payment guarantees etc.",
+{"xml:lang":"fr",
+"#text":"Autres garanties, telles que garanties de volume, garanties de paiement, etc."
+}
+]
+},"category":"1000","crs":"1","tossd":"0",
+"dac:reference":"DCD/DAC/STAT(2024)10"},{"status":"Active","code":"2000",
+"name":{"narrative":[
+"Direct provider spending",
+{"xml:lang":"fr",
+"#text":"Direct provider spending"
+}
+]
+},"description":{"narrative":[
+"Direct provider spending",
+{"xml:lang":"fr",
+"#text":"Direct provider spending"
+}
+]
+},"crs":"0","tossd":"1"},{"status":"Active","code":"2100",
+"name":{"narrative":[
+"Direct provider spending",
+{"xml:lang":"fr",
+"#text":"Direct provider spending"
+}
+]
+},"category":"2000","crs":"0","tossd":"1"},{"status":"Active","code":"3000",
+"name":{"narrative":[
+"Subsidies and similar transfers",
+{"xml:lang":"fr",
+"#text":"Subsidies and similar transfers"
+}
+]
+},"description":{"narrative":[
+"Subsidies and similar transfers",
+{"xml:lang":"fr",
+"#text":"Subsidies and similar transfers"
+}
+]
+},"crs":"0","tossd":"1"},{"status":"Active","activation-date":"2020-01-01","code":"3100",
+"name":{"narrative":[
+"Subsidies and similar transfers",
+{"xml:lang":"fr",
+"#text":"Subsidies and similar transfers"
+}
+]
+},"description":{"narrative":[
+"This category includes subsidies and social benefits to households as defined in the System of National Accounts (SNA). Subsidies are unrequited payments that government units, including non-resident government units, make to enterprises on the basis of the levels of their production activities or the quantities or values of the goods or services which they produce, sell or import. Subsidies prohibited by the WTO are not reportable in TOSSD. Social benefits to households are current transfers received by households that are intended to provide for the needs that arise from certain events or circumstances, for example housing. Subsidies and similar transfers can be used by governments to promote sustainable development objectives, for example by supporting research activities carried out by pharmaceutical firms or efforts by households to improve the energy efficiency of their housing. According to the United Nations System of Environmental-Economic Accounting (SEEA), an environmental subsidy or similar transfer is a transfer intended to support activities that protect the environment or reduce the use and extraction of natural resources.",
+{"xml:lang":"fr",
+"#text":"This category includes subsidies and social benefits to households as defined in the System of National Accounts (SNA). Subsidies are unrequited payments that government units, including non-resident government units, make to enterprises on the basis of the levels of their production activities or the quantities or values of the goods or services which they produce, sell or import. Subsidies prohibited by the WTO are not reportable in TOSSD. Social benefits to households are current transfers received by households that are intended to provide for the needs that arise from certain events or circumstances, for example housing. Subsidies and similar transfers can be used by governments to promote sustainable development objectives, for example by supporting research activities carried out by pharmaceutical firms or efforts by households to improve the energy efficiency of their housing. According to the United Nations System of Environmental-Economic Accounting (SEEA), an environmental subsidy or similar transfer is a transfer intended to support activities that protect the environment or reduce the use and extraction of natural resources."
+}
+]
+},"category":"3000","crs":"0","tossd":"1"}]}}]}}

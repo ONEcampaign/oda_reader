@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   refresh:
@@ -33,6 +34,65 @@ jobs:
 
       - name: Refresh DAC codelists from the live OECD source
         run: uv run python -m scripts.data_maintenance.refresh_dac_codelists --write
+
+      - name: Live codelist tests
+        env:
+          RUN_NETWORK_TESTS: "1"
+        run: uv run pytest tests/codelists/network/ -m network
+
+      - name: Open or update a tracking issue on failure
+        # The refresh step raises a CodelistFetchError, CodelistSourceError or
+        # CodelistShapeError (see src/oda_reader/exceptions.py) and exits non-zero;
+        # this step never inspects which one — it points the responder at the run log
+        # and lets them read the exception's own bounded, redacted body there. Search
+        # for a fixed-title issue first so repeated weekly failures update one issue
+        # instead of filing five (design doc section 10, step 3).
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const title = "OECD codelist drift refresh is failing";
+            const runUrl = process.env.RUN_URL;
+            const commentBody = `Failed again: ${runUrl}`;
+            const issueBody = [
+              `The scheduled refresh in \`codelist-drift.yml\` failed. See the [workflow run](${runUrl}) for the traceback.`,
+              "",
+              "Triage by the exception class in the run log (its message never includes the raw",
+              "response body, but the exception object carries it, bounded to 64 KiB, for anyone",
+              "who reproduces this locally):",
+              "",
+              "- `CodelistSourceError` — the OECD page moved, changed shape, or is blocking automated requests.",
+              "- `CodelistShapeError` — the page responded, but its markup no longer matches what the handshake expects; needs a human to look at the diff.",
+              "- `CodelistFetchError` — a transient failure; already retried three times before raising.",
+            ].join("\n");
+
+            const { owner, repo } = context.repo;
+            const openIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "automated",
+            });
+            const existing = openIssues.data.find((issue) => issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body: issueBody,
+                labels: ["maintenance", "automated"],
+              });
+            }
 
       - name: Open a pull request if the codelists drifted
         uses: peter-evans/create-pull-request@v7

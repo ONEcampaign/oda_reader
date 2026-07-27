@@ -695,7 +695,12 @@ def test_render_provenance_omits_date_last_modified() -> None:
     )
     assert "codelist_date_last_modified" not in text
     doc = json.loads(text)
-    assert set(doc) == {"source_url", "aspx_codelist_ids", "codelist_last_changed_date"}
+    assert set(doc) == {
+        "source_url",
+        "aspx_codelist_ids",
+        "codelist_last_changed_date",
+        "aspx_statuses_requested",
+    }
 
 
 @pytest.mark.unit
