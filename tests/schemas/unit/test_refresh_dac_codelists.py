@@ -672,6 +672,9 @@ def test_run_write_no_drift_leaves_provenance_untouched(
         "}\n"
     )
     provenance_path.write_text(stale_provenance, encoding="utf-8")
+    # Read back rather than reusing the literal: write_text translates newlines
+    # on Windows, so the bytes on disk are not the bytes we passed in.
+    before = provenance_path.read_bytes()
     monkeypatch.setattr(mod, "_PROVENANCE_PATH", provenance_path)
 
     rc = run(settings=RefreshSettings(target="dac1", write=True))
@@ -679,7 +682,7 @@ def test_run_write_no_drift_leaves_provenance_untouched(
 
     # date.today() differs from the stale committed date, but since there was
     # no drift in the area mappings, the sidecar must be left byte-identical.
-    assert provenance_path.read_bytes() == stale_provenance.encode("utf-8")
+    assert provenance_path.read_bytes() == before
 
 
 @pytest.mark.unit
