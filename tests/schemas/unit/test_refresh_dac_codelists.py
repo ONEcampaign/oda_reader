@@ -638,6 +638,67 @@ def test_run_write_updates_file(
 
 
 @pytest.mark.unit
+def test_run_write_no_drift_leaves_provenance_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--write must not update _provenance.json when mapping drift is not detected.
+
+    Without this guard, stale timestamps on unchanged mappings trigger
+    false positives in CI drift-detection workflows.
+    """
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
+
+    fake_mappings = tmp_path / "mappings"
+    fake_mappings.mkdir()
+
+    live5 = parse_area_codelist(_mock_fetch_codelist("5"))
+    live13 = parse_area_codelist(_mock_fetch_codelist("13"))
+    live_union = dict(live5)
+    for k, v in live13.items():
+        live_union.setdefault(k, v)
+    (fake_mappings / "dac1_codes_area.json").write_text(
+        dumps_canonical(live_union), encoding="utf-8"
+    )
+    monkeypatch.setattr(mod.ImporterPaths, "mappings", fake_mappings)
+
+    provenance_path = tmp_path / "_provenance.json"
+    stale_provenance = (
+        "{\n"
+        '  "source_url": "stale",\n'
+        '  "aspx_codelist_ids": ["5", "13"],\n'
+        '  "codelist_last_changed_date": "2020-01-01"\n'
+        "}\n"
+    )
+    provenance_path.write_text(stale_provenance, encoding="utf-8")
+    # Read back rather than reusing the literal: write_text translates newlines
+    # on Windows, so the bytes on disk are not the bytes we passed in.
+    before = provenance_path.read_bytes()
+    monkeypatch.setattr(mod, "_PROVENANCE_PATH", provenance_path)
+
+    rc = run(settings=RefreshSettings(target="dac1", write=True))
+    assert rc == 0
+
+    # date.today() differs from the stale committed date, but since there was
+    # no drift in the area mappings, the sidecar must be left byte-identical.
+    assert provenance_path.read_bytes() == before
+
+
+@pytest.mark.unit
+def test_render_provenance_omits_date_last_modified() -> None:
+    """The rendered provenance sidecar must no longer contain the stale field."""
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    text = mod._render_provenance(
+        last_changed_date="2026-01-01", codelist_ids=["5", "13"]
+    )
+    assert "codelist_date_last_modified" not in text
+    doc = json.loads(text)
+    assert set(doc) == {"source_url", "aspx_codelist_ids", "codelist_last_changed_date"}
+
+
+@pytest.mark.unit
 def test_run_unknown_target_returns_error(capsys: pytest.CaptureFixture) -> None:
     """An unknown --target must return exit code 1."""
     rc = run(settings=RefreshSettings(target="bogus"))
