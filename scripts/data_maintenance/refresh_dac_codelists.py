@@ -131,8 +131,8 @@ def fetch_codelist_json(
         return r3.read()
 
 
-def _unwrap_rows(raw_json: bytes) -> tuple[list[dict[str, Any]], str | None]:
-    """Unwrap the OECD JSON envelope into (rows, date_last_modified)."""
+def _unwrap_rows(raw_json: bytes) -> list[dict[str, Any]]:
+    """Unwrap the OECD JSON envelope into its codelist-item rows."""
     payload = json.loads(raw_json)
     codelist_list = payload["codelists"]["codelist"]
     if not codelist_list:
@@ -141,8 +141,7 @@ def _unwrap_rows(raw_json: bytes) -> tuple[list[dict[str, Any]], str | None]:
         )
     codelist_node = codelist_list[0]
     rows: list[dict[str, Any]] = codelist_node["codelist-items"]["codelist-item"]
-    date_last_modified: str | None = payload["codelists"].get("date-last-modified")
-    return rows, date_last_modified
+    return rows
 
 
 def parse_area_codelist(raw_json: bytes) -> dict[str, str]:
@@ -162,7 +161,7 @@ def parse_area_codelist(raw_json: bytes) -> dict[str, str]:
     Returns:
         Mapping of DAC numeric code (string) to .stat code (string).
     """
-    rows, _ = _unwrap_rows(raw_json)
+    rows = _unwrap_rows(raw_json)
     result: dict[str, str] = {}
     for row in rows:
         if row.get("status", "").lower() != "active":
@@ -243,16 +242,16 @@ def build_area_map(
 
 def _render_provenance(
     *,
-    query_date: str,
+    last_changed_date: str,
     codelist_ids: list[str],
-    date_last_modified: str | None,
 ) -> str:
     """Render the provenance sidecar as a JSON string."""
     doc = {
         "source_url": _OECD_URL,
         "aspx_codelist_ids": codelist_ids,
-        "oecd_query_date": query_date,
-        "codelist_date_last_modified": date_last_modified,
+        # When this refresh observed drift from the live OECD source.
+        # Not an OECD-supplied timestamp; do not repurpose with one.
+        "codelist_last_changed_date": last_changed_date,
     }
     return json.dumps(doc, indent=2, ensure_ascii=True) + "\n"
 
@@ -288,7 +287,6 @@ def run(*, settings: RefreshSettings) -> int:
         capture_dir.mkdir(parents=True, exist_ok=True)
 
     raw_by_id: dict[str, bytes] = {}
-    last_modified_by_id: dict[str, str | None] = {}
 
     for cid in needed_ids:
         print(f"Fetching codelist {cid}...", file=sys.stderr)
@@ -304,13 +302,9 @@ def run(*, settings: RefreshSettings) -> int:
             print(f"  wrote {out_path}", file=sys.stderr)
         else:
             raw_by_id[cid] = raw
-            _, dlm = _unwrap_rows(raw)
-            last_modified_by_id[cid] = dlm
 
     if capture_dir is not None:
         return 0
-
-    query_date = datetime.date.today().isoformat()
 
     drift_detected = False
     for target in targets:
@@ -368,16 +362,15 @@ def run(*, settings: RefreshSettings) -> int:
                 area_path.write_text(proposed_text, encoding="utf-8")
                 print(f"[{target}] wrote {area_path}", file=sys.stderr)
 
-    if settings.write:
-        # Update provenance sidecar with all fetched IDs
+    if settings.write and drift_detected:
+        # Update provenance sidecar with timestamp and fetched IDs.
         all_ids = sorted(
             {cid for t in targets for cid in _AREA_CODELIST_IDS[t]}, key=int
         )
-        dlm = next((v for v in last_modified_by_id.values() if v is not None), None)
+        last_changed_date = datetime.date.today().isoformat()
         prov_text = _render_provenance(
-            query_date=query_date,
+            last_changed_date=last_changed_date,
             codelist_ids=all_ids,
-            date_last_modified=dlm,
         )
         _PROVENANCE_PATH.write_text(prov_text, encoding="utf-8")
         print(f"wrote {_PROVENANCE_PATH}", file=sys.stderr)
