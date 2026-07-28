@@ -225,26 +225,49 @@ def _coerce_previous(previous: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def _assert_area_contract_frame(frame: pd.DataFrame) -> None:
-    """Reject a frame that is not the area contract's ten-column shape.
+def _assert_area_contract(snapshot: CodelistSnapshot) -> None:
+    """Reject a snapshot that is not the area contract's.
 
     ``reconcile`` hardcodes the area key (``_KEY`` above) and the area
     contract's column set (``_CONTRACT_COLUMNS``, imported from
-    ``_parse.py``). The category contract's ``CodelistSnapshot`` (from
+    ``_parse.py``). Neither of the other two contracts' ``CodelistSnapshot``
+    shapes fits that key: the category contract's (from
     ``fetch_code_categories`` / ``parse_code_categories``) carries a
-    different eleven-column frame keyed on five columns, not three --
-    reconciling it here would silently mis-key every row rather than fail
-    loudly. Checked by exact column-tuple equality, which is precise because
-    both ``_build_frame`` implementations always emit their contract's
-    columns in the documented order.
+    different eleven-column frame keyed on five columns, not three, and the
+    agency contract's (from ``fetch_provider_agencies`` /
+    ``parse_provider_agencies``) adds ``donor_code`` to the key, where
+    ``activation_date`` is null on every row published so far --
+    reconciling either one here would silently mis-key every row rather
+    than fail loudly.
+
+    Two checks, in order. ``contract`` is the primary signal: it is set by
+    whichever parse function built the snapshot and says what the caller
+    meant, so it catches a non-area snapshot even if its frame has been
+    edited into area-looking columns. The column-tuple comparison stays as a
+    second line of defence for a snapshot hand-built from stored ``raw``,
+    where ``contract`` is whatever the caller declared and the frame may not
+    match it. Exact tuple equality is precise here because every
+    ``_build_frame`` implementation always emits its contract's columns in
+    the documented order.
     """
+    if snapshot.contract != "area":
+        raise CodelistValidationError(
+            detail=(
+                f"reconcile only supports the area contract (fetch_codelists / "
+                f"parse_codelists); got a snapshot whose contract is "
+                f"{snapshot.contract!r}."
+            )
+        )
+    frame = snapshot.frame
     if tuple(frame.columns) != _CONTRACT_COLUMNS:
         raise CodelistValidationError(
             detail=(
                 "reconcile only supports the area contract's ten-column frame "
                 f"{_CONTRACT_COLUMNS!r}; got columns {tuple(frame.columns)!r}. "
-                "The category contract (fetch_code_categories / "
-                "parse_code_categories) is not supported by reconcile."
+                "Neither the category contract (fetch_code_categories / "
+                "parse_code_categories) nor the agency contract "
+                "(fetch_provider_agencies / parse_provider_agencies) is "
+                "supported by reconcile."
             )
         )
 
@@ -629,9 +652,11 @@ def reconcile(
     Raises:
         CodelistValidationError: *current*'s frame is not the area
             contract's ten-column shape (e.g. a category-contract snapshot
-            from ``fetch_code_categories`` / ``parse_code_categories`` --
-            ``reconcile`` hardcodes the area key and does not support it).
-            Also raised for: duplicate keys in *previous* or in *current*'s
+            from ``fetch_code_categories`` / ``parse_code_categories``, or
+            an agency-contract snapshot from ``fetch_provider_agencies`` /
+            ``parse_provider_agencies`` -- ``reconcile`` hardcodes the area
+            key and does not support either one). Also raised for:
+            duplicate keys in *previous* or in *current*'s
             frame, a *previous* contract or key column that cannot be
             coerced to its contract dtype without loss, a reserved lineage
             column present with an incompatible type, a ``presence`` value
@@ -650,7 +675,7 @@ def reconcile(
         original first_seen, and is reported in `changed` with column="presence".
         It does NOT appear in `added`.
     """
-    _assert_area_contract_frame(current.frame)
+    _assert_area_contract(current)
     resolved_observed_at = _resolve_observed_at(current, observed_at)
     _assert_unique_key(current.frame, source="current snapshot")
 

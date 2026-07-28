@@ -11,5 +11,7 @@ nav:
   - Caching & Performance: caching.md
   - Schema Translation: schema-translation.md
   - Codelists: codelists.md
+  - Codelists Reference: codelists-reference.md
+  - Codelist ID Reference: codelist-ids.md
   - Advanced Topics: advanced.md
   - Changelog: changelog.md

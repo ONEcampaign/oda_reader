@@ -1,4 +1,4 @@
-"""The frame contract — Appendix C, table 1 — and `content_hash` — Appendix C, table 2.
+"""The frame contract and `content_hash`.
 
 This test file freezes the public return contract under semver: the ten-column set and order,
 the two dtypes, `(codelist_id, code, activation_date)` uniqueness, `pd.NA` as the null
@@ -90,7 +90,7 @@ _PERIOD_2 = {**_PERIOD_1, "status": "active", "activation-date": "2022-01-01"}
 
 
 # ---------------------------------------------------------------------------
-# Column set, order, dtypes, grain (Appendix C.1)
+# Column set, order, dtypes, grain
 # ---------------------------------------------------------------------------
 
 
@@ -218,7 +218,7 @@ def test_codelist_5_and_13_active_statuses_both_normalise_to_lowercase() -> None
 
 
 # ---------------------------------------------------------------------------
-# Duplicate-key handling on the three-column grain (Appendix A)
+# Duplicate-key handling on the three-column grain
 # ---------------------------------------------------------------------------
 
 
@@ -241,7 +241,7 @@ def test_identical_key_with_conflicting_values_raises_shape_error_at_row_stage()
 
 
 # ---------------------------------------------------------------------------
-# content_hash (Appendix C.2)
+# content_hash
 # ---------------------------------------------------------------------------
 
 
@@ -276,8 +276,8 @@ def test_content_hash_stable_under_reordering_with_na_and_real_activation_dates(
     None
 ):
     """Sorting on the third key column must handle a pd.NA `activation_date` correctly
-    (Appendix C.2 step 2: it sorts first, rendering as the \\x00 sentinel) -- exercised here
-    with two periods of the same code, one of them null."""
+    -- it sorts first, rendering as the \\x00 sentinel -- exercised here with two periods
+    of the same code, one of them null."""
     period_no_date = {**_PERIOD_1, "activation-date": None}
     del period_no_date["activation-date"]
     forward = parse_codelists(
@@ -313,10 +313,9 @@ def test_content_hash_matches_the_pinned_digest_for_the_committed_fixtures() -> 
     correctly to changes -- none of them would catch a canonicalisation bug that
     is wrong but self-consistent (e.g. a different field order, separator, or
     encoding that is still stable and still sensitive to value changes). This is
-    the one test that would fail if Appendix C.2's six-step recipe silently
-    changed. If this literal ever needs to change, that means changing a
-    published contract -- bump the `v1:` prefix to `v2:` per the design doc,
-    don't just update the expected string here.
+    the one test that would fail if the hash recipe silently changed. If this
+    literal ever needs to change, that means changing a published contract -- bump
+    the `v1:` prefix to `v2:` rather than editing the expectation.
     """
     raw = {
         "5": _load_fixture("codelist_5.json"),

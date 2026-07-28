@@ -463,13 +463,51 @@ def _validate_codelist_ids(codelist_ids: Sequence[str]) -> None:
 
     Security review: argument validation must happen before the network is
     touched, not after. Raises ``CodelistValidationError`` naming the
-    offending value -- empty, an id outside ``SUPPORTED_CODELIST_IDS``, or a
-    duplicate.
+    offending value -- a bare ``str`` passed where a sequence of ids was
+    meant, empty, a non-``str`` element, an id outside
+    ``SUPPORTED_CODELIST_IDS``, or a duplicate. ``"16"`` gets a more
+    specific message than a bare "unsupported", since it is the wrong-id
+    an area-contract caller is most likely to try: Provider agency belongs
+    to the agency contract (``fetch_provider_agencies`` /
+    ``parse_provider_agencies``), not this one.
     """
+    # str IS a Sequence[str] -- codelist_ids="21" would otherwise iterate
+    # into "2" and "1" and silently fetch two unrelated codelists instead of
+    # raising. Checked before the empty check so codelist_ids="" reports the
+    # type mistake, not "must not be empty".
+    if isinstance(codelist_ids, str):
+        raise CodelistValidationError(
+            detail=(
+                f"codelist_ids must be a sequence of ids, not a bare str: "
+                f"{codelist_ids!r} is itself a Sequence[str], so it would be "
+                f"iterated character-by-character rather than treated as one "
+                f"id -- wrap it, e.g. ({codelist_ids!r},)"
+            )
+        )
     if not codelist_ids:
         raise CodelistValidationError(detail="codelist_ids must not be empty")
     seen: set[str] = set()
     for codelist_id in codelist_ids:
+        if not isinstance(codelist_id, str):
+            raise CodelistValidationError(
+                detail=(
+                    f"codelist_id {codelist_id!r} must be a str, not "
+                    f"{type(codelist_id).__name__} -- pass it quoted, e.g. "
+                    f"{str(codelist_id)!r}, not {codelist_id!r}"
+                )
+            )
+        if codelist_id == "16":
+            raise CodelistValidationError(
+                detail=(
+                    "codelist_id '16' (Provider agency) is an agency codelist; "
+                    "an agency code is only meaningful within its donor, so "
+                    "agency rows are keyed on (donor-code, code) rather than "
+                    "this contract's (codelist_id, code, activation_date) key "
+                    "-- use fetch_provider_agencies / parse_provider_agencies "
+                    "instead"
+                ),
+                codelist_id=codelist_id,
+            )
         if codelist_id not in SUPPORTED_CODELIST_IDS:
             raise CodelistValidationError(
                 detail=(
@@ -508,8 +546,14 @@ def fetch_codelists(
 
     Args:
         codelist_ids: Which codelists to fetch, in request order. Each must
-            be one of the supported ids (``{"5", "13"}``); duplicates are
-            rejected.
+            be one of the supported ids, duplicates are rejected:
+
+            * ``"5"`` -- Provider
+            * ``"13"`` -- Recipient
+
+            Must be a sequence (e.g. a tuple), never a bare ``str``: since
+            ``str`` is itself a ``Sequence[str]``, a bare id would be
+            iterated character-by-character instead of treated as one id.
         timeout: Per-request timeout in seconds, applied to every request
             of every codelist's handshake.
         retries: Additional attempts after the first, per codelist, so
@@ -519,10 +563,11 @@ def fetch_codelists(
         A ``CodelistSnapshot`` covering every id in *codelist_ids*.
 
     Raises:
-        CodelistValidationError: *codelist_ids* is empty, names an
-            unsupported codelist, or contains a duplicate -- raised before
-            any request is made. Also raised if a codelist's payload
-            parses to zero rows.
+        CodelistValidationError: *codelist_ids* is a bare ``str``, empty,
+            contains a non-``str`` element, names an unsupported codelist
+            (with a specific message for ``"16"``), or contains a
+            duplicate -- raised before any request is made. Also raised
+            if a codelist's payload parses to zero rows.
         CodelistFetchError: Transport failures or 5xx/429/408/425 persisted
             through every attempt, for any one codelist.
         CodelistSourceError: A 4xx, an unfollowed redirect (cross-origin,

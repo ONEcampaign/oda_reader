@@ -2,9 +2,10 @@
 This oda_reader package is a simple python wrapper for the OECD explorer API,
 specifically designed to work with OECD DAC data.
 
-DAC-area codelists are available via ``oda_reader.codelists`` (imported
-explicitly; see the docs) — not re-exported here, to keep ``import
-oda_reader`` network-free.
+DAC-area codelists are available via ``oda_reader.codelists``, which is not
+re-exported here and must be imported explicitly (see the docs). That
+package also provides ``reconcile``, which merges a fresh codelist snapshot
+against a previous table with never-delete lineage semantics.
 """
 
 import sys

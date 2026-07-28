@@ -8,9 +8,8 @@ for no readability gain.
 **The key is `(codelist_id, code, activation_date)`, and `activation_date` is nullable.**
 `pd.DataFrame.merge` and `pd.DataFrame.duplicated` both match/detect `pd.NA` keys correctly
 on this repo's pinned stack (pandas 2.3.3, pyarrow 22.0.0), so the tests below exercise that
-directly against the real 577-row fixture frame (`test_superset_property_holds_on_real_fixtures`,
-`test_partial_fetch_scopes_retirement_to_requested_codelists`) rather than only against
-small synthetic frames.
+directly against the real 577-row fixture frame rather than only against small synthetic
+frames.
 """
 
 from __future__ import annotations
@@ -63,8 +62,9 @@ def _snapshot(
     """Build a `CodelistSnapshot` directly from row dicts, bypassing `parse_codelists`.
 
     Each row supplies `code` and any contract column it wants to override; everything else
-    defaults to a minimal valid value. Since `reconcile` only consumes `.frame`, `.fetched_at`
-    and `.codelist_ids`, there's no need to round-trip through the real OECD envelope shape.
+    defaults to a minimal valid value. Since `reconcile` only consumes `.contract`, `.frame`,
+    `.fetched_at` and `.codelist_ids`, there's no need to round-trip through the real OECD
+    envelope shape.
     """
     defaults = {
         "codelist_id": "5",
@@ -90,6 +90,7 @@ def _snapshot(
         else:
             frame[column] = frame[column].astype("string[pyarrow]")
     return CodelistSnapshot(
+        contract="area",
         frame=frame,
         raw=MappingProxyType({}),
         fetched_at=fetched_at,

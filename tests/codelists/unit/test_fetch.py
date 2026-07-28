@@ -624,6 +624,31 @@ def test_fetch_codelists_rejects_duplicate_codelist_id(
 
 
 @pytest.mark.unit
+def test_fetch_codelists_rejects_bare_str_codelist_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """codelist_ids="13" must raise, not silently iterate into "1" and "3"
+    and fetch two unrelated, individually-valid codelists -- str IS a
+    Sequence[str], so nothing short of an explicit guard catches this."""
+    factory = _install(monkeypatch, [])
+    with pytest.raises(CodelistValidationError) as excinfo:
+        mod.fetch_codelists(codelist_ids="13")
+    assert "bare str" in excinfo.value.detail
+    assert len(factory.created) == 0, "validation must happen before any request"
+
+
+@pytest.mark.unit
+def test_fetch_codelists_rejects_non_str_codelist_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory = _install(monkeypatch, [])
+    with pytest.raises(CodelistValidationError) as excinfo:
+        mod.fetch_codelists(codelist_ids=(5,))  # type: ignore[arg-type]
+    assert "must be a str" in excinfo.value.detail
+    assert len(factory.created) == 0, "validation must happen before any request"
+
+
+@pytest.mark.unit
 def test_fetch_codelists_composes_handshake_and_parse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -661,7 +686,7 @@ def test_fetch_codelists_exception_carries_the_failing_codelist_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A failure on the second of two requested codelists must name that codelist, not the
-    first one or none at all (Appendix A: every exception carries codelist_id where known)."""
+    first one or none at all — every exception carries codelist_id where known."""
     page = _page_html()
     payload_5 = _envelope("Providers", _ROW_5)
     factory = _install(

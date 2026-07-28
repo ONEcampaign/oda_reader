@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 import pandas as pd
 
@@ -22,8 +23,12 @@ SUPPORTED_CODELIST_IDS: tuple[str, ...] = ("5", "13")
 # The 23 flat non-area codelists the category contract (fetch_code_categories /
 # parse_code_categories) is prepared to fetch and parse -- every OECD codelist
 # except Provider (5) and Recipient (13), which the area contract owns, and
-# Provider agency (16), a different entity keyed on (code, activation_date,
-# donor-code) rather than a flat category vocabulary, out of scope entirely.
+# Provider agency (16), which the agency contract (fetch_provider_agencies /
+# parse_provider_agencies) owns instead. An agency code is only meaningful
+# within its donor: code 1 is the Federal Ministry of Finance under one donor
+# and Foreign Affairs under another, and 99 of its 110 codes carry more than
+# one label across donors -- a shape neither this contract's flat vocabulary
+# nor the area contract's (code, activation_date) grain can express.
 SUPPORTED_CATEGORY_IDS: tuple[str, ...] = (
     "1",
     "2",
@@ -49,6 +54,18 @@ SUPPORTED_CATEGORY_IDS: tuple[str, ...] = (
     "25",
     "26",
 )
+
+# The one OECD codelist the agency contract (fetch_provider_agencies /
+# parse_provider_agencies) is prepared to fetch and parse -- a tuple of
+# length one, uniform with its two siblings above, not a bare str: generic
+# code walking all three id-vocabularies (e.g. `for ids in (SUPPORTED_CODELIST_IDS,
+# SUPPORTED_CATEGORY_IDS, SUPPORTED_AGENCY_IDS): ...`) would otherwise iterate
+# a bare "16" character-by-character into "1" and "6", the exact mistake the
+# codelist_ids validators exist to catch -- a constant has no validator.
+# Provider agency is the only entity keyed on (donor-code, code), so a caller
+# could never legally pass anything but this one id; that is also why
+# fetch_provider_agencies takes no codelist_ids parameter at all.
+SUPPORTED_AGENCY_IDS: tuple[str, ...] = ("16",)
 
 # The documented status domain a codelist row's `status` field may carry,
 # lowercase-normalised. Codelist 5 returns "Active", codelist 13 returns
@@ -89,20 +106,23 @@ PRESENCE_DOMAIN: tuple[str, ...] = ("current", "retired")
 class CodelistSnapshot:
     """One fetch of one or more OECD DAC codelists.
 
-    Returned by both public contracts, in a fetch/parse pair each:
+    Returned by all three public contracts, in a fetch/parse pair each:
     ``fetch_codelists``/``parse_codelists`` for the **area** codelists
-    (providers and recipients), and ``fetch_code_categories``/
-    ``parse_code_categories`` for the 23 flat **category** codelists. The
-    ``fetch_*`` half performs the live ASPX handshake; the ``parse_*`` half
-    builds the same thing from bytes already in hand, with no network access
-    -- so every guarantee below still holds on a payload obtained any other
-    way (yesterday's snapshot, a colleague's manual download) when OECD
-    breaks the live page.
+    (providers and recipients), ``fetch_code_categories``/
+    ``parse_code_categories`` for the 23 flat **category** codelists, and
+    ``fetch_provider_agencies``/``parse_provider_agencies`` for the single
+    **agency** codelist (Provider agency, 16). The ``fetch_*`` half performs
+    the live ASPX handshake; the ``parse_*`` half builds the same thing from
+    bytes already in hand, with no network access -- so every guarantee below
+    still holds on a payload obtained any other way (yesterday's snapshot, a
+    colleague's manual download) when OECD breaks the live page.
 
-    One type serves both because every guarantee here -- replayable ``raw``,
-    ``content_hash``, ``unknown_statuses``, the support policy -- is
-    identical across them; only ``frame``'s columns differ, and the caller
-    knows which they hold from the function they called.
+    One type serves all three because every guarantee here -- replayable
+    ``raw``, ``content_hash``, ``unknown_statuses``, the support policy -- is
+    identical across them; only ``frame``'s columns and row grain differ.
+    ``contract`` records which pair built it, so code that receives a
+    snapshot second-hand can tell them apart without inspecting
+    ``frame.columns``.
 
     ``frozen=True`` prevents *rebinding* an attribute (``snapshot.frame =
     ...``); it does not prevent mutating the DataFrame or the mapping behind
@@ -118,13 +138,27 @@ class CodelistSnapshot:
     ``.content_hash``, not ``==``.**
 
     Attributes:
+        contract: Which contract built this snapshot -- ``"area"`` from
+            ``fetch_codelists``/``parse_codelists``, ``"category"`` from
+            ``fetch_code_categories``/``parse_code_categories``, or
+            ``"agency"`` from ``fetch_provider_agencies``/
+            ``parse_provider_agencies``. Determines ``frame``'s columns and
+            row grain, and is what ``reconcile`` checks to reject a frame it
+            cannot key. Required rather than defaulted: there is no value
+            that would be right for all three, and a snapshot rebuilt by
+            hand from stored ``raw`` has to say which it is.
         frame: The contract depends on which pair built this snapshot.
             **Area**: ten columns, one row per ``(codelist_id, code,
             activation_date)`` -- see ``parse_codelists``. **Category**:
             eleven columns, keyed additionally on ``crs`` and ``tossd``
             because the same code can carry different definitions under the
-            two standards -- see ``parse_code_categories``. Each function's
-            docstring states its own contract in full.
+            two standards -- see ``parse_code_categories``. **Agency**:
+            twelve columns, one row per ``(codelist_id, donor_code, code,
+            activation_date)`` -- an agency code is only meaningful within
+            its donor, so ``donor_code`` joins the key rather than ``crs``/
+            ``tossd``, which agency rows do not split by -- see
+            ``parse_provider_agencies``. Each function's docstring states
+            its own contract in full.
         raw: ``codelist_id -> the exact response bytes for that codelist``,
             as OECD sent them, unmodified. A ``MappingProxyType``.
         fetched_at: When the underlying bytes were obtained. Timezone-aware.
@@ -143,6 +177,7 @@ class CodelistSnapshot:
             than passing it on.
     """
 
+    contract: Literal["area", "category", "agency"]
     frame: pd.DataFrame
     raw: Mapping[str, bytes]
     fetched_at: datetime

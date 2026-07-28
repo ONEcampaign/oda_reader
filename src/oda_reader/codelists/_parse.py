@@ -1,8 +1,8 @@
 """Envelope unwrap and frame build for OECD codelist JSON payloads.
 
-``parse_codelists`` is the package's envelope reader and frame builder:
-Appendix A's envelope checks need to distinguish "not JSON" from "missing
-key" from "wrong type" precisely, so ``_validate_envelope`` raises typed
+``parse_codelists`` is the package's envelope reader and frame builder: the
+envelope checks need to distinguish "not JSON" from "missing key" from
+"wrong type" precisely, so ``_validate_envelope`` raises typed
 ``CodelistShapeError``s rather than leaving callers to catch incidental
 ``KeyError``/``ValueError``/``TypeError``.
 """
@@ -15,7 +15,7 @@ import re
 from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
@@ -42,12 +42,17 @@ _CONTRACT_COLUMNS: tuple[str, ...] = (
 # before casting rather than trusted. The payload format is YYYY-MM-DD.
 _ACTIVATION_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# content_hash canonicalisation (Appendix C.2, steps 3-4): the sentinel for
-# a null value and the separator joining a row's rendered fields. Neither
-# can occur in a source value -- \x00 does not occur in OECD codes, and \x1f
-# (unit separator) never appears in an OECD code, label, status or date.
+# content_hash canonicalisation: the sentinel for a null value and the
+# separator joining a row's rendered fields. Neither can occur in a source
+# value -- \x00 does not occur in OECD codes, and \x1f (unit separator) never
+# appears in an OECD code, label, status or date.
 _HASH_NULL_SENTINEL = "\x00"
 _HASH_FIELD_SEP = "\x1f"
+
+# Both spellings OECD uses for a narrative entry's language attribute. The
+# unprefixed form appears on a top-level `name`; the underscore-prefixed one
+# on the nested `Agencytype.name`. See _select_english_label.
+_LANG_TAG_KEYS: tuple[str, ...] = ("xml:lang", "_xml:lang")
 
 
 def _narrative_text(entry: Any) -> str | None:
@@ -61,26 +66,69 @@ def _narrative_text(entry: Any) -> str | None:
     return None
 
 
+def _language_tag(entry: Any) -> str | None:
+    """The language-tag value on one ``narrative`` entry, under either spelling in ``_LANG_TAG_KEYS``."""
+    if not isinstance(entry, dict):
+        return None
+    for key in _LANG_TAG_KEYS:
+        value = entry.get(key)
+        if isinstance(value, str):
+            return value
+    return None
+
+
+def _is_english_tag(tag: str) -> bool:
+    """True for an ``en`` language tag, case-insensitively, including a regional form like ``en-GB``."""
+    tag = tag.lower()
+    return tag == "en" or tag.startswith("en-")
+
+
 def _select_english_label(name_field: Any) -> str | None:
     """Pick the English label out of a row's ``name.narrative`` field.
 
-    OECD's narrative entries carry an ``xml:lang`` attribute on the French
-    variant and omit it on the English one. The selector picks the narrative
-    with no ``xml:lang``, falling back to the first entry if none matches.
-    The *language* returned is the semver promise; this selector is an
-    implementation detail we may change in a patch release if OECD starts
-    tagging English explicitly or reorders the array.
+    Three-step priority, in order:
+
+    1. An entry explicitly tagged ``en`` (either spelling in
+       ``_LANG_TAG_KEYS``, case-insensitively, regional forms like ``en-GB``
+       included) wins outright, wherever it sits in the array.
+    2. Otherwise, the shape OECD actually publishes today: no row's
+       ``name.narrative`` tags English at all, only the French variant, so
+       the first untagged entry is taken to be English.
+    3. Otherwise, ``narrative[0]``, so a malformed or all-tagged array still
+       returns something rather than ``None``.
+
+    Step 1 exists because step 2 is a heuristic, not a guarantee: an
+    untagged entry is *probably* English only because no row observed so far
+    tags it explicitly. The moment OECD starts tagging English too, treating
+    "untagged" as "English" would pick whichever language happens to sit
+    first instead. The *language* returned is the semver promise; this
+    selector is an implementation detail we may change in a patch release if
+    OECD reorders the array or changes its tagging further.
+
+    Both spellings in ``_LANG_TAG_KEYS`` count as a language tag at every
+    step. Top-level ``name`` uses ``xml:lang``, but the nested
+    ``Agencytype.name`` the agency contract projects uses ``_xml:lang`` with
+    a leading underscore -- on all 1,374 agency rows. Recognising only the
+    unprefixed form would leave step 2's guard doing nothing there, picking
+    English purely because it happens to sit first in the array.
     """
     if not isinstance(name_field, dict):
         return None
     narrative = name_field.get("narrative")
     if not isinstance(narrative, list) or not narrative:
         return None
+
+    untagged_text: str | None = None
     for entry in narrative:
-        if not (isinstance(entry, dict) and "xml:lang" in entry):
+        tag = _language_tag(entry)
+        if tag is not None and _is_english_tag(tag):
             text = _narrative_text(entry)
             if text is not None:
                 return text
+        elif tag is None and untagged_text is None:
+            untagged_text = _narrative_text(entry)
+    if untagged_text is not None:
+        return untagged_text
     return _narrative_text(narrative[0])
 
 
@@ -289,9 +337,9 @@ def _project_rows(
     the key, not a reason to collapse rows -- every codelist-5 row keys
     this way.
 
-    Per Appendix A's row group: a row missing ``code``, a derivable label,
-    or ``status``, or carrying a malformed ``activation_date``, raises
-    ``CodelistShapeError(stage="row")``. Two rows sharing a full three-column
+    A row missing ``code``, a derivable label, or ``status``, or carrying a
+    malformed ``activation_date``, raises ``CodelistShapeError(stage="row")``.
+    Two rows sharing a full three-column
     key with conflicting projected values also raise; two rows sharing the
     key with identical projected values are silently deduplicated. An empty
     *rows* raises ``CodelistValidationError`` -- OECD returning zero items
@@ -374,7 +422,7 @@ def _project_rows(
                 url=source_url,
                 codelist_id=codelist_id,
             )
-        # else: a byte-identical duplicate key -- dropped silently (Appendix A).
+        # else: a byte-identical duplicate key -- dropped silently.
 
     return [by_key[key] for key in order], unknown_statuses
 
@@ -387,8 +435,8 @@ def _build_frame(
     Shared by the area contract's ten columns and the category contract's
     eleven -- ``columns`` is the only thing that differs between them.
     ``string[pyarrow]`` on every column except ``activation_date``, which is
-    ``date32[pyarrow]`` (Appendix C.1). A missing value in a record becomes
-    ``pd.NA`` under either dtype, never an empty string.
+    ``date32[pyarrow]``. A missing value in a record becomes ``pd.NA`` under
+    either dtype, never an empty string.
     """
     frame = pd.DataFrame.from_records(records, columns=list(columns))
     for column in columns:
@@ -400,8 +448,8 @@ def _build_frame(
 
 
 def _render_hash_value(column: str, value: Any) -> str:
-    """Render one cell per Appendix C.2 step 3: strings as themselves,
-    ``activation_date`` as ISO-8601, ``pd.NA`` as the ``\\x00`` sentinel."""
+    """Render one cell: strings as themselves, ``activation_date`` as
+    ISO-8601, ``pd.NA`` as the ``\\x00`` sentinel."""
     if pd.isna(value):
         return _HASH_NULL_SENTINEL
     if column == "activation_date":
@@ -412,7 +460,7 @@ def _render_hash_value(column: str, value: Any) -> str:
 def _compute_content_hash(
     frame: pd.DataFrame, *, columns: tuple[str, ...], key_columns: tuple[str, ...]
 ) -> str:
-    """Compute ``content_hash`` per Appendix C.2's six-step canonicalisation.
+    """Compute ``content_hash`` per the six-step canonicalisation below.
 
     Shared by both contracts: the area contract calls this with its ten
     columns and its three-column key; the category contract calls it with
@@ -455,6 +503,7 @@ def _snapshot_from_raw(
     raw: Mapping[str, bytes],
     fetched_at: datetime,
     source_url: str,
+    contract: Literal["area", "category", "agency"],
     columns: tuple[str, ...],
     key_columns: tuple[str, ...],
     project_rows: Callable[..., tuple[list[dict[str, Any]], list[str]]],
@@ -464,16 +513,31 @@ def _snapshot_from_raw(
     Both public functions validate ``fetched_at``, walk *raw* through
     ``_validate_envelope`` and their own *project_rows*, accumulate
     ``unknown_statuses`` in first-seen order across every codelist, then
-    build the frame and ``content_hash``. Only *columns*, *key_columns* and
-    *project_rows* differ between the area and category contracts -- this
-    function is not part of the public surface, so each public function
-    keeps its own full docstring describing its contract.
+    build the frame and ``content_hash``. Only *contract*, *columns*,
+    *key_columns* and *project_rows* differ between the area and category
+    contracts -- this function is not part of the public surface, so each
+    public function keeps its own full docstring describing its contract.
     """
     if fetched_at.tzinfo is None or fetched_at.tzinfo.utcoffset(fetched_at) is None:
         raise CodelistValidationError(
             detail=(
                 f"fetched_at must be timezone-aware, got a naive datetime "
                 f"{fetched_at!r}; use datetime.datetime.now(datetime.UTC)"
+            ),
+        )
+    if not raw:
+        raise CodelistValidationError(
+            detail=(
+                "raw must not be empty: an empty mapping produces a "
+                "valid-looking snapshot with zero rows instead of raising, "
+                "the same failure a single codelist returning zero rows is "
+                "already rejected for -- and since retirement is scoped to "
+                "the codelists a snapshot covers, feeding an empty one to "
+                "reconcile reports is_unchanged on a run that read nothing "
+                "at all. If raw came from a stored payload, "
+                "check that the file was actually read (a missing or empty "
+                "file silently 'succeeding' is the common cause); if it came "
+                "from fetch_*, check that codelist_ids was non-empty."
             ),
         )
 
@@ -501,6 +565,7 @@ def _snapshot_from_raw(
     )
 
     return CodelistSnapshot(
+        contract=contract,
         frame=frame,
         raw=MappingProxyType(dict(raw)),
         fetched_at=fetched_at,
@@ -552,13 +617,14 @@ def parse_codelists(
             malformed, or a row is missing a required field, carries a
             malformed ``activation_date``, or conflicts with another row
             sharing its ``(code, activation_date)`` key.
-        CodelistValidationError: A codelist in *raw* produced zero rows, or
-            *fetched_at* is a naive datetime.
+        CodelistValidationError: *raw* is empty, a codelist in *raw* produced
+            zero rows, or *fetched_at* is a naive datetime.
     """
     return _snapshot_from_raw(
         raw=raw,
         fetched_at=fetched_at,
         source_url=source_url,
+        contract="area",
         columns=_CONTRACT_COLUMNS,
         key_columns=("codelist_id", "code", "activation_date"),
         project_rows=_project_rows,

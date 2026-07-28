@@ -127,3 +127,66 @@ def test_translation_path_never_imports_codelists() -> None:
         "oda_reader.codelists must never be imported from schemas/ or download/ "
         f"(the translation path is the frozen surface): {violations}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 3 — the id vocabulary is public, not just importable from `_types`
+# ---------------------------------------------------------------------------
+#
+# `_fetch.py`'s validators print these tuples in their error messages, so the
+# domain they describe is plainly user-facing. Before this test, the only way
+# to obtain it programmatically was to reach into `_types`, a private module
+# by this package's underscore convention. These constants must be reachable
+# from `oda_reader.codelists` itself, listed in `__all__`, and immutable —
+# they are the public spelling of a domain, not a list a caller can mutate.
+
+_PUBLIC_DOMAIN_CONSTANTS = (
+    "SUPPORTED_CODELIST_IDS",
+    "SUPPORTED_CATEGORY_IDS",
+    "STATUS_DOMAIN",
+    "PRESENCE_DOMAIN",
+    "LINEAGE_COLUMNS",
+)
+
+
+# ---------------------------------------------------------------------------
+# Test 4 — the agency contract's public surface
+# ---------------------------------------------------------------------------
+#
+# fetch_provider_agencies / parse_provider_agencies / SUPPORTED_AGENCY_IDS are
+# the third contract's entry points, added alongside the area and category
+# pairs above. Listed in __all__ like every other public name this package
+# exports; a future refactor that quietly drops one from __all__ while leaving
+# the function importable is the kind of regression a plain import wouldn't
+# catch.
+
+
+@pytest.mark.unit
+def test_agency_contract_exports_are_public() -> None:
+    from oda_reader import codelists
+
+    for name in (
+        "fetch_provider_agencies",
+        "parse_provider_agencies",
+        "SUPPORTED_AGENCY_IDS",
+    ):
+        assert name in codelists.__all__, f"{name} missing from codelists.__all__"
+        assert hasattr(codelists, name), f"{name} not reachable from codelists"
+
+    # A tuple, not a bare str, even though it only ever holds one id: uniform
+    # with SUPPORTED_CODELIST_IDS / SUPPORTED_CATEGORY_IDS so generic code
+    # over all three can't iterate a bare "16" character-by-character.
+    assert codelists.SUPPORTED_AGENCY_IDS == ("16",)
+    assert isinstance(codelists.SUPPORTED_AGENCY_IDS, tuple)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("name", _PUBLIC_DOMAIN_CONSTANTS)
+def test_domain_constant_is_public_and_immutable(name: str) -> None:
+    from oda_reader import codelists
+
+    assert name in codelists.__all__, f"{name} missing from codelists.__all__"
+    value = getattr(codelists, name)
+    assert isinstance(value, tuple), (
+        f"{name} must be an immutable tuple, not {type(value).__name__}"
+    )

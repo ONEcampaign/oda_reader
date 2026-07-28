@@ -38,9 +38,9 @@ from oda_reader.codelists._types import (
 )
 from oda_reader.exceptions import CodelistShapeError, CodelistValidationError
 
-# The eleven category-contract columns, in the documented order (decisions.md,
-# "The category frame contract"). content_hash's canonicalisation walks this
-# exact order, same as the area contract's _CONTRACT_COLUMNS.
+# The eleven category-contract columns, in the documented order. content_hash's
+# canonicalisation walks this exact order, same as the area contract's
+# _CONTRACT_COLUMNS.
 _CATEGORY_CONTRACT_COLUMNS: tuple[str, ...] = (
     "codelist_id",
     "code",
@@ -173,8 +173,8 @@ def _project_category_rows(
         }
 
         # crs/tossd distinguish the same code under different reporting
-        # standards (Purpose code 15190, Channel of delivery 11000 are
-        # worked examples in the survey).
+        # standards -- Purpose code 15190 and Channel of delivery 11000 are
+        # worked examples.
         key = (code, activation_date, crs, tossd)
         existing = by_key.get(key)
         if existing is None:
@@ -237,13 +237,14 @@ def parse_code_categories(
             malformed, or a row is missing a required field, carries a
             malformed ``activation_date``, or conflicts with another row
             sharing its five-column key.
-        CodelistValidationError: A codelist in *raw* produced zero rows, or
-            *fetched_at* is a naive datetime.
+        CodelistValidationError: *raw* is empty, a codelist in *raw* produced
+            zero rows, or *fetched_at* is a naive datetime.
     """
     return _snapshot_from_raw(
         raw=raw,
         fetched_at=fetched_at,
         source_url=source_url,
+        contract="category",
         columns=_CATEGORY_CONTRACT_COLUMNS,
         key_columns=_CATEGORY_KEY_COLUMNS,
         project_rows=_project_category_rows,
@@ -253,18 +254,41 @@ def parse_code_categories(
 def _validate_category_ids(codelist_ids: Sequence[str]) -> None:
     """Validate *codelist_ids* before ``fetch_code_categories`` issues any request.
 
-    Mirrors ``_fetch.py``'s ``_validate_codelist_ids``: empty, an id outside
-    ``SUPPORTED_CATEGORY_IDS``, or a duplicate all raise
-    ``CodelistValidationError`` naming the offending value, before the
-    network is touched. Three ids get a more specific message than a bare
-    "unsupported", since they are the wrong-ids a category-contract caller
-    is most likely to try: ``"5"``/``"13"`` belong to the area contract, and
-    ``"16"`` (Provider agency) is excluded from this contract entirely.
+    Mirrors ``_fetch.py``'s ``_validate_codelist_ids``: a bare ``str``,
+    empty, a non-``str`` element, an id outside ``SUPPORTED_CATEGORY_IDS``,
+    or a duplicate all raise ``CodelistValidationError`` naming the
+    offending value, before the network is touched. Three ids get a more
+    specific message than a bare "unsupported", since they are the
+    wrong-ids a category-contract caller is most likely to try:
+    ``"5"``/``"13"`` belong to the area contract, and ``"16"`` (Provider
+    agency) belongs to the agency contract (``fetch_provider_agencies`` /
+    ``parse_provider_agencies``).
     """
+    # str IS a Sequence[str] -- codelist_ids="21" would otherwise iterate
+    # into "2" and "1" and silently fetch two unrelated codelists instead of
+    # raising. Checked before the empty check so codelist_ids="" reports the
+    # type mistake, not "must not be empty".
+    if isinstance(codelist_ids, str):
+        raise CodelistValidationError(
+            detail=(
+                f"codelist_ids must be a sequence of ids, not a bare str: "
+                f"{codelist_ids!r} is itself a Sequence[str], so it would be "
+                f"iterated character-by-character rather than treated as one "
+                f"id -- wrap it, e.g. ({codelist_ids!r},)"
+            )
+        )
     if not codelist_ids:
         raise CodelistValidationError(detail="codelist_ids must not be empty")
     seen: set[str] = set()
     for codelist_id in codelist_ids:
+        if not isinstance(codelist_id, str):
+            raise CodelistValidationError(
+                detail=(
+                    f"codelist_id {codelist_id!r} must be a str, not "
+                    f"{type(codelist_id).__name__} -- pass it quoted, e.g. "
+                    f"{str(codelist_id)!r}, not {codelist_id!r}"
+                )
+            )
         if codelist_id in ("5", "13"):
             area_name = "Provider" if codelist_id == "5" else "Recipient"
             raise CodelistValidationError(
@@ -277,10 +301,12 @@ def _validate_category_ids(codelist_ids: Sequence[str]) -> None:
         if codelist_id == "16":
             raise CodelistValidationError(
                 detail=(
-                    "codelist_id '16' (Provider agency) is not a flat category "
-                    "codelist -- it describes agencies within providers, keyed on "
-                    "(code, activation_date, donor-code), a different entity per "
-                    "donor, and is out of scope for the category contract entirely"
+                    "codelist_id '16' (Provider agency) is an agency codelist; "
+                    "an agency code is only meaningful within its donor, so "
+                    "agency rows are keyed on (donor-code, code) rather than "
+                    "the flat code a category codelist uses -- use "
+                    "fetch_provider_agencies / parse_provider_agencies instead "
+                    "of the category contract"
                 ),
                 codelist_id=codelist_id,
             )
@@ -316,13 +342,40 @@ def fetch_code_categories(
 
     Unlike ``fetch_codelists``, *codelist_ids* has no default: there is no
     sensible default across 23 codelists, and defaulting to all of them
-    would make a multi-megabyte fetch the accidental behaviour of a bare
-    call.
+    would make a bulk fetch the accidental behaviour of a bare call.
 
     Args:
         codelist_ids: Which category codelists to fetch, in request order.
             Each must be one of ``SUPPORTED_CATEGORY_IDS``; duplicates are
-            rejected. Required -- there is no default.
+            rejected. Required -- there is no default. The 23 supported ids:
+
+            * ``"1"`` Bi_Multi
+            * ``"2"`` Type of flow
+            * ``"3"`` Channel of delivery
+            * ``"4"`` Currency
+            * ``"6"`` Nature of submission
+            * ``"7"`` Markers
+            * ``"8"`` Mobilisation leveraging
+            * ``"9"`` Mobilisation origin
+            * ``"10"`` Purpose code
+            * ``"11"`` PSI additionality
+            * ``"12"`` PSI flag
+            * ``"14"`` Co-operation modality
+            * ``"15"`` Type of finance
+            * ``"17"`` Financing Arrangement
+            * ``"18"`` Framework of collaboration
+            * ``"19"`` TOSSD Pillar
+            * ``"20"`` Agency Type
+            * ``"21"`` Concessionality
+            * ``"22"`` Keyword
+            * ``"23"`` Markers value
+            * ``"24"`` LDC Flag
+            * ``"25"`` Type of Blended Finance
+            * ``"26"`` Type of repayment
+
+            Must be a sequence (e.g. a list), never a bare ``str``: since
+            ``str`` is itself a ``Sequence[str]``, a bare id would be
+            iterated character-by-character instead of treated as one id.
         timeout: Per-request timeout in seconds, applied to every request of
             every codelist's handshake.
         retries: Additional attempts after the first, per codelist, so total
@@ -333,11 +386,11 @@ def fetch_code_categories(
         eleven-column category frame.
 
     Raises:
-        CodelistValidationError: *codelist_ids* is empty, names an
-            unsupported codelist (with a specific message for ``"5"``,
-            ``"13"`` and ``"16"``), or contains a duplicate -- raised before
-            any request is made. Also raised if a codelist's payload parses
-            to zero rows.
+        CodelistValidationError: *codelist_ids* is a bare ``str``, empty,
+            contains a non-``str`` element, names an unsupported codelist
+            (with a specific message for ``"5"``, ``"13"`` and ``"16"``), or
+            contains a duplicate -- raised before any request is made. Also
+            raised if a codelist's payload parses to zero rows.
         CodelistFetchError: Transport failures or 5xx/429/408/425 persisted
             through every attempt, for any one codelist.
         CodelistSourceError: A 4xx, an unfollowed redirect, or a 200

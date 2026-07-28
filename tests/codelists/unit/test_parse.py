@@ -19,6 +19,7 @@ from _helpers import envelope as _envelope
 from _helpers import load_fixture as _load_fixture
 
 from oda_reader.codelists import parse_codelists
+from oda_reader.codelists._parse import _select_english_label
 from oda_reader.codelists._types import DEFAULT_URL
 from oda_reader.exceptions import CodelistShapeError, CodelistValidationError
 
@@ -49,7 +50,106 @@ _ROW_2 = {
 
 
 # ---------------------------------------------------------------------------
-# Envelope failures (Appendix A, envelope group)
+# _select_english_label: both xml:lang spellings, unprefixed and underscore
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_select_english_label_recognises_unprefixed_xml_lang() -> None:
+    """The top-level `name` field's shape: the French entry carries the
+    unprefixed `xml:lang` attribute."""
+    name_field = {"narrative": ["Austria", {"xml:lang": "fr", "#text": "Autriche"}]}
+    assert _select_english_label(name_field) == "Austria"
+
+
+@pytest.mark.unit
+def test_select_english_label_recognises_underscore_prefixed_xml_lang() -> None:
+    """The nested `Agencytype.name` field's shape: OECD tags the French entry
+    with `_xml:lang`, underscore-prefixed, unlike the top-level `name`'s
+    unprefixed form. Without recognising both spellings, this entry wouldn't
+    be recognised as tagged at all -- picking English would only work by
+    accident of it sitting first in the array."""
+    name_field = {
+        "narrative": [
+            "Main Aid Agencies (in terms of budget)",
+            {"_xml:lang": "fr", "#text": "Agences d'aide principales"},
+        ]
+    }
+    assert _select_english_label(name_field) == "Main Aid Agencies (in terms of budget)"
+
+
+@pytest.mark.unit
+def test_select_english_label_finds_english_even_when_french_is_first() -> None:
+    """The case that would silently return French without recognising both
+    `xml:lang` spellings: with an unrecognised language tag, the selector
+    falls back to `narrative[0]` unconditionally -- so a French-first array
+    would return French. Recognising `_xml:lang` means the French entry is
+    correctly skipped regardless of its position, and the plain (untagged)
+    English entry is picked instead."""
+    name_field = {
+        "narrative": [
+            {"_xml:lang": "fr", "#text": "Agences francophones"},
+            "French-Language Agencies",
+        ]
+    }
+    assert _select_english_label(name_field) == "French-Language Agencies"
+
+
+@pytest.mark.unit
+def test_select_english_label_returns_none_for_non_dict_input() -> None:
+    assert _select_english_label(None) is None
+    assert _select_english_label("not-a-dict") is None
+
+
+# ---------------------------------------------------------------------------
+# _select_english_label: an explicitly `en`-tagged entry outranks the
+# untagged-means-English heuristic. Latent today -- no row's name.narrative
+# in any fixture tags English -- but the heuristic breaks the moment one
+# does, so these pin the priority order before that ever happens live.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_select_english_label_prefers_explicit_en_tag_unprefixed() -> None:
+    """An `xml:lang: "en"` entry wins over an untagged sibling, even though
+    the untagged-first heuristic would otherwise return the untagged one."""
+    name_field = {
+        "narrative": [
+            {"xml:lang": "en", "#text": "English"},
+            "Francais",
+        ]
+    }
+    assert _select_english_label(name_field) == "English"
+
+
+@pytest.mark.unit
+def test_select_english_label_prefers_explicit_en_tag_underscore_prefixed() -> None:
+    """Same as the unprefixed case, for the underscore-prefixed spelling the
+    nested `Agencytype.name` field uses."""
+    name_field = {
+        "narrative": [
+            {"_xml:lang": "en", "#text": "English"},
+            "Francais",
+        ]
+    }
+    assert _select_english_label(name_field) == "English"
+
+
+@pytest.mark.unit
+def test_select_english_label_finds_explicit_en_tag_regardless_of_position() -> None:
+    """The explicit-English entry wins even when it sits second, after an
+    untagged entry the old heuristic would have already returned."""
+    name_field = {
+        "narrative": [
+            "Francais",
+            {"_xml:lang": "en", "#text": "English"},
+        ]
+    }
+    assert _select_english_label(name_field) == "English"
+
+
+# ---------------------------------------------------------------------------
+# Envelope failures
 # ---------------------------------------------------------------------------
 
 
@@ -99,11 +199,11 @@ def test_missing_codelist_items_raises_shape_error_at_envelope_stage() -> None:
 def test_multi_block_payload_raises_shape_error_instead_of_silently_truncating() -> (
     None
 ):
-    """`codelists.codelist` carrying more than one block used to be silently
-    truncated to `codelist_list[0]` -- OECD's "All codes list" (id=0) response
-    really does carry 26 blocks in one payload, so a caller who mistakenly
-    replays that response for a single codelist_id must get a loud failure,
-    not 213 rows quietly labelled with the wrong codelist_id."""
+    """A payload carrying more than one block is a real caller mistake, not a
+    synthetic edge case: OECD's "All codes list" (id=0) response really does
+    carry 26 blocks in one payload, so a caller who mistakenly replays that
+    response for a single codelist_id must get a loud failure, not 213 rows
+    quietly labelled with the wrong codelist_id."""
     body = json.dumps(
         {
             "codelists": {
@@ -134,7 +234,7 @@ def test_real_multi_block_all_codes_fixture_raises_shape_error() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Zero rows: a self-consistency failure, not a shape one (Appendix A)
+# Zero rows: a self-consistency failure, not a shape one
 # ---------------------------------------------------------------------------
 
 
@@ -146,7 +246,7 @@ def test_zero_rows_for_a_requested_codelist_raises_validation_error() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Row failures (Appendix A, row group)
+# Row failures
 # ---------------------------------------------------------------------------
 
 
@@ -181,8 +281,8 @@ def test_row_with_no_status_raises_shape_error_at_row_stage() -> None:
 def test_malformed_activation_date_raises_shape_error_at_row_stage(
     bad_date: str,
 ) -> None:
-    """Item 7a: pyarrow's date parser is lenient, so the source format is
-    asserted before casting rather than trusted."""
+    """pyarrow's date parser is lenient, so the source format is asserted
+    before casting rather than trusted."""
     row = {**_ROW_2, "activation-date": bad_date}
     with pytest.raises(CodelistShapeError) as excinfo:
         parse_codelists(
@@ -197,7 +297,8 @@ def test_digit_shaped_but_impossible_activation_date_raises_shape_error(
     bad_date: str,
 ) -> None:
     """The regex only asserts digit-shape: "2026-99-99" matches
-    `^\\d{4}-\\d{2}-\\d{2}$` and previously reached `.astype("date32[pyarrow]")`
+    `^\\d{4}-\\d{2}-\\d{2}$` but is not a real calendar date. Without the
+    separate calendar check, this would reach `.astype("date32[pyarrow]")`
     unchecked, surfacing as an untyped pyarrow DateParseError instead of the
     documented CodelistShapeError."""
     row = {**_ROW_2, "activation-date": bad_date}
@@ -250,6 +351,24 @@ def test_naive_fetched_at_raises_validation_error() -> None:
             raw={"5": _envelope("Providers", _ROW_1)},
             fetched_at=datetime(2026, 1, 1),  # no tzinfo
         )
+
+
+# ---------------------------------------------------------------------------
+# raw must not be empty
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_empty_raw_raises_validation_error() -> None:
+    """An empty `raw` would otherwise sail through as a valid-looking
+    zero-codelist snapshot -- `for codelist_id, body in raw.items()` simply
+    never runs, so no envelope or row check ever fires. That is the same
+    silent-data-loss shape a single codelist returning zero rows is already
+    rejected for, just one level up: a caller replaying a missing or empty
+    stored payload would get a snapshot `reconcile` could use to retire every
+    row in a previous table instead of raising."""
+    with pytest.raises(CodelistValidationError):
+        parse_codelists(raw={}, fetched_at=_FETCHED_AT)
 
 
 @pytest.mark.unit

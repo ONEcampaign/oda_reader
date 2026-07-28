@@ -8,15 +8,16 @@ finance, Co-operation modality) carry the same code with a different meaning per
 standard, distinguished only at the row level by `crs`/`tossd`.
 
 `tests/fixtures/oecd/codelist_0.json` is the "All codes list" response: one JSON payload
-holding all 26 codelist blocks, in the fixed order documented in survey.md (matching this
-file's `_ALL_CODES_BLOCK_ORDER`). It is reconstructed here into 23 synthetic single-codelist
-envelopes -- one per supported category id -- rather than requiring 23 separate fixture
-files, and gives the breadth tests real OECD data across the whole supported set.
+holding all 26 codelist blocks, in the fixed order `_ALL_CODES_BLOCK_ORDER` below. It is
+reconstructed here into 23 synthetic single-codelist envelopes -- one per supported
+category id -- rather than requiring 23 separate fixture files, and gives the breadth tests
+real OECD data across the whole supported set.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,9 +49,9 @@ _CONTRACT_COLUMNS = (
     "dac_reference",
 )
 
-# The 26 codelist_0.json blocks, in the order OECD returns them (verified against
-# survey.md's inventory table, §2). Index 0 = Provider (5), 1 = Provider agency (16),
-# 2 = Recipient (13) -- the three ids excluded from the category contract.
+# The 26 codelist_0.json blocks, in the order OECD returns them. Index 0 = Provider (5),
+# 1 = Provider agency (16), 2 = Recipient (13) -- the three ids excluded from the
+# category contract.
 _ALL_CODES_BLOCK_ORDER: tuple[str, ...] = (
     "5",
     "16",
@@ -123,7 +124,7 @@ _ROW_NO_OPTIONALS = {
 }
 
 # Channel of delivery 11000: the same code carrying two different meanings under
-# CRS and TOSSD (survey.md §1's worked example), differing only in crs/tossd/name.
+# CRS and TOSSD, differing only in crs/tossd/name.
 _CHANNEL_CRS = {
     "status": "Active",
     "code": "11000",
@@ -182,9 +183,9 @@ def test_only_codelist_id_code_label_status_crs_tossd_are_never_null() -> None:
 
 @pytest.mark.unit
 def test_same_code_different_crs_tossd_are_kept_as_separate_rows() -> None:
-    """Decision 1's worked example: Channel of delivery 11000 means something
-    different under CRS and TOSSD, distinguished only by crs/tossd, not by
-    activation_date -- the key must carry crs/tossd or these rows collide."""
+    """Channel of delivery 11000 means something different under CRS and TOSSD,
+    distinguished only by crs/tossd, not by activation_date. The key must carry
+    crs/tossd to separate these distinct rows, or they would collide."""
     snapshot = parse_code_categories(
         raw={"3": _envelope("Channel of delivery", _CHANNEL_CRS, _CHANNEL_TOSSD)},
         fetched_at=_FETCHED_AT,
@@ -277,8 +278,9 @@ def test_parent_code_real_value_is_kept() -> None:
 
 @pytest.mark.unit
 def test_purpose_code_fixture_parent_code_notna_is_81_not_124() -> None:
-    """The survey's load-bearing count: 124 of 392 rows carry the `parent-code` key,
-    but 43 of those are the empty string. `.notna()` must see 81, not 124."""
+    """A fixture guard: 124 of 392 rows carry the `parent-code` key, but 43 of
+    those are empty strings. `.notna()` must correctly see 81 non-empty values,
+    not the raw key count of 124."""
     raw = {"10": _load_fixture("codelist_10.json")}
     snapshot = parse_code_categories(raw=raw, fetched_at=_FETCHED_AT)
     assert len(snapshot.frame) == 392
@@ -388,8 +390,9 @@ def test_content_hash_matches_the_pinned_digest_for_codelist_21_fixture() -> Non
 
 @pytest.mark.unit
 def test_content_hash_changes_when_crs_tossd_differ_even_if_code_is_the_same() -> None:
-    """Decision 1's key includes crs/tossd -- a hash computed over the wrong key
-    would not distinguish the Channel of delivery 11000 case at all."""
+    """The key includes crs/tossd — a hash computed over the wrong key would not
+    distinguish the Channel of delivery 11000 case, where the same code carries
+    different meanings under different reporting standards."""
     one_standard = parse_code_categories(
         raw={"3": _envelope("Channel of delivery", _CHANNEL_CRS)},
         fetched_at=_FETCHED_AT,
@@ -413,6 +416,20 @@ def test_naive_fetched_at_raises_validation_error() -> None:
             raw={"21": _envelope("Concessionality", _ROW_A)},
             fetched_at=datetime(2026, 1, 1),  # no tzinfo
         )
+
+
+# ---------------------------------------------------------------------------
+# raw must not be empty (same rule as parse_codelists)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_empty_raw_raises_validation_error() -> None:
+    """An empty `raw` must not sail through as a valid-looking
+    zero-codelist snapshot -- see the parse_codelists test of the same name
+    for the full rationale."""
+    with pytest.raises(CodelistValidationError):
+        parse_code_categories(raw={}, fetched_at=_FETCHED_AT)
 
 
 # ---------------------------------------------------------------------------
@@ -544,6 +561,23 @@ def test_duplicate_codelist_ids_raises_validation_error() -> None:
 
 
 @pytest.mark.unit
+def test_bare_str_codelist_ids_raises_validation_error_not_silent_wrong_data() -> None:
+    """codelist_ids="21" must raise, not silently iterate into "2" and "1"
+    and fetch two different, individually-valid category codelists -- str
+    IS a Sequence[str], so nothing short of an explicit guard catches this."""
+    with pytest.raises(CodelistValidationError) as excinfo:
+        fetch_code_categories(codelist_ids="21")  # type: ignore[arg-type]
+    assert "bare str" in excinfo.value.detail
+
+
+@pytest.mark.unit
+def test_non_str_codelist_id_raises_validation_error() -> None:
+    with pytest.raises(CodelistValidationError) as excinfo:
+        fetch_code_categories(codelist_ids=(3,))  # type: ignore[arg-type]
+    assert "must be a str" in excinfo.value.detail
+
+
+@pytest.mark.unit
 def test_unsupported_codelist_id_raises_validation_error() -> None:
     with pytest.raises(CodelistValidationError) as excinfo:
         fetch_code_categories(codelist_ids=["999"])
@@ -611,7 +645,7 @@ def test_reconcile_rejects_a_category_snapshot_as_current() -> None:
 
 @pytest.mark.unit
 def test_reconcile_still_accepts_an_area_snapshot_as_current() -> None:
-    """Guards against a regression that would make _assert_area_contract_frame
+    """Guards against a regression that would make _assert_area_contract
     too strict and break the contract this whole package exists to serve."""
     area_row = {
         "status": "Active",
@@ -628,3 +662,73 @@ def test_reconcile_still_accepts_an_area_snapshot_as_current() -> None:
     )
     reconciliation = reconcile(previous=None, current=snapshot)
     assert len(reconciliation.table) == 1
+
+
+# ---------------------------------------------------------------------------
+# The `contract` discriminant
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_each_parse_function_labels_its_snapshot_with_its_contract() -> None:
+    """`contract` says which pair built the snapshot, without inspecting columns.
+
+    Consumers that pass snapshots around -- a queue, a cache, a function taking
+    one as an argument -- can branch on this instead of comparing `frame.columns`
+    against a tuple they had to hardcode themselves.
+    """
+    area = parse_codelists(
+        raw={
+            "5": _envelope(
+                "Providers",
+                {
+                    "status": "Active",
+                    "code": "1",
+                    "name": {"narrative": ["Austria"]},
+                    "crs": "1",
+                    "tossd": "1",
+                },
+            )
+        },
+        fetched_at=_FETCHED_AT,
+    )
+    category = parse_code_categories(
+        raw={"21": _envelope("Concessionality", _ROW_A)}, fetched_at=_FETCHED_AT
+    )
+    assert area.contract == "area"
+    assert category.contract == "category"
+
+
+@pytest.mark.unit
+def test_reconcile_rejects_a_category_snapshot_by_contract_not_by_columns() -> None:
+    """The discriminant is the primary signal, so the message names it.
+
+    Distinguishes the two rejection paths in `_assert_area_contract`: a snapshot
+    built by `parse_code_categories` is refused for what it *is*, before its
+    columns are ever compared.
+    """
+    snapshot = parse_code_categories(
+        raw={"21": _envelope("Concessionality", _ROW_A)}, fetched_at=_FETCHED_AT
+    )
+    with pytest.raises(CodelistValidationError) as excinfo:
+        reconcile(previous=None, current=snapshot)
+    detail = str(excinfo.value)
+    assert "contract" in detail
+    assert "'category'" in detail
+
+
+@pytest.mark.unit
+def test_reconcile_still_checks_columns_when_contract_says_area() -> None:
+    """Defence in depth for a hand-built snapshot whose label doesn't match its frame.
+
+    `contract` is whatever the caller declared. A snapshot rebuilt from stored
+    `raw` can claim "area" while carrying a category frame, and reconcile must
+    still refuse rather than mis-key every row against the three-column key.
+    """
+    category = parse_code_categories(
+        raw={"21": _envelope("Concessionality", _ROW_A)}, fetched_at=_FETCHED_AT
+    )
+    mislabelled = replace(category, contract="area")
+    with pytest.raises(CodelistValidationError) as excinfo:
+        reconcile(previous=None, current=mislabelled)
+    assert "ten-column frame" in str(excinfo.value)
