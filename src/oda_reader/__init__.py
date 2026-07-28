@@ -1,6 +1,11 @@
 """
 This oda_reader package is a simple python wrapper for the OECD explorer API,
 specifically designed to work with OECD DAC data.
+
+DAC-area codelists are available via ``oda_reader.codelists``, which is not
+re-exported here and must be imported explicitly (see the docs). That
+package also provides ``reconcile``, which merges a fresh codelist snapshot
+against a previous table with never-delete lineage semantics.
 """
 
 import sys
@@ -34,7 +39,20 @@ from oda_reader.dac1 import download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import clear_version_cache
-from oda_reader.exceptions import BulkDownloadHTTPError, BulkPayloadCorruptError
+
+# NOTE: oda_reader.codelists is deliberately NOT imported here. It performs
+# network extraction and pulls pandas eagerly; `import oda_reader` and every
+# convert_* call must stay network-free. Callers import it explicitly:
+#     from oda_reader.codelists import fetch_codelists  # noqa: ERA001
+from oda_reader.exceptions import (
+    BulkDownloadHTTPError,
+    BulkPayloadCorruptError,
+    CodelistError,
+    CodelistFetchError,
+    CodelistShapeError,
+    CodelistSourceError,
+    CodelistValidationError,
+)
 from oda_reader.multisystem import bulk_download_multisystem, download_multisystem
 from oda_reader.tools import get_available_filters
 
@@ -102,6 +120,11 @@ __all__ = [
     # Boundary contract
     "BulkPayloadCorruptError",
     "BulkDownloadHTTPError",
+    "CodelistError",
+    "CodelistFetchError",
+    "CodelistSourceError",
+    "CodelistShapeError",
+    "CodelistValidationError",
     # Data download
     "QueryBuilder",
     "download_dac1",

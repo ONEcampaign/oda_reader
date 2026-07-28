@@ -1,0 +1,13 @@
+# The OECD codelist fixtures are captured response bytes, recorded verbatim so the
+# parser is tested against exactly what the source sends. This repo sets
+# core.autocrlf=input, and the OECD app serves CRLF, so without this line `git add`
+# would silently rewrite every line ending and the committed fixture would no longer
+# be the bytes we received. Re-capture them with:
+#     uv run python -m scripts.data_maintenance.refresh_dac_codelists --capture-fixtures tests/fixtures/oecd
+#
+# The .html fixtures need this for the same reason: page_step1.html and
+# page_step2.html are captured ASPX responses carrying ~78,000 CRLF line endings
+# between them. The hand-built .html fixtures have none, so the rule is a no-op
+# for them and covering the whole glob keeps the next capture safe by default.
+tests/fixtures/oecd/*.json -text
+tests/fixtures/oecd/*.html -text

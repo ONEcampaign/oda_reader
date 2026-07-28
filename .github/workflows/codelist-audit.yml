@@ -1,0 +1,121 @@
+name: OECD codelist audit
+
+# Monthly cross-check of the committed DAC area codelists against OECD's own
+# withdrawn-code record. This is a finding, not a change: it never writes a
+# file and never opens a pull request (see codelist-drift.yml for that path).
+# Runs OFF the PR path, same reason codelist-drift.yml is already off it —
+# the live endpoint is an external dependency and must never block a
+# contributor.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC on the 1st of each month
+  workflow_dispatch: {} # allow manual runs
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    name: Audit withdrawn codes against the live OECD source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Set up Python 3.11
+        run: uv python install '3.11'
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Run the monthly codelist audit
+        # --audit changes no file (asserted in tests/schemas/unit/test_refresh_audit.py);
+        # it prints its three §6 findings and exits 1 only when it finds a value
+        # conflict. Capture the output regardless of exit code and always let the
+        # step succeed, so a conflict finding still reaches the issue below instead
+        # of aborting the job before we can report it.
+        run: |
+          set +e
+          uv run python -m scripts.data_maintenance.refresh_dac_codelists --audit > audit_output.txt 2>&1
+          cat audit_output.txt
+          exit 0
+
+      - name: Open or update the monthly audit issue
+        # Dynamic content (the audit findings, sourced from the live OECD site)
+        # is never interpolated as ${{ }} into this script — it is read from
+        # disk inside the sandboxed script, and only trusted GitHub context
+        # values (the run URL) are passed in via env:/process.env, matching the
+        # pattern in codelist-drift.yml. Search for a fixed-title issue first so
+        # repeated monthly runs update one issue instead of filing twelve a year.
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          AUDIT_OUTPUT_PATH: audit_output.txt
+        with:
+          script: |
+            const fs = require("fs");
+            const title = "Monthly OECD codelist audit";
+            const runUrl = process.env.RUN_URL;
+            const auditOutput = fs
+              .readFileSync(process.env.AUDIT_OUTPUT_PATH, "utf8")
+              .trim();
+
+            const explanation = [
+              "The three findings above, per code: retired codes whose committed value",
+              "conflicts with OECD's withdrawn record (non-zero here is the important",
+              "signal — it means OECD restated a historical code's value and our",
+              "translation of historical data is now wrong), orphaned codes committed",
+              "but absent from the live payload, and new-withdrawn candidates — codes",
+              "OECD has withdrawn that are not yet in the committed map. Adding a",
+              "withdrawn code to a translation map is a judgement call about whether",
+              "historical data uses it, so new-withdrawn candidates need a human to",
+              "decide; this workflow only reports them.",
+            ].join("\n");
+
+            const issueBody = [
+              `Monthly \`--audit\` run against the live OECD source. See the [workflow run](${runUrl}) for full context.`,
+              "",
+              "```",
+              auditOutput,
+              "```",
+              "",
+              explanation,
+            ].join("\n");
+
+            const commentBody = [
+              `Refreshed: ${runUrl}`,
+              "",
+              "```",
+              auditOutput,
+              "```",
+            ].join("\n");
+
+            const { owner, repo } = context.repo;
+            const openIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "automated",
+            });
+            const existing = openIssues.data.find((issue) => issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body: issueBody,
+                labels: ["maintenance", "automated"],
+              });
+            }

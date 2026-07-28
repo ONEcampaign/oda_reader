@@ -4,5 +4,11 @@
     "5",
     "13"
   ],
-  "codelist_last_changed_date": "2026-06-15"
+  "codelist_last_changed_date": "2026-06-15",
+  "aspx_statuses_requested": [
+    "active",
+    "future",
+    "heading",
+    "withdrawn"
+  ]
 }
