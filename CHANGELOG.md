@@ -123,6 +123,18 @@
 - **Minimum supported Python is now 3.11** (was 3.10). Python 3.10 reaches end-of-life in
   October 2026.
 - CI release now uses PyPI trusted publishing (OIDC) instead of an API token.
+- **Minimum supported `pyarrow` is now 23.0.1** (was 14.0.0), clearing GHSA-6r8h-32rm-w2gh — a
+  potential use-after-free when reading an IPC file with pre-buffering, which affects every
+  release from 15.0.0 up to 23.0.1. Raising the floor rather than only re-locking means an install
+  of `oda_reader` can no longer resolve a vulnerable `pyarrow`. `pyarrow` 23 requires Python 3.10+,
+  which the package's own 3.11 floor already satisfies.
+- Bumps three transitive dependencies past published advisories and pins their floors in
+  `constraint-dependencies` so a future re-lock cannot regress: `urllib3` to 2.7.0 (decompression-
+  bomb safeguards bypassed in parts of the streaming API; sensitive headers forwarded across
+  origins in proxied low-level redirects), `idna` to 3.15+ (crafted inputs bypassing the
+  CVE-2024-3651 fix), and `pymdown-extensions` to 11.0.0+ (two `b64`/`snippets` path traversals
+  allowing reads outside `base_path`). Only `pymdown-extensions` is a docs-group dependency; it
+  does not reach the installed package.
 
 ## 1.6.0 (2026-04-28)
 
