@@ -9,7 +9,7 @@ ODA Reader caches three types of data:
 1. **HTTP responses**: Raw API responses before processing
 1. **DataFrames**: Processed pandas DataFrames after schema translation
 1. **Bulk files**: Large parquet/zip files downloaded by `bulk_download_crs`,
-   `download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`
+   `download_crs_file`, `bulk_download_dac1`, `bulk_download_dac2a`, and `bulk_download_multisystem`
 
 All three caches are automatic and transparent - you don't need to change your code to benefit from caching.
 
@@ -132,7 +132,7 @@ This happens automatically - you don't need to do anything.
 ### Bulk File Cache
 
 The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
-`bulk_download_dac2a` and `bulk_download_multisystem`) is governed separately
+`bulk_download_dac1`, `bulk_download_dac2a`, and `bulk_download_multisystem`) is governed separately
 because the files are large (~1 GB each):
 
 - **LRU eviction**: only the two most recent bulk files are kept; older
@@ -175,10 +175,10 @@ recently it was fetched. Where the token comes from depends on the dataset:
 - **Most bulk files** (the full CRS, CRS year-specific files, Multisystem)
   carry a version stamp directly in their SDMX annotation label, e.g.
   `CRS-Parquet-v20260803`. A change in that stamp is the token change.
-- **DAC2A's label carries no version stamp.** For that dataset, ODA Reader
-  instead makes a lightweight HEAD request against the resolved URL and
-  uses the server's `ETag` (falling back to `Last-Modified` if no `ETag` is
-  sent) as the token.
+- **DAC2A's and DAC1's labels carry no version stamp.** For those datasets,
+  ODA Reader instead makes a lightweight HEAD request against the resolved
+  URL and uses the server's `ETag` (falling back to `Last-Modified` if no
+  `ETag` is sent) as the token.
 - If neither is available (offline, a server error, or the response
   carries neither header), invalidation falls back to the 30-day TTL rather
   than failing the call. A cached file still works offline.
@@ -200,8 +200,8 @@ crs = bulk_download_crs(use_raw_cache=False)
 
 Validation still runs in this mode; only the on-disk caching is skipped. The
 flag is available on `bulk_download_crs`, `download_crs_file`,
-`bulk_download_dac2a` and `bulk_download_multisystem`. `download_aiddata`
-takes a different code path and is not affected.
+`bulk_download_dac1`, `bulk_download_dac2a`, and `bulk_download_multisystem`.
+`download_aiddata` takes a different code path and is not affected.
 
 #### Stale Dataflow Metadata
 
@@ -221,8 +221,8 @@ separate from the bulk-file cache above (which governs the downloaded
 parquet/zip itself) and from `clear_version_cache()` (which governs
 discovered dataflow *versions*, not resolved file URLs). You don't need to
 call anything to get this behavior; it runs automatically for
-`bulk_download_crs()`, `download_crs_file()`, `bulk_download_dac2a()`, and
-`bulk_download_multisystem()`.
+`bulk_download_crs()`, `download_crs_file()`, `bulk_download_dac1()`,
+`bulk_download_dac2a()`, and `bulk_download_multisystem()`.
 
 #### Handling Corrupt Downloads
 

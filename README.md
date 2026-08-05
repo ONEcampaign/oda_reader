@@ -136,6 +136,55 @@ from oda_reader import download_dac1
 dac1_data = download_dac1(pre_process=True, dotstat_codes=False)
 ```
 
+#### Bulk downloading DAC1 data
+
+In many situations, downloading the full DAC1 dataset may be the most efficient way to conduct analysis. For those cases, ODA Reader provides tools for getting the bulk download file provided by the OECD. OECD publishes the entire DAC1 table as one zipped CSV, 18.7 MB compressed and 1,042,278 rows.
+
+The `bulk_download_dac1()` function allows you to download the full DAC1 data. Saving it to disk converts it to parquet.
+
+It accepts a few different arguments:
+
+- `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
+  saved. If not provided, `bulk_download_dac1` will return a Pandas DataFrame.
+- `as_iterator`: If `True` the function yields `DataFrame` chunks one at a time. DAC1 is a zipped
+  CSV, so this reads the whole file first and hands it back in slices. Peak memory during the
+  read matches the non-iterator call. Only what you accumulate afterward is bounded.
+- `use_raw_cache`: A boolean which defaults to `True`. Set to `False` to skip the on-disk cache
+  and always download fresh.
+
+**Note** that DAC1's columns pair a code with a label for each dimension (`DONOR`/`Donor`,
+`PART`/`Part`, `AIDTYPE`/`Aid type`, `FLOWS`/`Fund flows`, `AMOUNTTYPE`/`Amount type`,
+`TIME`/`Year`, plus `Value` and `Flags`). Three of the label columns contain spaces, so access
+them by string index: `dac1_data["Aid type"]`. See
+[Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#dac1-bulk-download)
+in the docs for the full column list and the `Flags` dtype caveat.
+
+To save the full parquet file to `example-folder` (saved as `table1_data.parquet`):
+
+```python
+from oda_reader import bulk_download_dac1
+
+bulk_download_dac1(save_to_path="./example-folder/")
+```
+
+To process the data iteratively:
+
+```python
+from oda_reader import bulk_download_dac1
+
+for chunk in bulk_download_dac1(as_iterator=True):
+    # process each chunk here
+    ...
+```
+
+To keep the full file in memory as a Pandas DataFrame:
+
+```python
+from oda_reader import bulk_download_dac1
+
+dac1_data = bulk_download_dac1()
+```
+
 ### Downloading DAC2a Data
 
 The `download_dac2a()` function allows you to download DAC2a data from the data-explorer API.

@@ -35,7 +35,7 @@ from oda_reader.common import (
 )
 from oda_reader.cpa import download_cpa
 from oda_reader.crs import bulk_download_crs, download_crs, download_crs_file
-from oda_reader.dac1 import download_dac1
+from oda_reader.dac1 import bulk_download_dac1, download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import clear_version_cache
@@ -128,6 +128,7 @@ __all__ = [
     # Data download
     "QueryBuilder",
     "download_dac1",
+    "bulk_download_dac1",
     "download_dac2a",
     "bulk_download_dac2a",
     "download_multisystem",
