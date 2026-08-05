@@ -262,8 +262,8 @@ api_data = download_crs(
 
 bulk_data = bulk_download_crs()
 bulk_filtered = bulk_data[
-    (bulk_data['Year'] == 2022) &
-    (bulk_data['DonorCode'] == 'USA')
+    (bulk_data['year'] == 2022) &
+    (bulk_data['donor_code'] == 'USA')
 ]
 
 print("API columns:", list(api_data.columns)[:10])

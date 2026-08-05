@@ -328,8 +328,9 @@ crs_data = download_crs(pre_process=True, dotstat_codes=False)
 In many situations, downloading the full CRS may be the most efficient way to conduct analysis. For example, when requesting a lot of data, or when all the project information is needed.
 
 For those cases, ODA Reader provides tools for getting the bulk download files provided by the OECD.
-The entire CRS is provided as a parquet file (just over 1GB in size). They also provide a 'reduced'
-version which does not include certain columns in order to result in a smaller file.
+The entire CRS is provided as a bare parquet file (1.18 GB, not zipped). They also provide a
+'reduced' version (296 MB) which does not include certain columns in order to result in a smaller
+file.
 
 The `bulk_download_crs()` function allows you to download the full CRS data (as a parquet file)
 It accepts a few different arguments:
@@ -342,7 +343,11 @@ It accepts a few different arguments:
   instead of returning the entire file at once. This greatly reduces the peak
   memory usage when working with very large files.
 
-**Note** that the files provided by the OECD follow the .Stat schema.
+**Note** that the files provided by the OECD follow the .Stat schema (codes), but their column
+*names* are snake_case (`donor_code`, `crs_id`), unlike every other bulk file, including
+`download_crs_file()` below, which use PascalCase (`DonorCode`, `CrsID`). See
+[Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#bulk_download_crs-uses-different-column-casing-than-everything-else)
+in the docs for the full comparison.
 
 To save the full parquet file to `example-folder`:
 

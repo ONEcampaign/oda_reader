@@ -1,4 +1,5 @@
 import typing
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -9,29 +10,46 @@ from oda_reader.download.download_tools import (
     DAC2A_FLOW_URL,
     bulk_download_parquet,
     download,
-    get_bulk_file_id,
+    get_bulk_file_url,
+    get_bulk_file_url_with_version,
 )
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
 # Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.4"
 
+DAC2A_BULK_LABEL = "DAC2A full dataset (dotStat format)"
 
-def get_full_dac2a_parquet_id() -> str:
-    """Retrieve the file ID for the full DAC2A bulk download parquet file.
+
+def get_full_dac2a_parquet_url() -> str:
+    """Retrieve the bulk download URL for the full DAC2A parquet dataset.
 
     Queries the OECD dataflow to find the bulk download link for the complete
     DAC2A dataset in dotStat format.
 
     Returns:
-        str: The file ID to use with the bulk download service.
+        str: The URL to use with the bulk download service.
 
     Raises:
-        RuntimeError: If the file ID cannot be found after maximum retries.
+        RuntimeError: If the URL cannot be found after maximum retries.
     """
-    return get_bulk_file_id(
-        flow_url=DAC2A_FLOW_URL, search_string="DAC2A full dataset (dotStat format)|"
+    return get_bulk_file_url(flow_url=DAC2A_FLOW_URL, label=DAC2A_BULK_LABEL)
+
+
+def get_full_dac2a_parquet_id() -> str:
+    """Deprecated alias for `get_full_dac2a_parquet_url`.
+
+    Now returns a URL, not a file ID -- OECD annotations don't carry file
+    IDs anymore. Kept only so existing two-step user code (an ID obtained
+    here, then passed to `bulk_download_parquet`) keeps working.
+    """
+    warnings.warn(
+        "get_full_dac2a_parquet_id is deprecated and now returns a URL, not "
+        "a file ID. Use get_full_dac2a_parquet_url instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    return get_full_dac2a_parquet_url()
 
 
 @cache_info
@@ -101,11 +119,19 @@ def bulk_download_dac2a(
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
-    file_id = get_full_dac2a_parquet_id()
+    # DAC2A's label carries no -vYYYYMMDD suffix (see get_bulk_file_url_with_version),
+    # so `version` here falls back to an ETag/Last-Modified HEAD-request token
+    # rather than the label suffix -- still enough to force a refetch on republish.
+    url, version = get_bulk_file_url_with_version(
+        flow_url=DAC2A_FLOW_URL, label=DAC2A_BULK_LABEL
+    )
 
     return bulk_download_parquet(
-        file_id=file_id,
+        url=url,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
+        flow_url=DAC2A_FLOW_URL,
+        label=DAC2A_BULK_LABEL,
+        version=version,
     )

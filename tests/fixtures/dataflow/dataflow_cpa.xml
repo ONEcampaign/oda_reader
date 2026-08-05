@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--NSI Web Service v8.19.8.0-->
+<message:Structure xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common">
+  <message:Header>
+    <message:ID>IDREF12497</message:ID>
+    <message:Test>false</message:Test>
+    <message:Prepared>2026-08-05T15:01:41.0176479+02:00</message:Prepared>
+    <message:Sender id="Unknown" />
+    <message:Receiver id="Unknown" />
+  </message:Header>
+  <message:Structures>
+    <structure:Dataflows>
+      <structure:Dataflow id="DSD_CPA@DF_CRS_CPA" agencyID="OECD.DCD.FSD" version="1.4" isExternalReference="true" isFinal="true" structureURL="https://sdmx.oecd.org/dcd-public/rest/dataflow/OECD.DCD.FSD/DSD_CPA@DF_CRS_CPA/1.4">
+        <common:Annotations>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>RECIPIENT</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>TIME_PERIOD</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_COLUMN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR,SECTOR,FLOW,CHANNEL,FLOWTYPE,AIDTYPE,AMOUNTTYPE</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW_SECTION</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM</common:AnnotationTitle>
+            <common:AnnotationType>DRILLDOWN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>1.2</common:AnnotationTitle>
+            <common:AnnotationType>SEARCH_WEIGHT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>OBS_STATUS=A,MD_DIM,MD_ID,ALLOCABLE,MARKER,SCORE</common:AnnotationTitle>
+            <common:AnnotationType>NOT_DISPLAYED</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM=_T,LASTNPERIODS=5,DONOR=DAC,SECTOR=1000,MEASURE=250,CHANNEL=_T,MODALITY=_T,FLOW_TYPE=D,PRICE_BASE=Q</common:AnnotationTitle>
+            <common:AnnotationType>DEFAULT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR:OECD.DCD.FSD:HCL_DACDONORS(1.6).H,RECIPIENT:OECD.DCD.FSD:HCL_DACRECIPIENTS(1.5).H</common:AnnotationTitle>
+            <common:AnnotationType>HIER_CONTEXT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>UNIT_MEASURE,UNIT_MULT,BASE_PER</common:AnnotationTitle>
+            <common:AnnotationType>COMBINED_CONCEPTS</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">COMBINED_UNIT_MEASURE:Unit of measure</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">COMBINED_UNIT_MEASURE:Unité de mesure</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2024 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2024 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2024 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2024 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2023 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2023 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2023 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2023 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2022 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2022 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2022 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2022 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2021 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2021 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2021 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2021 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2020 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2020 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2020 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2020 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2019 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2019 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2019 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2019 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2018 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2018 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2018 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2018 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2017 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2017 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2017 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2017 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2016 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2016 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2016 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2016 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2015 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2015 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2015 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2015 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2014 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2014 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2014 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2014 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2013 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2013 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2013 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2013 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2012 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2012 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2012 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2012 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2011 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2011 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2011 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2011 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS CPA 2010 (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2010 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC APP 2010 (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2010 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>9000</common:AnnotationTitle>
+            <common:AnnotationType>MAX_TABLE_DATA</common:AnnotationType>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">Country Programmable Aid (CPA)</common:Name>
+        <common:Name xml:lang="fr">SNPC: Aide programmable par pays (APP)</common:Name>
+        <common:Description xml:lang="en">&lt;p&gt;Country Programmable Aid (CPA) refers to official development assistance (ODA) that is subject to multi-year planning at the country or regional level. The OECD has published data on CPA at the aggregate level (provider-partner country) since 2007.&lt;/p&gt;&lt;p&gt;This data represents an update to the measurement of CPA. The main improvement is that this version is derived entirely from the OECD's aid activity database, the Creditor Reporting System (CRS). CPA is calculated by subtracting the following categories of aid from the total of gross bilateral ODA (category = 10):&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Debt relief (modality: F01 and sector: 600)&lt;/li&gt;&lt;li&gt;Humanitarian aid (sector codes: 720,730,740)&lt;/li&gt;&lt;li&gt;Administrative costs not included elsewhere (modality: G01 and sector: 910)&lt;/li&gt;&lt;li&gt;Scholarships/training in donor country (modality: E01)&lt;/li&gt;&lt;li&gt;Imputed student costs (modality: E02)&lt;/li&gt;&lt;li&gt;Promotion of development awareness (modality: H01)&lt;/li&gt;&lt;li&gt;Refugees in donor country (modality: H02-H06 and sector: 930)&lt;/li&gt;&lt;li&gt;Core support to NGOs (modality: B01)&lt;/li&gt;&lt;li&gt;Equity investments (measure: 5xx)&lt;/li&gt;&lt;li&gt;Other unallocated (sector code: 998 OR recipient: "Developing countries unspecified")&lt;/li&gt;&lt;li&gt;CPA = 1 (see "Agency" sheet in the 'DAC and CRS code lists', under &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;Resources and guidance material for reporters&lt;/a&gt;)&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;This measurement is an improvement from the previous CPA measure, which was derived from a combination of the OECD's aggregate aid tables and the CRS, resulting in an aggregate (provider-partner country) perspective on CPA. The result of the new measure is an activity-level perspective on CPA that provides much greater transparency on its composition and thereby allows users to conduct more granular analysis (e.g., by sector, channel, modality, etc.) on who is giving CPA where, how, and for what purpose. The measure is also therefore more replicable to users.&lt;/p&gt;&lt;p&gt;The time series of the CPA measure starts with 2022 in the “Table” view to differentiate it from the previous CPA measure, which was calculated at an aggregate level up to 2021. These two measures should not be presented together in a time series. For users who are interested in the time series using the new CPA measure, a version of the dataset that applies the new CPA measure retroactively from 2010 onwards has been produced and can be found under, “Related files”.&lt;/p&gt;&lt;p&gt;For more information on this measure, please see: &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2025/02/country-programmable-aid-in-official-development-assistance.html"&gt;Country programmable aid in official development assistance (ODA)&lt;/a&gt;.&lt;/p&gt;</common:Description>
+        <common:Description xml:lang="fr">&lt;p&gt;L'aide programmable par pays (APP) désigne l'aide publique au développement (APD) qui fait l'objet d'une planification pluriannuelle au niveau national ou régional. L'OCDE publie des données sur l'APP au niveau agrégé (pays fournisseur-partenaire) depuis 2007.&lt;/p&gt;&lt;p&gt;Ces données représentent une mise à jour de la mesure de l'APP. La principale amélioration est que cette version est entièrement dérivée de la base de données de l'OCDE sur les activités d'aide, le système de notification des pays créanciers (SNPC). L'APP est calculée en soustrayant les catégories d'aide suivantes du total de l'APD bilatérale brute (catégorie = 10) :&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Allégement de la dette (modalité : F01 et code secteur : 600)&lt;/li&gt;&lt;li&gt;Aide humanitaire (codes secteur : 720, 730, 740)&lt;/li&gt;&lt;li&gt;Coûts administratifs non inclus ailleurs (modalité : G01 et code secteur : 910)&lt;/li&gt;&lt;li&gt;Bourses/formations dans le pays donneur (modalité : E01)&lt;/li&gt;&lt;li&gt;Coûts imputés pour les étudiants (modalité : E02)&lt;/li&gt;&lt;li&gt;Sensibilisation au développement (modalité : H01)&lt;/li&gt;&lt;li&gt;Réfugiés dans le pays donneur (modalité : H02-H06 et code secteur : 930)&lt;/li&gt;&lt;li&gt;Soutien de base aux ONG (modalité : B01)&lt;/li&gt;&lt;li&gt;Prises de participation (mesure : 5xx)&lt;/li&gt;&lt;li&gt;Autres non alloués (code secteur : 998 OU bénéficiaire : « Pays en développement non spécifiés »)&lt;/li&gt;&lt;li&gt;CPA = 1 (voir la feuille « Agence » dans les « Listes des codes DAC et CRS », sous &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;Ressources et documentation pour les déclarants&lt;/a&gt;)&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Cette mesure est une amélioration par rapport à la mesure précédente de l'APP, qui était dérivée d'une combinaison des tableaux agrégés de l'aide de l'OCDE et du SNPC, ce qui donnait une perspective agrégée (pays fournisseur-partenaire) de l'APP. Le résultat de la nouvelle mesure est une perspective de l'APP au niveau de l'activité qui offre une bien plus grande transparence sur sa composition et permet ainsi aux utilisateurs d'effectuer une analyse plus granulaire (par exemple, par secteur, canal, modalité, etc.) sur qui donne l'APP, où, comment et dans quel but. La mesure est donc également plus facile à reproduire pour les utilisateurs.&lt;/p&gt;&lt;p&gt;La série chronologique de la mesure CPA commence en 2022 dans la vue « Tableau » afin de la différencier de la mesure CPA précédente, qui était calculée à un niveau agrégé jusqu'en 2021. Ces deux mesures ne doivent pas être présentées ensemble dans une série chronologique. Pour les utilisateurs intéressés par la série chronologique utilisant la nouvelle mesure CPA, une version de l'ensemble de données qui applique rétroactivement la nouvelle mesure CPA à partir de 2010 a été produite et peut être consultée sous « Fichiers connexes ».&lt;/p&gt;&lt;p&gt;Pour plus d'informations sur cette mesure, veuillez consulter : &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2025/02/country-programmable-aid-in-official-development-assistance.html"&gt;Aide programmable par pays dans l’aide publique au développement (APD)&lt;/a&gt;.&lt;/p&gt;</common:Description>
+      </structure:Dataflow>
+    </structure:Dataflows>
+  </message:Structures>
+</message:Structure>

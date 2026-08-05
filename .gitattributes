@@ -11,3 +11,10 @@
 # for them and covering the whole glob keeps the next capture safe by default.
 tests/fixtures/oecd/*.json -text
 tests/fixtures/oecd/*.html -text
+
+# The SDMX dataflow fixtures are captured the same way, from
+# https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/<id>/<version>, which also
+# serves CRLF. Annotation parsing happens within a line, so normalising them would not
+# change what the tests assert today, but recording them verbatim keeps them honest as
+# a record of what the source sends.
+tests/fixtures/dataflow/*.xml -text

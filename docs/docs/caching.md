@@ -137,15 +137,54 @@ because the files are large (~1 GB each):
 
 - **LRU eviction**: only the two most recent bulk files are kept; older
   entries are removed automatically the next time you import oda_reader.
-- **Per-entry TTL**: an entry is considered stale after 30 days and refetched
-  on next use.
-- **Integrity validation**: every freshly downloaded zip is end-to-end checked
-  before being trusted. A corrupt download is removed from the cache and
-  raises `BulkPayloadCorruptError` so you can simply retry. Cached files are
+- **Publication-version invalidation**: a cached file is refetched as soon
+  as OECD republishes it, not just after the TTL below expires. See
+  [Cache Invalidation on Republish](#cache-invalidation-on-republish).
+- **Per-entry TTL**: 30 days. This is a fallback, used when the
+  publication-version check above couldn't be made (offline, server error,
+  or the relevant headers absent).
+- **Integrity validation**: every freshly downloaded payload is end-to-end
+  checked before being trusted (a zip CRC walk, or a footer-magic check for
+  the bare-parquet CRS files). Truncation is also caught earlier, during the
+  download itself: streamed bytes are compared against the response's
+  `Content-Length` and a mismatch is retried before it ever reaches the
+  cache. A corrupt download is removed from the cache and raises
+  `BulkPayloadCorruptError` so you can simply retry. Cached files are
   trusted on hit (no recheck on every call).
 - **Self-healing**: temp files left behind by interrupted downloads (older
   than 24 hours) are swept on startup, so an aborted download can't pollute
   the cache directory indefinitely.
+- **Atomic writes**: both the raw cache entry and any file written via
+  `save_to_path` are written to a temporary sibling file and moved into
+  place afterward, so a failed or interrupted write never leaves a
+  truncated file where a good one used to be.
+
+#### Cache Invalidation on Republish
+
+OECD's bulk-download URLs are stable (`CRS.parquet` is always the same
+address, unlike the old GUID URLs that rotated on every republish), so the
+URL alone can't tell ODA Reader that OECD has replaced the file behind it.
+Left unaddressed, a republish could sit unnoticed until the 30-day TTL
+expired, and a pipeline could run against month-old figures with nothing
+to indicate it.
+
+The cache tracks a publication-version token alongside the URL, and a
+change in that token invalidates the entry immediately, regardless of how
+recently it was fetched. Where the token comes from depends on the dataset:
+
+- **Most bulk files** (the full CRS, CRS year-specific files, Multisystem)
+  carry a version stamp directly in their SDMX annotation label, e.g.
+  `CRS-Parquet-v20260803`. A change in that stamp is the token change.
+- **DAC2A's label carries no version stamp.** For that dataset, ODA Reader
+  instead makes a lightweight HEAD request against the resolved URL and
+  uses the server's `ETag` (falling back to `Last-Modified` if no `ETag` is
+  sent) as the token.
+- If neither is available (offline, a server error, or the response
+  carries neither header), invalidation falls back to the 30-day TTL rather
+  than failing the call. A cached file still works offline.
+
+You don't need to call anything for this; it runs automatically on every
+bulk download.
 
 #### Bypassing the Bulk File Cache
 
@@ -155,7 +194,7 @@ hit the source), pass `use_raw_cache=False`:
 ```python
 from oda_reader import bulk_download_crs
 
-# Download to a temp directory and discard the zip after extraction
+# Download to a temp directory and discard the payload after extraction
 crs = bulk_download_crs(use_raw_cache=False)
 ```
 
@@ -163,6 +202,27 @@ Validation still runs in this mode; only the on-disk caching is skipped. The
 flag is available on `bulk_download_crs`, `download_crs_file`,
 `bulk_download_dac2a` and `bulk_download_multisystem`. `download_aiddata`
 takes a different code path and is not affected.
+
+#### Stale Dataflow Metadata
+
+ODA Reader resolves a bulk file's download URL from the SDMX dataflow's
+metadata, and that metadata response is itself subject to the 7-day HTTP
+cache described above. The URLs themselves are stable (`CRS.parquet` is
+always the same address), so a routine OECD republish doesn't go stale
+here; that's handled by the version-token invalidation in
+[Cache Invalidation on Republish](#cache-invalidation-on-republish) instead.
+
+What this guards against is the URL itself changing, e.g. if OECD retires
+the specific dataflow version a cached metadata response was fetched
+under. If a download gets back a 404 or 403, ODA Reader bypasses the 7-day
+cache for that one metadata lookup, re-resolves the URL against the live
+OECD server, and retries the download once with the fresh result. This is
+separate from the bulk-file cache above (which governs the downloaded
+parquet/zip itself) and from `clear_version_cache()` (which governs
+discovered dataflow *versions*, not resolved file URLs). You don't need to
+call anything to get this behavior; it runs automatically for
+`bulk_download_crs()`, `download_crs_file()`, `bulk_download_dac2a()`, and
+`bulk_download_multisystem()`.
 
 #### Handling Corrupt Downloads
 

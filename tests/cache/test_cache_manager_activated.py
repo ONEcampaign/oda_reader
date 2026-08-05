@@ -48,8 +48,7 @@ def test_bulk_download_parquet_uses_cache_manager(tmp_path, monkeypatch) -> None
     The cached zip must live at base_dir/<sha1(url)>.zip and the manifest
     must contain the entry.
     """
-    file_id = "TESTID123"
-    url = download_tools.BULK_DOWNLOAD_URL + file_id
+    url = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/TESTID123.zip"
     expected_key = hashlib.sha1(url.encode()).hexdigest()
 
     def fake_stream(url_: str, headers: dict, path: Path) -> None:
@@ -60,7 +59,7 @@ def test_bulk_download_parquet_uses_cache_manager(tmp_path, monkeypatch) -> None
 
     # Extraction of fake zip may fail; we only check the zip presence.
     with contextlib.suppress(Exception):
-        download_tools.bulk_download_parquet(file_id, use_raw_cache=True)
+        download_tools.bulk_download_parquet(url, use_raw_cache=True)
 
     bulk_dir = get_bulk_cache_dir()
     cached_zip = bulk_dir / f"{expected_key}.zip"

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--NSI Web Service v8.19.8.0-->
+<message:Structure xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common">
+  <message:Header>
+    <message:ID>IDREF12856</message:ID>
+    <message:Test>false</message:Test>
+    <message:Prepared>2026-08-05T15:00:48.8634677+02:00</message:Prepared>
+    <message:Sender id="Unknown" />
+    <message:Receiver id="Unknown" />
+  </message:Header>
+  <message:Structures>
+    <structure:Dataflows>
+      <structure:Dataflow id="DSD_MULTI@DF_MULTI" agencyID="OECD.DCD.FSD" version="1.6" isExternalReference="true" isFinal="true" structureURL="https://sdmx.oecd.org/dcd-public/rest/dataflow/OECD.DCD.FSD/DSD_MULTI@DF_MULTI/1.6">
+        <common:Annotations>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>CHANNEL</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MEASURE</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_COLUMN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR,SECTOR</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW_SECTION</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM</common:AnnotationTitle>
+            <common:AnnotationType>DRILLDOWN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>1.4</common:AnnotationTitle>
+            <common:AnnotationType>SEARCH_WEIGHT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>OBS_STATUS=A,MD_DIM,MD_ID,MODALITY,ALLOCABLE,MARKER,SCORE</common:AnnotationTitle>
+            <common:AnnotationType>NOT_DISPLAYED</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM=_T,LASTNPERIODS=1,DONOR=DAC,RECIPIENT=DPGC,SECTOR=1000,FLOW_TYPE=D,PRICE_BASE=Q</common:AnnotationTitle>
+            <common:AnnotationType>DEFAULT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR:OECD.DCD.FSD:HCL_DACDONORS(1.6).H,RECIPIENT:OECD.DCD.FSD:HCL_DACRECIPIENTS(1.5).H</common:AnnotationTitle>
+            <common:AnnotationType>HIER_CONTEXT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>UNIT_MEASURE,UNIT_MULT,BASE_PER</common:AnnotationTitle>
+            <common:AnnotationType>COMBINED_CONCEPTS</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">COMBINED_UNIT_MEASURE:Unit of measure</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">COMBINED_UNIT_MEASURE:Unité de mesure</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">Entire dataset (dotStat format)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_MULTI/MultiSystem entire dataset.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">La base entière (en format dotStat)-v20260710|https://webfs-dcd.oecd.org/files/dotStat/DSD_MULTI/MultiSystem entire dataset.zip</common:AnnotationText>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">Providers' total use of the multilateral system</common:Name>
+        <common:Name xml:lang="fr">Utilisation du système multilatéral par les fournisseurs  (SNPC)</common:Name>
+        <common:Description xml:lang="en">&lt;p&gt;This dataset presents providers' total use of the multilateral system, including their multilateral aid ("Core contributions to") and bilateral aid channelled through multilateral organisations ("Contributions through"). These data originate from members' reporting to the Development Assistance Committee (DAC) Creditor Reporting System (CRS). These data are published starting with 2011 data – activity-level data for multilateral aid is not complete in CRS for earlier years.&lt;/p&gt;&lt;p&gt;Please consult our database of &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;development finance classifications&lt;/a&gt; for further information on all possible codes for each attribute.&lt;/p&gt;&lt;p&gt;For more information on these flows, please see the OECD's main page on &lt;a href="https://www.oecd.org/en/topics/official-development-assistance-oda.html"&gt;official development assistance&lt;/a&gt; and &lt;a href="https://www.oecd.org/en/topics/finance-for-sustainable-development.html"&gt;finance for sustainable development&lt;/a&gt;, including &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;frequently asked questions (FAQs)&lt;/a&gt; on ODA. See also the &lt;a href="https://one.oecd.org/document/DCD/DAC(2024)40/FINAL/en/pdf"&gt;converged statistical reporting directives&lt;/a&gt; governing these data, alongside &lt;a href="https://www.oecd.org/content/oecd/en/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;other guidance on using our data&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Please note&lt;/b&gt;: the raw data, available under "Related files" below, has been updated on 06/02/2025 to reflect a correction related to the inclusion/exclusion of certain criteria, which affected the overall values for certain providers. Please refer to this file for the latest, corrected version.&lt;/p&gt;</common:Description>
+        <common:Description xml:lang="fr">&lt;p&gt;Cet ensemble de données présente l'utilisation totale du système multilatéral par les fournisseurs, y compris leur aide multilatérale (« Core contributions to ») et l'aide bilatérale acheminée par l'intermédiaire d'organisations multilatérales (« Contributions through »). Ces données proviennent des notifications des membres au Système de notification des pays créanciers (SNPC) du Comité d'aide au développement (CAD). Ces données sont publiées à partir de 2011 - les données au niveau de l'activité pour l'aide multilatérale ne sont pas complètes dans le SNPC pour les années antérieures.&lt;/p&gt;&lt;p&gt;Veuillez consulter notre base de données des &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;classifications du financement du développement&lt;/a&gt; pour plus d'informations sur tous les codes possibles pour chaque attribut.&lt;/p&gt;&lt;p&gt;Pour plus d'informations sur ces flux, veuillez consulter la page principale de l'OCDE sur &lt;a href="https://www.oecd.org/fr/themes/aide-publique-au-developpement-apd.html"&gt;l'aide publique au développement&lt;/a&gt; et le &lt;a href="https://www.oecd.org/fr/cad/financementpourledeveloppementdurable/statistiques-financement-developpement/"&gt;financement du développement durable&lt;/a&gt;, y compris la &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;foire aux questions (FAQ)&lt;/a&gt; sur l'APD. Voir également les &lt;a href="https://one.oecd.org/document/DCD/DAC/STAT(2023)9/FINAL/en/pdf"&gt;directives de notification statistique convergées&lt;/a&gt; (en anglais) régissant ces données, ainsi que d'autres &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;conseils sur l'utilisation de nos données&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Veuillez noter&lt;/b&gt; que les données brutes, disponibles sous "Fichiers associés" ci-dessous, ont été mises à jour le 06/02/2025 pour refléter une correction liée à l'inclusion/exclusion de certains critères, ce qui a affecté les valeurs globales pour certains fournisseurs. Veuillez vous référer à ce fichier pour la dernière version corrigée.&lt;/p&gt;</common:Description>
+      </structure:Dataflow>
+    </structure:Dataflows>
+  </message:Structures>
+</message:Structure>

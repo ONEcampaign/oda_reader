@@ -21,7 +21,7 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 
 ## CRS Bulk Downloads
 
-The full Creditor Reporting System dataset is available as a parquet file (~1GB compressed). ODA Reader can download and load it for you.
+The full Creditor Reporting System dataset is available as a bare parquet file (1.18 GB, not zipped). ODA Reader can download and load it for you.
 
 ### Download Full CRS
 
@@ -57,7 +57,7 @@ crs_data = pd.read_parquet("./data/crs_full.parquet")
 
 ### Reduced Version (Smaller File)
 
-OECD provides a "reduced" version with fewer columns:
+OECD provides a "reduced" version with fewer columns (296 MB, also a bare parquet file):
 
 ```python
 # Download reduced version (smaller file, fewer columns)
@@ -75,7 +75,10 @@ bulk_download_crs(
 
 ## Memory-Efficient Processing with Iterators
 
-For very large files, process in chunks to avoid loading the entire dataset into memory:
+For very large files, process in chunks to avoid loading the entire dataset into memory. This
+section covers `bulk_download_crs()` and `bulk_download_multisystem()`, which stream parquet row
+groups directly off disk. `download_crs_file()`'s year-specific files are a different case, with
+a memory caveat of their own; see [Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks) below.
 
 ```python
 # Process in chunks (much lower memory usage)
@@ -116,15 +119,18 @@ print(f"Total commitments: ${education_amount/1e9:.1f}B")
 ## Forcing a Fresh Download
 
 By default, bulk downloads are cached on disk so a second call returns
-instantly. If you need to bypass that cache (for example, in a CI job that
-should always pull the latest file), pass `use_raw_cache=False`:
+instantly. You don't need `use_raw_cache=False` just to pick up an OECD
+republish; the cache detects that on its own and refetches (see
+[Cache Invalidation on Republish](caching.md#cache-invalidation-on-republish)).
+Reach for `use_raw_cache=False` when you want to skip the cache outright, for
+example in a CI job that should always hit the network:
 
 ```python
-# Always download fresh; the zip is extracted to a temp dir and discarded
+# Always download fresh; the payload is written to a temp dir and discarded
 crs = bulk_download_crs(use_raw_cache=False)
 ```
 
-The integrity check on the freshly downloaded zip still runs; only the
+The integrity check on the freshly downloaded payload still runs; only the
 on-disk caching is skipped. This flag is available on `bulk_download_crs`,
 `download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`.
 
@@ -162,6 +168,38 @@ crs_90s = download_crs_file(year="1995-99")
 ```
 
 Year-specific files are much smaller than the full CRS, making them easier to work with.
+
+### Processing a Year-Specific File in Chunks
+
+`download_crs_file(year, as_iterator=True)` also works, yielding one `DataFrame` per 100,000 rows:
+
+```python
+from oda_reader import download_crs_file
+
+chunks = list(download_crs_file(year=2024, as_iterator=True))
+print(len(chunks))                  # 4
+print(sum(len(c) for c in chunks))  # 370072, same row count as the non-iterator call
+```
+
+!!! warning "Heads up"
+This isn't a streaming parse. The year files are pipe-delimited text, not
+parquet, so `as_iterator=True` reads the whole file first and hands it
+back in 100,000-row slices. Peak memory during the read is the same as
+the non-iterator call; only what you accumulate chunk-by-chunk
+afterward is bounded. Row-group streaming that does reduce peak memory
+during the read itself is the bare-parquet path used by
+`bulk_download_crs()` (see
+[Memory-Efficient Processing with Iterators](#memory-efficient-processing-with-iterators)
+above).
+
+!!! info "Why"
+Reading the file whole and slicing, rather than parsing it in chunks
+directly, sidesteps a real bug: pandas infers each chunk's dtypes
+independently. On the 2024 CRS data, `Interest1` mixes numeric codes
+like `"04216"` with formulas like `"EURIBOR6M+1.60%"`. A chunk that
+happens to contain only numeric-looking rows gets parsed as float and
+silently drops the leading zero. Reading once and slicing guarantees
+every chunk matches what the non-iterator call would have returned.
 
 ## Multisystem Bulk Download
 
@@ -222,27 +260,53 @@ API download has columns like:
 - `DONOR` → becomes `donor_code` after processing
 - `RECIPIENT` → becomes `recipient_code` after processing
 
-Bulk downloads already have:
+Bulk downloads already have `DonorCode`, `RecipientCode`, and similar PascalCase names, with one exception, covered next.
 
-- `DonorCode`
-- `RecipientCode`
+### `bulk_download_crs()` Uses Different Column Casing Than Everything Else
+
+`CRS.parquet` and `CRS-reduced.parquet` (what `bulk_download_crs()` downloads) are bare parquet
+files, not zips, and OECD ships their columns in snake_case: `donor_code`, `donor_name`,
+`crs_id`. Every other bulk file is still a zip and still PascalCase: the year-specific CRS files
+from `download_crs_file()`, DAC2A, and Multisystem all use `DonorCode`, `DonorName`, `CrsID`.
+
+```python
+from oda_reader import bulk_download_crs, download_crs_file
+
+full_crs = bulk_download_crs()
+print(list(full_crs.columns)[:5])
+# ['year', 'donor_code', 'de_donorcode', 'donor_name', 'agency_code']
+
+year_crs = download_crs_file(year=2022)
+print(list(year_crs.columns)[:5])
+# ['Year', 'DonorCode', 'DEDonorcode', 'DonorName', 'AgencyCode']
+```
+
+!!! warning "Heads up"
+Both calls return the same underlying data with the same .Stat codes, just
+named differently. Code written against `bulk_download_crs()` that filters
+on `donor_code` will raise a `KeyError` if you point it at
+`download_crs_file()` output instead, and vice versa with `DonorCode`.
+Check `df.columns` after switching between the two.
 
 See [Schema Translation](schema-translation.md) for detailed comparison.
 
 ## Troubleshooting
 
-**Out of memory errors**: Use `as_iterator=True` to process in chunks instead of loading the entire file.
+**Out of memory errors**: `as_iterator=True` reduces peak memory on `bulk_download_crs()` and `bulk_download_multisystem()`, which stream parquet row groups. On `download_crs_file()`'s year-specific files it reads the whole file first and only bounds what you accumulate afterward; see the caveat under [Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks).
 
-**Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached.
+**Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached. Each attempt has a 10-second connect / 60-second read timeout, so a stalled connection now fails with an error instead of hanging indefinitely.
 
-**Column names don't match examples**: You're likely comparing bulk downloads (.Stat schema) to API downloads. See [Schema Translation](schema-translation.md).
+**403 errors**: OECD's bulk-file host sits behind a Cloudflare challenge that rejects the default Python client headers. ODA Reader sends browser-like headers automatically and retries a 403 up to 3 times (1s/2s/4s backoff) before raising. If you're behind a corporate proxy that rewrites the `User-Agent` header, the challenge can still fail, so check what header your proxy is forwarding.
 
-**File not found errors**: Older CRS year-specific files use grouped years (e.g., "1995-99"). Check which grouping includes your target year.
+**Column names don't match examples**: You're likely comparing bulk downloads (.Stat schema) to API downloads, or comparing `bulk_download_crs()` output to `download_crs_file()` output. See the column-casing difference above, and [Schema Translation](schema-translation.md) for the API-vs-bulk comparison.
+
+**File not found / 404 errors**: Bulk-download URLs are stable, so a routine OECD republish doesn't cause this (see [Caching & Performance](caching.md#cache-invalidation-on-republish) for how a republish is detected instead). A 404 here usually means the specific dataflow version was retired; ODA Reader re-resolves the URL and retries once automatically when that happens. If it still fails, older CRS year-specific files use grouped years (e.g., "1995-99"); check which grouping includes your target year.
 
 **`BulkPayloadCorruptError`**: The OECD's bulk endpoint occasionally serves a
-truncated or malformed zip. The corrupt entry is removed automatically before
-the exception is raised, so the next call cleanly re-downloads. Retry the
-call, or pass `use_raw_cache=False` to skip the cache for that invocation.
+truncated or malformed file (a bad zip, or a bare parquet file that fails to
+parse). The corrupt entry is removed automatically before the exception is
+raised, so the next call cleanly re-downloads. Retry the call, or pass
+`use_raw_cache=False` to skip the cache for that invocation.
 
 ## Next Steps
 

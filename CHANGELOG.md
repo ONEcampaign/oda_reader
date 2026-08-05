@@ -1,5 +1,93 @@
 # Changelog for oda_reader
 
+## 1.8.0 (2026-08-05)
+
+- **Fixes bulk downloads, which were completely broken.** OECD moved bulk files off
+  `stats.oecd.org/wbos/fileview2.aspx?IDFile=<GUID>` to stable addresses at
+  `webfs-dcd.oecd.org/files/dotStat/...`, and changed the SDMX dataflow annotations that carry
+  those links from `LABEL|<GUID>` to `LABEL|<full URL>` with a `-vYYYYMMDD` label suffix that
+  changes on every republish. Every bulk function — `bulk_download_crs`, `download_crs_file`,
+  `bulk_download_dac2a`, `bulk_download_multisystem` — built a malformed URL from the old GUID
+  scheme and failed. URLs are now resolved directly from the annotation text; there is no ID to
+  reconstruct a URL from anymore.
+- **Catches, before release, a data-correctness bug the URL migration above would otherwise have
+  introduced.** The new OECD URLs are permanently stable (`CRS.parquet` is always the same
+  address, unlike the old GUID URLs, which rotated on every republish), so an OECD republish
+  became indistinguishable from a cache hit: the package would silently go on serving a
+  previously-cached file for up to the 30-day raw-cache TTL, with no signal that the data was now
+  a month stale. Fixed by tracking a publication-version token alongside each resolved URL: most
+  bulk files carry a `-vYYYYMMDD` stamp in their annotation label, and a change to that stamp now
+  forces a refetch. DAC2A's label carries no stamp, so a lightweight HEAD request against the
+  resolved URL substitutes its `ETag`/`Last-Modified` for the same purpose — the one user-visible
+  consequence being that a DAC2A cache hit is no longer strictly zero-network. If neither check
+  can be made (offline, server error, headers absent), invalidation degrades to the existing
+  time-based TTL, so cached files still work offline.
+- **`CRS.parquet` and `CRS-reduced.parquet` are no longer ZIP archives.** OECD now serves the full
+  CRS bulk files (1.18 GB and 296 MB) as bare parquet. The package detects the payload type by
+  magic bytes and handles both a zip and a bare parquet response; every other bulk file
+  (year-specific CRS, DAC2A, Multisystem) is still a zip.
+- **`bulk_download_crs()` now returns snake_case columns (`year`, `donor_code`), while
+  `download_crs_file()`, DAC2A and Multisystem still return PascalCase (`Year`, `DonorCode`).**
+  This follows directly from the column names OECD ships inside the bare parquet files and is a
+  user-visible break for any code that reads columns off `bulk_download_crs()` output — check
+  `df.columns` before and after upgrading. See
+  [Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#bulk_download_crs-uses-different-column-casing-than-everything-else)
+  for the full comparison.
+- Bulk downloads now send browser-like headers (`User-Agent`, `Accept`, `Sec-Fetch-*`, `sec-ch-ua`).
+  The new file host sits behind a Cloudflare challenge that returns 403 to default Python client
+  headers.
+- Adds recovery for a resolved bulk-download URL going dead between resolution and fetch — a
+  retired dataflow version, or OECD renaming or removing a file. This is narrower than it sounds:
+  routine republishing under a file's now-stable URL never reaches this path at all, since the
+  version-token check above already forces a refetch before any request is made. On a 404 or 403
+  with the originating dataflow available, the package re-resolves the URL — and its version
+  token — with the 7-day annotation cache bypassed, and retries the download once.
+- Fixes `download_crs_file(year, as_iterator=True)` and the other delimited (csv/txt) bulk files,
+  which previously raised `ValueError: Streaming not supported for csv/txt files`. This yields row
+  slices of a whole-file parse rather than a true streaming parse, deliberately: pandas'
+  per-chunk dtype inference silently corrupted values on real 2024 CRS data (a leading zero
+  dropped from `Interest1` when one chunk of that column looked purely numeric in isolation).
+  `as_iterator` bounds what the caller accumulates, not the cost of the read.
+- Fixes a zip-slip vulnerability in bulk-file extraction: zip member names were joined to the
+  destination directory unsanitized, allowing a malicious archive to write outside it, and an
+  absolute member name discarded the destination entirely rather than escaping it. Pre-existing,
+  not introduced by the URL migration above.
+- Zip extraction into `save_to_path` now preserves each member's directory structure instead of
+  flattening every member to its basename, and two members that resolve to the same destination
+  path — including two names that differ only by case, on a case-insensitive filesystem such as
+  macOS APFS or Windows NTFS — now raise `ValueError` instead of one silently overwriting the
+  other.
+- Fixes a redirect-based host-allowlist bypass: bulk downloads and the general HTTP helpers used
+  to follow redirects transparently, so a 3xx from an allowlisted host could carry the request
+  off-host without the allowlist ever seeing the new target. Redirects are no longer followed
+  blindly — each hop is re-validated (the `.oecd.org` allowlist for bulk downloads, same-origin
+  for the general HTTP helpers), capped at 5 hops.
+- Fixes corrupt cached bulk payloads surfacing during lazy iteration: corruption discovered mid-
+  iteration (a bad zip member CRC, a malformed row group) now evicts the cached file, so the next
+  call re-fetches instead of failing identically forever.
+- Files written via `save_to_path` — both zip members and the bare-parquet CRS files — are now
+  written atomically (a temp sibling file, then an atomic replace), so an interrupted or failed
+  write no longer leaves a truncated file where a good one previously existed.
+- Adds request timeouts to bulk downloads (10s connect / 60s read per attempt) where there
+  previously were none, and bounded retry (3 retries, 1s/2s/4s backoff) on a 403, a truncated
+  transfer, or a transient transport error (timeout, connection error, chunked-encoding error).
+  Truncation is detected by comparing bytes actually written against the response's
+  `Content-Length` header — the dominant real-world corruption mode for a large streamed download
+  — and the check is skipped (not treated as a failure) when that header is absent or the response
+  is content-encoded, where the comparison can't be made honestly; this catches accidental
+  truncation, not tampering. A 404 and other permanent errors fail fast instead of burning the
+  retry budget.
+- **Deprecates `get_bulk_file_id`, which now always raises `RuntimeError`** pointing at
+  `get_bulk_file_url` — the annotations it parsed no longer exist. The per-source equivalents
+  (`get_full_crs_parquet_id`, `get_reduced_crs_parquet_id`, `get_year_crs_zip_id`,
+  `get_full_dac2a_parquet_id`, `get_full_multisystem_id`) instead emit a `DeprecationWarning` and
+  return a full URL rather than raising, since existing two-step caller code (an ID obtained here,
+  then passed to `bulk_download_parquet`) can keep working unchanged. `bulk_download_parquet` now
+  takes `url` in the position the deprecated `file_id` used to occupy; `file_id` still works but
+  warns. `BULK_DOWNLOAD_URL` is retired — there's no longer a fixed prefix to combine with a file
+  ID. The bulk file cache is invalidated by this release (cache keys are now a hash of the new
+  URLs, not the old ones).
+
 ## 1.7.0 (2026-07-28)
 
 - Adds `oda_reader.codelists`, a new public surface for fetching the OECD DAC area codelists

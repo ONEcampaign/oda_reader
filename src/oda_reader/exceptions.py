@@ -1,11 +1,14 @@
 """Typed exceptions for the oda_reader boundary contract."""
 
+import os
 import re
 import typing
 import zipfile
 import zlib
 from html.parser import HTMLParser
 from pathlib import Path
+
+import pyarrow.parquet as pq
 
 BULK_PAYLOAD_CORRUPT_HINT = (
     "Call the bulk_download function again to refetch (the corrupt entry "
@@ -56,20 +59,50 @@ class BulkDownloadHTTPError(ConnectionError):
         super().__init__(f"HTTP {status_code} from {url}: {self.body}")
 
 
-def validate_zip_or_raise(path: Path) -> None:
-    """Validate a zip file with is_zipfile + testzip; on failure unlink and raise.
+_ZIP_MAGIC = b"PK\x03\x04"
+_PARQUET_MAGIC = b"PAR1"
+
+
+def validate_payload_or_raise(path: Path) -> None:
+    """Validate a downloaded bulk payload by magic bytes; unlink and raise on failure.
+
+    Dispatches on the file's leading 4 bytes: ``PK\\x03\\x04`` (zip) gets the
+    existing ``is_zipfile`` + ``testzip`` integrity walk; ``PAR1`` (a bare
+    parquet file, not zipped -- CRS.parquet and CRS-reduced.parquet are
+    served this way) gets a footer-magic check plus a metadata read, which is
+    cheap because it only touches the trailing footer rather than the whole
+    file. Anything else is corrupt or an unrecognised payload type.
+
+    Args:
+        path: Path to the downloaded payload to validate.
+
+    Raises:
+        BulkPayloadCorruptError: If the payload fails validation for its
+            detected type, or its type isn't recognised at all. The file is
+            unlinked before raising so callers can simply retry.
+    """
+    with path.open("rb") as f:
+        header = f.read(4)
+
+    if header == _ZIP_MAGIC:
+        _validate_zip(path)
+        return
+
+    if header == _PARQUET_MAGIC:
+        _validate_bare_parquet(path)
+        return
+
+    path.unlink(missing_ok=True)
+    raise BulkPayloadCorruptError(path, reason=f"unrecognised magic bytes {header!r}")
+
+
+def _validate_zip(path: Path) -> None:
+    """is_zipfile + testzip integrity walk for a zip payload.
 
     Any exception that ``testzip()`` itself raises (BadZipFile from a damaged
     central directory, zlib.error from a corrupt compressed member) is
     converted into BulkPayloadCorruptError so callers see a single boundary
     exception and the corrupt file is always removed.
-
-    Args:
-        path: Path to the zip file to validate.
-
-    Raises:
-        BulkPayloadCorruptError: If the file fails either check. The file is
-            unlinked before raising so callers can simply retry.
     """
     if not zipfile.is_zipfile(path):
         path.unlink(missing_ok=True)
@@ -87,6 +120,61 @@ def validate_zip_or_raise(path: Path) -> None:
         raise BulkPayloadCorruptError(
             path, reason=f"testzip() reported member {bad_member!r}"
         )
+
+
+def _validate_bare_parquet(path: Path) -> None:
+    """Footer-magic + metadata-read integrity check for a bare parquet payload.
+
+    Deliberately cheap: only the trailing footer is read here, not the whole
+    file, matching ``testzip``'s cost profile at 1+ GB scale. This will not
+    catch mid-file corruption the way a zip CRC walk would -- the extraction
+    path (``_consume_bare_parquet`` in download_tools.py) has a second,
+    read-time check for that.
+    """
+    try:
+        with path.open("rb") as f:
+            f.seek(-4, os.SEEK_END)
+            footer_magic = f.read(4)
+    except OSError as e:
+        path.unlink(missing_ok=True)
+        raise BulkPayloadCorruptError(
+            path, reason=f"could not read trailing magic: {e}"
+        ) from e
+
+    if footer_magic != _PARQUET_MAGIC:
+        path.unlink(missing_ok=True)
+        raise BulkPayloadCorruptError(
+            path, reason=f"trailing magic bytes {footer_magic!r} != b'PAR1'"
+        )
+
+    try:
+        pf = pq.ParquetFile(path)
+        try:
+            _ = pf.metadata
+        finally:
+            pf.close()
+    except Exception as e:
+        # POSIX permits unlinking an open file; Windows doesn't. The
+        # `finally: pf.close()` above covers a `ParquetFile` that
+        # constructed successfully but failed reading `.metadata`. A garbage
+        # footer more often fails *inside* the constructor itself (pyarrow
+        # parses metadata eagerly while opening), before `pf` is ever bound,
+        # so there's no object here to close. In that case the still-open
+        # native file is referenced only by this except block's own
+        # traceback (the constructor frame's locals), which stays alive for
+        # as long as `e` does. Dropping the traceback releases that
+        # reference so the file is actually closed before we unlink it.
+        e.__traceback__ = None
+        path.unlink(missing_ok=True)
+        raise BulkPayloadCorruptError(
+            path, reason=f"{type(e).__name__} raised reading parquet footer: {e}"
+        ) from e
+
+
+# Thin alias: this *is* the generalized validator now, not a zip-only
+# remnant kept around for compatibility. Callers that still import the old
+# name get zip-or-parquet dispatch for free.
+validate_zip_or_raise = validate_payload_or_raise
 
 
 # --- oda_reader.codelists exceptions -----------------------------------
