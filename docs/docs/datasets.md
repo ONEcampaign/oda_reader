@@ -54,6 +54,8 @@ oda_constant = download_dac1(
 
 [Read more about filtering →](filtering.md)
 
+**Bulk download**: The full dataset is available as a single file via `bulk_download_dac1()`. See [Bulk Downloads](bulk-downloads.md#dac1-bulk-download) for details.
+
 ## DAC2a: Bilateral Flows by Recipient
 
 **What it contains**: Bilateral ODA and OOF flows broken down by both donor and recipient country. Shows who gives to whom.

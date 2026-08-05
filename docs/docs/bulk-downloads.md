@@ -1,6 +1,6 @@
 # Bulk Downloads
 
-For large-scale analysis, bulk downloads are faster and more reliable than repeated API calls. ODA Reader provides bulk download functions for CRS, Multisystem, and AidData datasets.
+For large-scale analysis, bulk downloads are faster and more reliable than repeated API calls. ODA Reader provides bulk download functions for the CRS, DAC1, DAC2a, Multisystem, and AidData datasets.
 
 ## When to Use Bulk Downloads
 
@@ -132,7 +132,8 @@ crs = bulk_download_crs(use_raw_cache=False)
 
 The integrity check on the freshly downloaded payload still runs; only the
 on-disk caching is skipped. This flag is available on `bulk_download_crs`,
-`download_crs_file`, `bulk_download_dac2a` and `bulk_download_multisystem`.
+`download_crs_file`, `bulk_download_dac1`, `bulk_download_dac2a`, and
+`bulk_download_multisystem`.
 
 See [Caching & Performance](caching.md#bulk-file-cache) for how the bulk
 cache is managed (LRU eviction, TTL, integrity validation).
@@ -224,6 +225,52 @@ for chunk in bulk_download_multisystem(as_iterator=True):
     pass
 ```
 
+## DAC1 Bulk Download
+
+OECD publishes the full DAC1 table as one zipped CSV, 18.7 MB compressed and 1,042,278 rows:
+
+```python
+from oda_reader import bulk_download_dac1
+
+# Download and return as DataFrame
+dac1_data = bulk_download_dac1()
+
+# Or save to disk
+bulk_download_dac1(save_to_path="./data/")
+```
+
+Passing `save_to_path` converts the CSV to parquet and writes `table1_data.parquet` (the source
+filename, lowercased) into the folder you pass. Calling without it returns a DataFrame directly.
+
+DAC1's 14 columns pair a code with a label for each dimension: `DONOR`/`Donor`, `PART`/`Part`,
+`AIDTYPE`/`Aid type`, `FLOWS`/`Fund flows`, `AMOUNTTYPE`/`Amount type`, `TIME`/`Year`, plus
+`Value` and `Flags`. Three of the label columns contain spaces, so access them by string index:
+`dac1_data["Aid type"]`. See
+[`bulk_download_dac1()` Uses Paired Code and Label Columns](#bulk_download_dac1-uses-paired-code-and-label-columns)
+below for the full comparison against the other bulk files.
+
+`Flags` is empty throughout the current release and reads as `float64` `NaN`. Treat its dtype as
+unstable across OECD republishes. Populated values would arrive as `object`.
+
+OECD publishes DAC1 as a full dataset only. There is no year-specific file, unlike CRS.
+
+Iterators are supported:
+
+```python
+from oda_reader import bulk_download_dac1
+
+for chunk in bulk_download_dac1(as_iterator=True):
+    # process each chunk here
+    ...
+```
+
+!!! warning "Heads up"
+DAC1 is a zipped CSV, so `as_iterator=True` leaves peak memory unchanged. It reads the whole
+file first and hands it back in slices, the same profile as
+`download_crs_file(as_iterator=True)`. See the caveat under
+[Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks). Only
+what you accumulate chunk-by-chunk afterward is bounded.
+
 ## AidData Download
 
 AidData (Chinese development finance) comes from an Excel file automatically downloaded and parsed:
@@ -260,14 +307,15 @@ API download has columns like:
 - `DONOR` → becomes `donor_code` after processing
 - `RECIPIENT` → becomes `recipient_code` after processing
 
-Bulk downloads already have `DonorCode`, `RecipientCode`, and similar PascalCase names, with one exception, covered next.
+Bulk downloads already have `DonorCode`, `RecipientCode`, and similar PascalCase names, with two exceptions, covered next.
 
 ### `bulk_download_crs()` Uses Different Column Casing Than Everything Else
 
 `CRS.parquet` and `CRS-reduced.parquet` (what `bulk_download_crs()` downloads) are bare parquet
 files, not zips, and OECD ships their columns in snake_case: `donor_code`, `donor_name`,
-`crs_id`. Every other bulk file is still a zip and still PascalCase: the year-specific CRS files
-from `download_crs_file()`, DAC2A, and Multisystem all use `DonorCode`, `DonorName`, `CrsID`.
+`crs_id`. The year-specific CRS files from `download_crs_file()`, DAC2A, and Multisystem are
+zips and use PascalCase: `DonorCode`, `DonorName`, `CrsID`. DAC1 is a third pattern again,
+covered next.
 
 ```python
 from oda_reader import bulk_download_crs, download_crs_file
@@ -290,9 +338,27 @@ Check `df.columns` after switching between the two.
 
 See [Schema Translation](schema-translation.md) for detailed comparison.
 
+### `bulk_download_dac1()` Uses Paired Code and Label Columns
+
+`Table1_Data.zip` (what `bulk_download_dac1()` downloads) pairs a code column with a label
+column for each dimension: `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`,
+`FLOWS`/`Fund flows`, `AMOUNTTYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`. None
+of these are PascalCase, and three of the label columns contain spaces, so access them by
+string index:
+
+```python
+from oda_reader import bulk_download_dac1
+
+dac1_data = bulk_download_dac1()
+dac1_data["Aid type"]
+```
+
+See [DAC1 Bulk Download](#dac1-bulk-download) above for the full column list and other usage
+details.
+
 ## Troubleshooting
 
-**Out of memory errors**: `as_iterator=True` reduces peak memory on `bulk_download_crs()` and `bulk_download_multisystem()`, which stream parquet row groups. On `download_crs_file()`'s year-specific files it reads the whole file first and only bounds what you accumulate afterward; see the caveat under [Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks).
+**Out of memory errors**: `as_iterator=True` reduces peak memory on `bulk_download_crs()` and `bulk_download_multisystem()`, which stream parquet row groups. On `download_crs_file()`'s year-specific files and `bulk_download_dac1()` it reads the whole file first and only bounds what you accumulate afterward. See the caveat under [Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks).
 
 **Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached. Each attempt has a 10-second connect / 60-second read timeout, so a stalled connection now fails with an error instead of hanging indefinitely.
 

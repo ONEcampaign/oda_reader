@@ -51,6 +51,7 @@ from oda_reader.schemas.schema_tools import (
 
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
+DAC1_FLOW_URL = BASE_DATAFLOW + "DSD_DAC1@DF_DAC1/"
 DAC2A_FLOW_URL = BASE_DATAFLOW + "DSD_DAC2@DF_DAC2A/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
 AIDDATA_VERSION = "3.0"

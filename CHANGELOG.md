@@ -1,5 +1,29 @@
 # Changelog for oda_reader
 
+## 1.9.0 (2026-08-05)
+
+- **Adds `bulk_download_dac1()`.** DAC1 was the one dataset with an API reader and no bulk path.
+  OECD publishes the full table as a single zipped CSV at
+  `webfs-dcd.oecd.org/files/dotStat/DSD_DAC1/Table1_Data.zip`, 18.7 MB compressed and 205 MB
+  expanded, covering 1,042,278 rows across 14 columns. The signature matches
+  `bulk_download_dac2a()`: `save_to_path`, `as_iterator`, and `use_raw_cache`. OECD publishes no
+  per-year DAC1 files, so the full table is the only bulk option and there is no
+  `download_dac1_file()`.
+- **DAC1 columns arrive in .Stat form, pairing a code with a label for each dimension**:
+  `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`, `FLOWS`/`Fund flows`,
+  `AMOUNTTYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`. Three label columns
+  contain spaces, so reach them with `df["Aid type"]`. This differs from `download_dac1()`, which
+  returns preprocessed lowercase names such as `donor_code`. `Flags` is empty throughout the
+  current release and reads as `float64` NaN, so treat its dtype as unstable across OECD
+  republishes.
+- **A DAC1 cache hit costs one HEAD request.** The DAC1 annotation label carries no `-vYYYYMMDD`
+  stamp, so revalidation uses the server's `ETag`, the same path DAC2A has taken since 1.8.0.
+  Offline, invalidation falls back to the 30-day TTL, and the cached file works.
+- **`as_iterator=True` on DAC1 bounds what the caller accumulates and leaves peak memory
+  unchanged.** The file is a zipped CSV, which the package reads whole and then slices, matching
+  `download_crs_file()`. Row-group streaming applies to the parquet bulk files.
+- `save_to_path` writes `table1_data.parquet`, lowercased with spaces replaced by underscores.
+
 ## 1.8.0 (2026-08-05)
 
 - **Fixes bulk downloads, which were completely broken.** OECD moved bulk files off
