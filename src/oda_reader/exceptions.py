@@ -148,8 +148,23 @@ def _validate_bare_parquet(path: Path) -> None:
         )
 
     try:
-        _ = pq.ParquetFile(path).metadata
+        pf = pq.ParquetFile(path)
+        try:
+            _ = pf.metadata
+        finally:
+            pf.close()
     except Exception as e:
+        # POSIX permits unlinking an open file; Windows doesn't. The
+        # `finally: pf.close()` above covers a `ParquetFile` that
+        # constructed successfully but failed reading `.metadata` -- but a
+        # garbage footer more often fails *inside* the constructor itself
+        # (pyarrow parses metadata eagerly while opening), before `pf` is
+        # ever bound, so there's no object here to close. In that case the
+        # still-open native file is referenced only by this except block's
+        # own traceback (the constructor frame's locals), which stays alive
+        # for as long as `e` does. Dropping the traceback releases that
+        # reference so the file is actually closed before we unlink it.
+        e.__traceback__ = None
         path.unlink(missing_ok=True)
         raise BulkPayloadCorruptError(
             path, reason=f"{type(e).__name__} raised reading parquet footer: {e}"

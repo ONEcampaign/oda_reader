@@ -658,8 +658,17 @@ def _save_or_return_bare_parquet(
         pf = pq.ParquetFile(parquet_path)
 
         def _iter_row_groups() -> typing.Iterator[pd.DataFrame]:
-            for rg in range(pf.num_row_groups):
-                yield pf.read_row_group(rg).to_pandas()
+            # try/finally, not a close after the loop: mid-iteration
+            # corruption (caught by `_wrap_iterator_corruption`, which then
+            # evicts/unlinks `parquet_path`) must close `pf` on its way out
+            # too, not only on normal exhaustion -- otherwise eviction races
+            # a still-open file handle, which POSIX tolerates but Windows
+            # refuses.
+            try:
+                for rg in range(pf.num_row_groups):
+                    yield pf.read_row_group(rg).to_pandas()
+            finally:
+                pf.close()
 
         return _iter_row_groups()
 
@@ -1023,6 +1032,14 @@ def _consume_bare_parquet(
             as_iterator=as_iterator,
         )
     except _BARE_PARQUET_ITERATOR_CORRUPT_EXCEPTIONS as e:
+        # Reached by the eager (non-iterator) `pd.read_parquet` read, and by
+        # a `pq.ParquetFile` construction failure in the as_iterator setup
+        # above -- before `_iter_row_groups`'s own try/finally is ever
+        # entered. Neither leaves us an object to `.close()`: the open file
+        # is referenced only via this except block's traceback for as long
+        # as `e` is alive, which POSIX doesn't mind but Windows does.
+        # Dropping the traceback releases it before we touch the file.
+        e.__traceback__ = None
         if manager is not None:
             manager.clear(url_key)
         else:
@@ -1031,8 +1048,11 @@ def _consume_bare_parquet(
             parquet_path,
             reason=f"{type(e).__name__} raised when reading parquet: {e}",
         ) from e
-    except BaseException:
+    except BaseException as e:
         if not use_raw_cache:
+            # Same traceback-retention hazard as above, for whatever
+            # exception type falls through the corruption-specific branch.
+            e.__traceback__ = None
             parquet_path.unlink(missing_ok=True)
         raise
 
