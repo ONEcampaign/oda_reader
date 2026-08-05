@@ -658,12 +658,11 @@ def _save_or_return_bare_parquet(
         pf = pq.ParquetFile(parquet_path)
 
         def _iter_row_groups() -> typing.Iterator[pd.DataFrame]:
-            # try/finally, not a close after the loop: mid-iteration
-            # corruption (caught by `_wrap_iterator_corruption`, which then
-            # evicts/unlinks `parquet_path`) must close `pf` on its way out
-            # too, not only on normal exhaustion -- otherwise eviction races
-            # a still-open file handle, which POSIX tolerates but Windows
-            # refuses.
+            # try/finally, so that `pf` closes on the error path as well as
+            # on normal exhaustion. Mid-iteration corruption is caught by
+            # `_wrap_iterator_corruption`, which evicts and unlinks
+            # `parquet_path`; leaving the handle open there races the
+            # eviction, which POSIX tolerates but Windows refuses.
             try:
                 for rg in range(pf.num_row_groups):
                     yield pf.read_row_group(rg).to_pandas()
@@ -1034,7 +1033,7 @@ def _consume_bare_parquet(
     except _BARE_PARQUET_ITERATOR_CORRUPT_EXCEPTIONS as e:
         # Reached by the eager (non-iterator) `pd.read_parquet` read, and by
         # a `pq.ParquetFile` construction failure in the as_iterator setup
-        # above -- before `_iter_row_groups`'s own try/finally is ever
+        # above, before `_iter_row_groups`'s own try/finally is ever
         # entered. Neither leaves us an object to `.close()`: the open file
         # is referenced only via this except block's traceback for as long
         # as `e` is alive, which POSIX doesn't mind but Windows does.
