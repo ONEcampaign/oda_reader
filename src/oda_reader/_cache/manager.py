@@ -20,7 +20,7 @@ from oda_reader._cache.config import (
     get_bulk_cache_dir,
     register_cache_dir_change_listener,
 )
-from oda_reader.exceptions import validate_zip_or_raise
+from oda_reader.exceptions import validate_payload_or_raise
 
 logger = logging.getLogger("oda_reader")
 
@@ -95,8 +95,10 @@ class CacheManager:
         """Ensure cached file exists, fetching if necessary.
 
         On a cache-miss or refresh, the downloaded file is validated with
-        ``is_zipfile`` and ``testzip``. On a cache-hit the manifest record is
-        trusted (no CRC walk on every call).
+        ``validate_payload_or_raise``, which dispatches on magic bytes: a zip
+        integrity walk (``is_zipfile`` + ``testzip``) for a zip payload, or a
+        footer-magic and metadata check for a bare parquet payload. On a
+        cache-hit the manifest record is trusted (no walk on every call).
 
         Args:
             entry: CacheEntry describing the dataset.
@@ -104,9 +106,8 @@ class CacheManager:
 
         Returns:
             Path: Path to the cached file. On cache-miss / refetch the file is
-                guaranteed to satisfy ``is_zipfile(path) and
-                ZipFile(path).testzip() is None``. On cache-hit the manifest
-                record is trusted.
+                guaranteed to have passed ``validate_payload_or_raise`` for its
+                detected type. On cache-hit the manifest record is trusted.
 
         Raises:
             BulkPayloadCorruptError: If a freshly downloaded file fails
@@ -133,7 +134,7 @@ class CacheManager:
 
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            validate_zip_or_raise(path)
+            validate_payload_or_raise(path)
 
             manifest[entry.key] = {
                 "filename": entry.filename,

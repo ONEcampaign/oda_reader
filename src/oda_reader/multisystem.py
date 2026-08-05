@@ -1,4 +1,5 @@
 import typing
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -9,18 +10,35 @@ from oda_reader.download.download_tools import (
     MULTI_FLOW_URL,
     bulk_download_parquet,
     download,
-    get_bulk_file_id,
+    get_bulk_file_url,
+    get_bulk_file_url_with_version,
 )
 
 DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
 # Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.6"
 
+MULTISYSTEM_BULK_LABEL = "Entire dataset (dotStat format)"
+
+
+def get_full_multisystem_url() -> str:
+    return get_bulk_file_url(flow_url=MULTI_FLOW_URL, label=MULTISYSTEM_BULK_LABEL)
+
 
 def get_full_multisystem_id() -> str:
-    return get_bulk_file_id(
-        flow_url=MULTI_FLOW_URL, search_string="Entire dataset (dotStat format)"
+    """Deprecated alias for `get_full_multisystem_url`.
+
+    Now returns a URL, not a file ID -- OECD annotations don't carry file
+    IDs anymore. Kept only so existing two-step user code (an ID obtained
+    here, then passed to `bulk_download_parquet`) keeps working.
+    """
+    warnings.warn(
+        "get_full_multisystem_id is deprecated and now returns a URL, not "
+        "a file ID. Use get_full_multisystem_url instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    return get_full_multisystem_url()
 
 
 def bulk_download_multisystem(
@@ -45,13 +63,18 @@ def bulk_download_multisystem(
 
     """
 
-    file_id = get_full_multisystem_id()
+    url, version = get_bulk_file_url_with_version(
+        flow_url=MULTI_FLOW_URL, label=MULTISYSTEM_BULK_LABEL
+    )
 
     return bulk_download_parquet(
-        file_id=file_id,
+        url=url,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
+        flow_url=MULTI_FLOW_URL,
+        label=MULTISYSTEM_BULK_LABEL,
+        version=version,
     )
 
 

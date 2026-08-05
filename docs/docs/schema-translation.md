@@ -16,7 +16,9 @@ The current OECD Data Explorer uses a new schema:
 
 The older OECD.Stat system uses a different schema:
 
-- Column names: `DonorCode`, `RecipientCode`, `Measure`, etc. (mixed case)
+- Column names: `DonorCode`, `RecipientCode`, `Measure`, etc. (mixed case), except the full CRS
+  parquet files (`bulk_download_crs()`), which use snake_case. See
+  [Bulk Download Schema](#bulk-download-schema) below for the split.
 - Dimension codes: Legacy conventions, sometimes different from API codes
 - Used by: Bulk download files, historical .Stat exports
 
@@ -210,24 +212,32 @@ Translation mappings are maintained in `src/oda_reader/schemas/mappings/` as JSO
 
 ## Bulk Download Schema
 
-**Important**: Bulk downloads (CRS, Multisystem, AidData) **always use .Stat schema**.
+**Important**: Bulk downloads (CRS, Multisystem, AidData) **always use .Stat codes**. Column
+*naming* is not as uniform: most bulk files use PascalCase column names, but the full CRS
+parquet files (`bulk_download_crs()`) use snake_case instead. See
+[Bulk Downloads: column casing](bulk-downloads.md#bulk_download_crs-uses-different-column-casing-than-everything-else)
+for why.
 
 ```python
-from oda_reader import bulk_download_crs
+from oda_reader import bulk_download_crs, download_crs_file
 
-# This always returns .Stat schema
+# bulk_download_crs() downloads a bare parquet file: snake_case columns
 crs_bulk = bulk_download_crs()
+print(list(crs_bulk.columns)[:5])
+# ['year', 'donor_code', 'de_donorcode', 'donor_name', 'agency_code']
 
-print(crs_bulk.columns)
-# Output: ['DonorCode', 'RecipientCode', 'SectorCode', ...]
-# (mixed case, .Stat conventions)
+# download_crs_file() downloads a zip: PascalCase columns, same .Stat codes
+crs_year = download_crs_file(year=2022)
+print(list(crs_year.columns)[:5])
+# ['Year', 'DonorCode', 'DEDonorcode', 'DonorName', 'AgencyCode']
 ```
 
 There are no `pre_process` or `dotstat_codes` parameters for bulk downloads - the files are already in .Stat format.
 
 **Combining API and bulk downloads**:
 
-If you mix API (with \`.Stat codes) and bulk downloads, they should be compatible. But column **names** may differ slightly:
+If you mix API (with .Stat codes) and bulk downloads, they should be compatible. But column
+**names** differ, and differ by which bulk function you used:
 
 ```python
 # API download with .Stat codes
@@ -238,16 +248,16 @@ api_data = download_crs(
     dotstat_codes=True
 )
 
-# Bulk download (always .Stat)
+# Bulk download (always .Stat codes, snake_case columns for the full CRS)
 bulk_data = bulk_download_crs()
 
-# Column names differ slightly:
-print(api_data.columns[:5])  # ['donor', 'recipient', 'year', 'sector', ...]
-print(bulk_data.columns[:5])  # ['DonorCode', 'RecipientCode', 'Year', 'SectorCode', ...]
+# Column names differ:
+print(api_data.columns[:5])   # ['donor', 'recipient', 'year', 'sector', ...]
+print(bulk_data.columns[:5])  # ['donor_code', 'de_donorcode', 'donor_name', 'agency_code', ...]
 
 # But codes are the same (both use .Stat codes):
-print(api_data['donor'].unique()[:3])  # ['USA', 'GBR', 'DEU']
-print(bulk_data['DonorCode'].unique()[:3])  # ['USA', 'GBR', 'DEU']
+print(api_data['donor'].unique()[:3])       # ['USA', 'GBR', 'DEU']
+print(bulk_data['donor_code'].unique()[:3])  # ['USA', 'GBR', 'DEU']
 ```
 
 You can harmonize column names with pandas:
@@ -255,8 +265,8 @@ You can harmonize column names with pandas:
 ```python
 # Rename bulk columns to match API preprocessing
 bulk_data = bulk_data.rename(columns={
-    'DonorCode': 'donor',
-    'RecipientCode': 'recipient',
+    'donor_code': 'donor',
+    'recipient_code': 'recipient',
     # ... etc
 })
 ```

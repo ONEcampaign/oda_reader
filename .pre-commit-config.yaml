@@ -28,20 +28,20 @@ repos:
     hooks:
       # Whitespace & endings
       #
-      # tests/fixtures/oecd/ holds captured HTTP response bytes, recorded
-      # verbatim so the parser is tested against exactly what OECD sends.
-      # Every hook that rewrites bytes must skip it: trimming whitespace,
-      # appending a final newline or normalising CRLF to LF all silently
-      # turn the fixture into something the source never served. See the
-      # matching `-text` rules in .gitattributes.
+      # tests/fixtures/oecd/ and tests/fixtures/dataflow/ hold captured HTTP
+      # response bytes, recorded verbatim so the parser is tested against
+      # exactly what OECD sends. Every hook that rewrites bytes must skip
+      # them: trimming whitespace, appending a final newline or normalising
+      # CRLF to LF all silently turn the fixture into something the source
+      # never served. See the matching `-text` rules in .gitattributes.
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-        exclude: ^tests/fixtures/oecd/
+        exclude: ^tests/fixtures/(oecd|dataflow)/
       - id: end-of-file-fixer
-        exclude: ^tests/fixtures/oecd/
+        exclude: ^tests/fixtures/(oecd|dataflow)/
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^tests/fixtures/oecd/
+        exclude: ^tests/fixtures/(oecd|dataflow)/
 
       # Conflicts & platform quirks
       - id: check-case-conflict
@@ -100,6 +100,10 @@ repos:
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.2
     hooks:
+      # The captured-fixture directories carry OECD's own French annotation
+      # text ("mesure", "ressources", "correspondance"), which codespell reads
+      # as misspelled English and rewrites. Correcting a captured response is
+      # exactly what a fixture must never allow.
       - id: codespell
         args: [--write-changes]
         exclude: |
@@ -108,7 +112,7 @@ repos:
             .*\.parquet|
             .*\.feather|
             .*\.json|
-            tests/fixtures/oecd/.*
+            tests/fixtures/(oecd|dataflow)/.*
           )$
 
   # ---------------------------------------------------------------------------
