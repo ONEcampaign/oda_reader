@@ -1,20 +1,19 @@
 [project]
 name = "oda_reader"
-version = "1.9.0"
+version = "1.10.0"
 description = "A simple package to import ODA data from the OECD's API and AidData's database"
 readme = "README.md"
 license = "MIT"
 authors = [
     { name = "Jorge Rivera", email = "jorge.rivera@one.org" }
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
@@ -26,12 +25,11 @@ dependencies = [
     "joblib>=1.4",
     "openpyxl>=3.1.0",
     "pandas>=2.2.0",
-    "platformdirs>=4.5.0",
     "pyarrow>=23.0.1",
+    "readerkit>=0.1.0",
     "requests>=2.33.0",
     "requests-cache>=1.2.0",
     "inflate64>=1.0.0",
-    "pandas-stubs~=2.3.3",
 ]
 
 
@@ -41,6 +39,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "pandas-stubs>=2.3.3",
+    "platformdirs>=4.5.0",
     "pre-commit>=4.0.0",
     "pytest>=9.0.3",
     "pytest-mock>=3.15.1",
@@ -73,8 +73,8 @@ constraint-dependencies = [
 # Set the maximum line length
 line-length = 88
 
-# Target Python 3.11+
-target-version = "py311"
+# Target Python 3.12+
+target-version = "py312"
 
 # Lint and format Jupyter notebooks too
 extend-include = ["*.ipynb"]
@@ -182,7 +182,7 @@ addopts = [
 ]
 
 [tool.ty.environment]
-python-version = "3.11"
+python-version = "3.12"
 
 [tool.ty.src]
 include = ["src/oda_reader", "scripts"]

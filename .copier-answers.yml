@@ -5,8 +5,9 @@ project_name: oda_reader
 project_slug: oda_reader
 project_description: A simple package to import ODA data from the OECD's API and AidData's database
 project_type: package
+preset: family
 author_name: Jorge Rivera
 author_email: jorge.rivera@one.org
-python_version: "3.11"
+python_version: "3.12"
 license: mit
 github_username: ONEcampaign
