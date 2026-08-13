@@ -62,10 +62,10 @@ User Request
 
 ### Cache Directory Structure
 
-Default location: `~/.cache/oda-reader/{version}/` (macOS/Linux) or `%LOCALAPPDATA%\oda-reader\Cache\{version}` (Windows)
+Default location: platform cache dir resolved by `readerkit`, e.g. `~/Library/Caches/readerkit/v1/oda-reader/1.10.0` on macOS. See [Priority order](#configuration) below for the full resolution chain.
 
 ```
-~/.cache/oda-reader/1.2.2/
+~/Library/Caches/readerkit/v1/oda-reader/1.10.0/
 ├── http_cache/                # HTTP response cache (filesystem backend)
 │   ├── <hash1>
 │   └── <hash2>
@@ -129,7 +129,7 @@ import oda_reader
 
 # Get current cache directory
 print(oda_reader.get_cache_dir())
-# /Users/jorge/Library/Caches/oda-reader/1.2.2
+# ~/Library/Caches/readerkit/v1/oda-reader/1.10.0
 
 # Set custom cache directory
 oda_reader.set_cache_dir("/custom/path/to/cache")
@@ -148,7 +148,10 @@ Priority order:
 
 1. `set_cache_dir()` (programmatic override)
 1. `ODA_READER_CACHE_DIR` (environment variable)
-1. Platform default (via platformdirs)
+1. `BBLOCKS_CACHE_DIR` (family-wide fallback, shared across bblocks packages)
+1. Platform default: `platformdirs.user_cache_dir("readerkit", appauthor=False)`
+
+Whichever root wins, `readerkit` appends `v<schema>/oda-reader/<oda_reader version>` beneath it. So `set_cache_dir("/custom/path")` resolves to `/custom/path/v1/oda-reader/1.10.0`, not `/custom/path` itself — same for the env vars.
 
 ### Disable Caching
 
@@ -231,7 +234,11 @@ oda_reader.enforce_cache_limits(
 )
 ```
 
-**Note**: This is called automatically on first cache access, not at import time.
+**Note**: Nothing calls this for you. It doesn't run on import or on any
+schedule — you call it when you want limits enforced. It also only walks
+the current version's cache directory, not a previous version's, so it
+never reclaims space left behind by an upgrade (see [Version-Based Cache
+Invalidation](#version-based-cache-invalidation)).
 
 ______________________________________________________________________
 
@@ -503,15 +510,19 @@ Follows pydeflate design:
 Cache directory includes package version:
 
 ```
-~/.cache/oda-reader/1.2.2/  # Version 1.2.2
-~/.cache/oda-reader/1.3.0/  # Version 1.3.0 (new cache)
+~/Library/Caches/readerkit/v1/oda-reader/1.10.0/  # Version 1.10.0
+~/Library/Caches/readerkit/v1/oda-reader/1.11.0/  # Version 1.11.0 (new cache)
 ```
 
 This ensures:
 
 - No cache corruption after upgrades
 - Schema changes don't break existing cache
-- Automatic cleanup of old versions
+
+Nothing removes an old version's directory once a newer one exists. After
+an upgrade, the previous version's cache sits on disk untouched — for the
+bulk file cache alone that can run into the gigabytes — until it's deleted
+by hand.
 
 ______________________________________________________________________
 

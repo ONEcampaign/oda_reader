@@ -1,5 +1,38 @@
 # Changelog for oda_reader
 
+## 1.10.0 (2026-08-13)
+
+- **Raises the Python floor to 3.12.** `requires-python` moves from `>=3.11` to `>=3.12`, the
+  `Programming Language :: Python :: 3.11` classifier is dropped, and `ruff`'s `target-version` and
+  `ty`'s `python-version` move to `3.12` to match. CI drops the `3.11` leg from the test matrix and
+  picks up `3.14`, keeping three versions under test.
+- **Moves `pandas-stubs` out of runtime dependencies.** It is a type-stub package that ships no
+  runtime code — only `ty` reads it — so pinning it in `[project].dependencies` forced every
+  consumer to install stubs they would never import. It now lives in the `dev` group, and its cap
+  relaxes from `~=2.3.3` to `>=2.3.3`.
+- **Adopts the bblocks family contract.** `.copier-answers.yml` now records `preset: family`,
+  bringing `oda_reader` under `bblocks-projects doctor`'s contract checks.
+- **Breaking: cache directory resolution now delegates to `readerkit.resolve_cache_dir`,
+  changing the on-disk cache path and orphaning every existing cache.** `ODA_READER_CACHE_DIR`
+  still redirects the root exactly as before, and `set_cache_dir()` / `reset_cache_dir()` /
+  `get_cache_dir()` keep their names and signatures — but the resolved path now nests under a
+  schema and app segment readerkit owns. With no override, the default moves from
+  `~/Library/Caches/oda-reader/1.10.0` to `~/Library/Caches/readerkit/v1/oda-reader/1.10.0`
+  (paths shown for macOS; XDG paths shift the same way on Linux). A `set_cache_dir(path)`
+  override or an `ODA_READER_CACHE_DIR` value is now treated as a _root_ rather than the exact
+  final directory: readerkit appends `v1/oda-reader/1.10.0` beneath it, whereas previously those
+  two branches returned the configured path verbatim, with no version segment — only the
+  platform-default branch was version-segmented before this release. For a default-path user
+  this costs one re-download, on upgrade. For anyone pinning `ODA_READER_CACHE_DIR` or calling
+  `set_cache_dir()` — a CI job or a shared workstation, say — it is not one-time: every branch
+  now appends the full `oda_reader` version, so the resolved path changes on **every** release,
+  including patch releases, and each one re-downloads and re-caches everything from scratch at
+  the new path. The previous version's directory is left behind with nothing to reclaim it —
+  the cache-eviction and legacy-cleanup helpers only ever see the current version's directory,
+  never its siblings. `BBLOCKS_CACHE_DIR` is added as a new family-wide fallback, below the env
+  var and above the platform default. Adds `readerkit` as a runtime dependency; the HTTP session
+  layer (`requests`/`requests-cache`) is unchanged in this release.
+
 ## 1.9.0 (2026-08-05)
 
 - **Adds `bulk_download_dac1()`.** DAC1 was the one dataset with an API reader and no bulk path.

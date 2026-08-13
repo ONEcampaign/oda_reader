@@ -1,19 +1,20 @@
 """Cache configuration and directory management for oda_reader.
 
-This module provides platform-aware cache directory resolution following XDG Base
-Directory specifications on Linux and platform conventions elsewhere.
+Directory resolution is delegated to ``readerkit.resolve_cache_dir``, which turns the
+programmatic override, the ``ODA_READER_CACHE_DIR`` env var (or, family-wide,
+``BBLOCKS_CACHE_DIR``), or a platform default into an absolute, schema- and
+version-segmented cache root: ``<root>/v<schema>/oda-reader/<oda_reader version>``.
+``app_version`` is deliberately the full package version, not a coarsened
+major.minor — a stale cache surviving a release that changed parsing is worse than
+a re-download, even at oda_reader's cache size.
 """
 
-import os
 import socket
 from collections.abc import Callable
 from importlib.metadata import version
 from pathlib import Path
 
-from platformdirs import user_cache_dir
-
-# Resolved at import time so the cache path tracks the installed package version.
-_CACHE_VERSION = version("oda_reader")
+from readerkit import resolve_cache_dir
 
 _HOSTNAME = socket.gethostname()
 
@@ -28,24 +29,33 @@ _CACHE_DIR_LISTENERS: list[Callable[[], None]] = []
 def get_cache_dir() -> Path:
     """Get the cache directory path.
 
-    Resolution priority:
+    Resolution priority (see ``readerkit.resolve_cache_dir``):
     1. Programmatic override via set_cache_dir()
     2. Environment variable ODA_READER_CACHE_DIR
-    3. Platform default via platformdirs
+    3. BBLOCKS_CACHE_DIR (family-wide fallback)
+    4. Platform default: platformdirs.user_cache_dir("readerkit", appauthor=False)
 
-    The cache includes version in path for automatic invalidation on upgrades.
+    The returned path is schema- and version-segmented for automatic
+    invalidation on upgrades. ``ensure_exists=True``: all three real consumers
+    (get_http_cache_path, get_bulk_cache_dir, get_dataframe_cache_dir) capture
+    this path once behind a lazy singleton, so it is resolved at most a
+    handful of times per process, not on every cache access — the cost of
+    creating the directory and probing it for writability here is
+    negligible. In exchange, a misconfigured or read-only cache root fails
+    with a structured ``readerkit.CacheDirectoryError`` naming the exact
+    unwritable path and distinguishing a read-only filesystem from a
+    permissions problem, instead of a raw ``PermissionError`` surfacing later
+    from whichever consumer happened to touch the filesystem first.
 
     Returns:
         Path: The cache directory path.
     """
-    if _CACHE_DIR_OVERRIDE is not None:
-        return _CACHE_DIR_OVERRIDE
-
-    if env_dir := os.getenv("ODA_READER_CACHE_DIR"):
-        return Path(env_dir).expanduser().resolve()
-
-    base = Path(user_cache_dir("oda-reader", "oda-reader"))
-    return base / _CACHE_VERSION
+    return resolve_cache_dir(
+        app="oda-reader",
+        app_version=version("oda_reader"),
+        cache_dir=_CACHE_DIR_OVERRIDE,
+        ensure_exists=True,
+    )
 
 
 def set_cache_dir(path: str | Path) -> None:

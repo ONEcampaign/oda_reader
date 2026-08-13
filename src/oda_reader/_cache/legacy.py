@@ -1,10 +1,10 @@
 """Legacy cache utilities (mostly deprecated).
 
 This module is kept for backward compatibility. New code should use:
-- oda_reader.cache_config for cache directory configuration
-- oda_reader.common for HTTP caching (requests-cache)
-- oda_reader.dataframe_cache for DataFrame caching
-- oda_reader.cache_manager for bulk file caching
+- oda_reader.get_cache_dir() and oda_reader.set_cache_dir() for cache directory configuration
+- oda_reader.common, a module, for HTTP caching (requests-cache)
+- oda_reader.dataframe_cache() for DataFrame caching
+- oda_reader.bulk_cache_manager() for bulk file caching
 """
 
 import logging
@@ -34,8 +34,9 @@ _JOBLIB_MEMORY: object | None = None
 def memory() -> object:
     """Return a dummy memory store (deprecated).
 
-    This function is kept for backward compatibility but no longer uses joblib.
-    The caching system has been refactored to use requests-cache and file-based caching.
+    Kept for backward compatibility with code that checks
+    ``mem.store_backend``. Actual caching is handled by requests-cache and
+    file-based caching elsewhere in this module.
 
     Returns:
         Object with store_backend=None to indicate caching is handled elsewhere.
@@ -129,7 +130,12 @@ def enforce_cache_limits(
 ) -> None:
     """Enforce cache size and age limits.
 
-    This function is now called lazily on first cache use, not at import time.
+    Deletes entries older than max_age_hours first, then, if the directory
+    is still over max_size_mb, deletes the oldest remaining files until it's
+    back under the limit. The caller invokes this explicitly — nothing
+    calls it for you. It only walks the directory it's given, which
+    defaults to the current version's cache directory, so it never
+    reclaims space from a previous version.
 
     Args:
         path: Path to enforce limits on. If None, uses the default cache directory.

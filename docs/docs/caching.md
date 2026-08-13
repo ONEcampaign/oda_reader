@@ -41,13 +41,16 @@ Cached queries are ~100x faster.
 
 ## Cache Location
 
-By default, caches are stored in:
+By default, caches are stored in a platform-specific directory resolved by `readerkit`,
+e.g. `~/Library/Caches/readerkit/v1/oda-reader/1.10.0` on macOS. Resolution order:
 
-```
-src/oda_reader/.cache/
-```
+1. `set_cache_dir()` (programmatic override)
+1. `ODA_READER_CACHE_DIR` (environment variable)
+1. `BBLOCKS_CACHE_DIR` (family-wide fallback shared across bblocks packages)
+1. Platform default: `platformdirs.user_cache_dir("readerkit", appauthor=False)`
 
-This is inside the package installation directory.
+Whichever root wins, `readerkit` appends `v<schema>/oda-reader/<oda_reader version>`
+beneath it — three extra path segments you don't choose.
 
 ### Get Current Cache Location
 
@@ -65,9 +68,13 @@ You can set a custom cache location:
 ```python
 from oda_reader import set_cache_dir
 
-# Move cache to your project directory
+# Move cache under your project directory
 set_cache_dir("/path/to/my/project/oda_cache")
 ```
+
+Files don't land directly in `oda_cache/` — `readerkit` nests them three levels
+beneath whatever root you pass, so the actual cache directory becomes something
+like `/path/to/my/project/oda_cache/v1/oda-reader/1.10.0/`.
 
 Or use an environment variable (set before importing oda_reader):
 
@@ -77,7 +84,7 @@ export ODA_READER_CACHE_DIR="/path/to/cache"
 
 ```python
 import oda_reader
-# Cache is now at /path/to/cache
+# Cache is now at /path/to/cache/v1/oda-reader/1.10.0
 ```
 
 ### Reset to Default Location
@@ -88,7 +95,7 @@ from oda_reader import reset_cache_dir
 reset_cache_dir()
 ```
 
-This reverts to the default location inside the package directory.
+This reverts to the platform default described above.
 
 ## Managing the Cache
 
@@ -115,19 +122,22 @@ and emit a `DeprecationWarning` pointing at the `oda_data.cache.*` API
 warning. The shims continue to work through the `1.x` series and will be
 removed in `2.0`.
 
-### Automatic Cache Cleanup
+### Enforcing Size and Age Limits
 
-ODA Reader automatically enforces cache limits across the cache root:
+`enforce_cache_limits()` deletes files older than a max age, then, if the
+directory is still over a max size, deletes the oldest remaining files
+until it's back under the limit:
 
-- **Max size**: 2.5 GB
-- **Max age**: 7 days
+```python
+from oda_reader import enforce_cache_limits
 
-When you import oda_reader, it checks cache limits:
+enforce_cache_limits(max_size_mb=2500, max_age_hours=168)  # 2.5 GB, 7 days
+```
 
-- Files older than 7 days are deleted
-- If cache exceeds 2.5 GB, oldest files are deleted first
-
-This happens automatically - you don't need to do anything.
+Nothing calls this for you — it doesn't run on import or on any schedule,
+so you call it when you want limits enforced. It also only walks the
+current version's cache directory, not the shared cache root, so it never
+reclaims space left behind by a previous version.
 
 ### Bulk File Cache
 
@@ -136,7 +146,8 @@ The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
 because the files are large (~1 GB each):
 
 - **LRU eviction**: only the two most recent bulk files are kept; older
-  entries are removed automatically the next time you import oda_reader.
+  entries are removed automatically the next time you make a bulk
+  download call.
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
   [Cache Invalidation on Republish](#cache-invalidation-on-republish).

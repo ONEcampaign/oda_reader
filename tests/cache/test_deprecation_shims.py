@@ -89,5 +89,7 @@ def test_shims_forward_correctly(tmp_path) -> None:
         oda_reader.set_cache_dir(str(tmp_path))
 
     # set_cache_dir resolves symlinks (e.g. macOS /tmp -> /private/tmp), so
-    # compare against the resolved form.
-    assert get_cache_dir() == tmp_path.resolve()
+    # compare against the resolved form. get_cache_dir() nests under the
+    # override rather than equalling it byte-for-byte: readerkit.resolve_cache_dir
+    # appends its own schema/slug/version segments beneath whichever root wins.
+    assert get_cache_dir().is_relative_to(tmp_path.resolve())
