@@ -34,7 +34,7 @@ This filter string can be used to manually construct API URLs.
 **Methods available**:
 
 - `build_dac1_filter(donor, sector, measure, flow_type, unit_measure, price_base)`
-- `build_dac2a_filter(donor, recipient, measure, price_base, ...)`
+- `build_dac2_filter(donor, recipient, measure, price_base, ...)` — serves both DAC2A and DAC2B; the old `build_dac2a_filter` name still works and is deprecated
 - `build_crs_filter(donor, recipient, sector, channel, modality, microdata, ...)`
 - `build_multisystem_filter(donor, channel, flow_type, ...)`
 

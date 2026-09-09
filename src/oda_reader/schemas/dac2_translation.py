@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 
 from oda_reader.common import ImporterPaths
@@ -22,14 +24,17 @@ def area_code_mapping() -> dict:
     )
 
 
-def convert_dac2a_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert the DAC2A data to the .stat schema.
+def convert_dac2_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert the DAC2 data (DAC2A or DAC2B) to the .stat schema.
+
+    It maps donor/recipient area codes and the price base only, never
+    `MEASURE`, so it is DAC2-generic and serves both tables unchanged.
 
     Args:
-        df: The DAC2A data.
+        df: The DAC2A or DAC2B data.
 
     Returns:
-        The DAC2A data in the .stat schema.
+        The data in the .stat schema.
     """
     area_codes = area_code_mapping()
     prices_codes = prices_mapping()
@@ -51,3 +56,19 @@ def convert_dac2a_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
+
+
+def convert_dac2a_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Deprecated alias for `convert_dac2_to_dotstat_codes`.
+
+    Kept so existing code built against the DAC2A-only name keeps working.
+    `convert_dac2_to_dotstat_codes` is the DAC2-generic name and also serves
+    DAC2B.
+    """
+    warnings.warn(
+        "convert_dac2a_to_dotstat_codes is deprecated. Use "
+        "convert_dac2_to_dotstat_codes instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return convert_dac2_to_dotstat_codes(df)
