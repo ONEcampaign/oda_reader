@@ -10,6 +10,10 @@
 - **Adds an opt-in live check for stable bulk URLs.** The check uses a one-byte Range GET. The
   bulk-download guide also explains filtered SDMX API fallbacks and their schema differences,
   including the DAC1 API's omission of the bulk-file `PART` dimension.
+- **Raises the docs-only `mkdocs-material` dependency to 9.7.7.** This version fixes
+  [GHSA-xvg9-69gf-fjrf](https://github.com/squidfunk/mkdocs-material/security/advisories/GHSA-xvg9-69gf-fjrf),
+  a DOM XSS in the optional search-suggestion feature. ODA Reader uses the default search
+  configuration. The new dependency floor also removes the vulnerable version from `uv.lock`.
 
 ## 1.11.0 (2026-09-09)
 
