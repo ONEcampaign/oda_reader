@@ -27,8 +27,13 @@ class TestDAC2bDispatch:
         assert dac2b_module.DATAFLOW_ID == "DSD_DAC2@DF_DAC2B"
         assert dac2b_module.DATAFLOW_VERSION == "1.7"
 
-    def test_dac2b_dispatch_uses_dac2_converter(self, mocker):
-        """The 'dac2b' dispatch in download() calls convert_dac2_to_dotstat_codes."""
+    def test_dac2b_dispatch_uses_dac2b_converter(self, mocker):
+        """The 'dac2b' dispatch in download() calls convert_dac2b_to_dotstat_codes.
+
+        DAC2B's API MEASURE codes need the extra .stat remap that DAC2A's
+        don't, so dac2b must dispatch to its own converter, not the
+        DAC2-generic one.
+        """
         import pandas as pd
 
         raw = pd.DataFrame({"x": [1]})
@@ -39,9 +44,9 @@ class TestDAC2bDispatch:
         mocker.patch.object(
             dt, "preprocess", side_effect=lambda df, schema_translation: df
         )
-        # Spy on the DAC2-generic converter to verify it is the one called
+        # Spy on the DAC2B converter to verify it is the one called
         spy = mocker.patch.object(
-            dt, "convert_dac2_to_dotstat_codes", side_effect=lambda df: df
+            dt, "convert_dac2b_to_dotstat_codes", side_effect=lambda df: df
         )
         # Bypass the DataFrame cache so the call always reaches the converter
         cache_instance = dt.dataframe_cache()

@@ -39,7 +39,10 @@ from oda_reader.exceptions import (
 )
 from oda_reader.schemas.crs_translation import convert_crs_to_dotstat_codes
 from oda_reader.schemas.dac1_translation import convert_dac1_to_dotstat_codes
-from oda_reader.schemas.dac2_translation import convert_dac2_to_dotstat_codes
+from oda_reader.schemas.dac2_translation import (
+    convert_dac2_to_dotstat_codes,
+    convert_dac2b_to_dotstat_codes,
+)
 from oda_reader.schemas.multisystem_translation import (
     convert_multisystem_to_dotstat_codes,
 )
@@ -403,7 +406,7 @@ def download(
         },
         "dac2b": {
             "filter_builder": qb.build_dac2_filter,
-            "convert_func": convert_dac2_to_dotstat_codes,
+            "convert_func": convert_dac2b_to_dotstat_codes,
         },
         "multisystem": {
             "filter_builder": qb.build_multisystem_filter,

@@ -10,6 +10,7 @@ from oda_reader.schemas.xml_tools import read_mapping
 MAPPINGS = {
     "dac2_codes_area": ImporterPaths.mappings / "dac2_codes_area.json",
     "area_code_corrections": ImporterPaths.mappings / "area_code_corrections.json",
+    "dac2b_measure_dotstat": ImporterPaths.mappings / "dac2b_measure_dotstat.json",
 }
 
 
@@ -54,6 +55,51 @@ def convert_dac2_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
         source_column="data_type_code",
         target_column="data_type_code",
     )
+
+    return df
+
+
+def dac2b_measure_mapping() -> dict:
+    """Reads the DAC2B API MEASURE -> .stat AIDTYPE mapping."""
+    return read_mapping(
+        MAPPINGS["dac2b_measure_dotstat"],
+        keys_as_int=True,
+    )
+
+
+def convert_dac2b_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert the DAC2B data to the .stat schema.
+
+    DAC2B's API `MEASURE` codes are not already in .stat numbering, unlike
+    DAC2A's. This runs the DAC2-generic conversion first, then remaps
+    `aidtype_code` (already renamed from `MEASURE` by `preprocess`) from API
+    numbering to .stat numbering, using the explicit mapping in
+    `dac2b_measure_dotstat.json`.
+
+    Args:
+        df: The DAC2B data, with `aidtype_code` holding raw API MEASURE
+            codes.
+
+    Returns:
+        pd.DataFrame: The data in the .stat schema.
+
+    Raises:
+        ValueError: If `aidtype_code` contains a code absent from
+            `dac2b_measure_dotstat.json`.
+    """
+    df = convert_dac2_to_dotstat_codes(df)
+
+    mapping = dac2b_measure_mapping()
+
+    codes = set(df["aidtype_code"].unique().tolist())
+    unmapped = codes - set(mapping)
+    if unmapped:
+        raise ValueError(
+            f"Unmapped DAC2B measure code(s): {sorted(unmapped)}. Add them to "
+            f"{MAPPINGS['dac2b_measure_dotstat']}."
+        )
+
+    df["aidtype_code"] = df["aidtype_code"].map(mapping).astype("int32[pyarrow]")
 
     return df
 
