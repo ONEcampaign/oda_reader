@@ -6,7 +6,7 @@ from oda_reader.common import ImporterPaths, logger
 
 # CPA reuses the full CRS microdata schema; DAC2A and DAC2B share one
 # schema (both live on DSD_DAC2). Aliasing avoids duplicate JSON.
-_SCHEMA_ALIASES = {"cpa": "crs", "dac2a": "dac2"}
+_SCHEMA_ALIASES = {"cpa": "crs", "dac2a": "dac2", "dac2b": "dac2"}
 
 
 def read_schema_translation(version: str = "dac1") -> dict:
