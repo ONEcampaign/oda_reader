@@ -64,7 +64,7 @@ The OECD Development Assistance Committee publishes comprehensive data on offici
 
 - Filtered queries (specific donors, recipients, years)
 - Exploratory analysis
-- Smaller datasets (DAC1, DAC2a)
+- Smaller datasets (DAC1, DAC2a, DAC2b)
 
 **Bulk downloads** are ideal for:
 

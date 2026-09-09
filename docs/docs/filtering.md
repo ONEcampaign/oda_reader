@@ -17,7 +17,7 @@ data = download_dac1(
 )
 ```
 
-This pattern works across all datasets: DAC1, DAC2a, CRS, CPA, and Multisystem.
+This pattern works across all datasets: DAC1, DAC2a, DAC2b, CRS, CPA, and Multisystem.
 
 ## Filtering with Multiple Values
 
@@ -90,6 +90,9 @@ filters = get_available_filters("dac1", quiet=True)
 # DAC2a filters
 dac2a_filters = get_available_filters("dac2a")
 
+# DAC2b filters
+dac2b_filters = get_available_filters("dac2b")
+
 # CRS filters
 crs_filters = get_available_filters("crs")
 
@@ -113,6 +116,11 @@ Common dimensions:
 - `flow_type` - Commitments, disbursements, net flows, etc.
 - `price_base` - "V" for current prices, "Q" for constant prices
 - `unit_measure` - "USD" for US dollars
+
+**DAC2b** takes the same filter set as DAC2a (`donor`, `recipient`, `measure`, `unit_measure`,
+`price_base`), since both tables live under `DSD_DAC2` and share dimensions and dimension order.
+`measure` is the one value set that differs. DAC2a's codes are ODA measures, DAC2b's are OOF and
+export-credit aggregates (see the [DAC2b measure table](datasets.md#dac2b-other-official-flows-and-export-credits)).
 
 **Example**: Get net ODA disbursements in constant prices:
 

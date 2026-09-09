@@ -1,6 +1,6 @@
 # Bulk Downloads
 
-For large-scale analysis, bulk downloads are faster and more reliable than repeated API calls. ODA Reader provides bulk download functions for the CRS, DAC1, DAC2a, Multisystem, and AidData datasets.
+For large-scale analysis, bulk downloads are faster and more reliable than repeated API calls. ODA Reader provides bulk download functions for the CRS, DAC1, DAC2a, DAC2b, Multisystem, and AidData datasets.
 
 ## When to Use Bulk Downloads
 
@@ -15,7 +15,7 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 **Use API downloads when**:
 
 - You need filtered subsets (specific donors, recipients, sectors)
-- Working with smaller datasets (DAC1, DAC2a)
+- Working with smaller datasets (DAC1, DAC2a, DAC2b)
 - Exploratory analysis with changing queries
 - You only need recent data
 
@@ -132,8 +132,8 @@ crs = bulk_download_crs(use_raw_cache=False)
 
 The integrity check on the freshly downloaded payload still runs; only the
 on-disk caching is skipped. This flag is available on `bulk_download_crs`,
-`download_crs_file`, `bulk_download_dac1`, `bulk_download_dac2a`, and
-`bulk_download_multisystem`.
+`download_crs_file`, `bulk_download_dac1`, `bulk_download_dac2a`,
+`bulk_download_dac2b`, and `bulk_download_multisystem`.
 
 See [Caching & Performance](caching.md#bulk-file-cache) for how the bulk
 cache is managed (LRU eviction, TTL, integrity validation).
@@ -271,6 +271,56 @@ file first and hands it back in slices, the same profile as
 [Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks). Only
 what you accumulate chunk-by-chunk afterward is bounded.
 
+## DAC2b Bulk Download
+
+OECD publishes the full DAC2b table as one zipped CSV, 20.6 MB compressed and 2,281,210 rows,
+expanding to 459.8 MB:
+
+```python
+from oda_reader import bulk_download_dac2b
+
+# Download and return as DataFrame
+dac2b_data = bulk_download_dac2b()
+
+# Or save to disk
+bulk_download_dac2b(save_to_path="./data/")
+```
+
+Passing `save_to_path` converts the CSV to parquet and writes `table2b_data.parquet` (the source
+filename, lowercased) into the folder you pass. Calling without it returns a DataFrame directly.
+At 459.8 MB expanded, `save_to_path` is recommended over holding the full table in memory.
+
+DAC2b's 14 columns pair a code with a label for each dimension, the same legacy .Stat layout DAC1
+uses: `RECIPIENT`/`Recipient`, `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`,
+`DATATYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`. This differs from the 26-column
+layout `download_dac2b()` returns from the API. The bulk file carries a `PART` dimension (Part I
+developing countries / Part II) that the API dataflow does not expose, and its `AIDTYPE` codes are
+the legacy .Stat aid types (e.g. `204` "Other Long-term - Amounts Extended"), not the `MEASURE`
+codes listed on the [DAC2b page](datasets.md#dac2b-other-official-flows-and-export-credits). See
+[`bulk_download_dac2b()` Carries a `PART` Dimension the API Doesn't Expose](#bulk_download_dac2b-carries-a-part-dimension-the-api-doesnt-expose)
+below for the full comparison.
+
+`Flags` is empty throughout the current release and reads as `float64` `NaN`, the same
+unstable-dtype caveat DAC1's `Flags` column carries.
+
+OECD publishes DAC2b as a full dataset only. There is no year-specific file, unlike CRS.
+
+Iterators are supported:
+
+```python
+from oda_reader import bulk_download_dac2b
+
+for chunk in bulk_download_dac2b(as_iterator=True):
+    # process each chunk here
+    ...
+```
+
+!!! warning "Heads up"
+DAC2b is a zipped CSV, so `as_iterator=True` leaves peak memory unchanged, the same profile as
+`bulk_download_dac1(as_iterator=True)`. See the caveat under
+[Processing a Year-Specific File in Chunks](#processing-a-year-specific-file-in-chunks). Only
+what you accumulate chunk-by-chunk afterward is bounded.
+
 ## AidData Download
 
 AidData (Chinese development finance) comes from an Excel file automatically downloaded and parsed:
@@ -313,9 +363,9 @@ Bulk downloads already have `DonorCode`, `RecipientCode`, and similar PascalCase
 
 `CRS.parquet` and `CRS-reduced.parquet` (what `bulk_download_crs()` downloads) are bare parquet
 files, not zips, and OECD ships their columns in snake_case: `donor_code`, `donor_name`,
-`crs_id`. The year-specific CRS files from `download_crs_file()`, DAC2A, and Multisystem are
-zips and use PascalCase: `DonorCode`, `DonorName`, `CrsID`. DAC1 is a third pattern again,
-covered next.
+`crs_id`. The year-specific CRS files from `download_crs_file()` and Multisystem are zips and use
+PascalCase: `DonorCode`, `DonorName`, `CrsID`. DAC1, DAC2a, and DAC2b pair a code column with a
+label column instead, covered next.
 
 ```python
 from oda_reader import bulk_download_crs, download_crs_file
@@ -353,8 +403,35 @@ dac1_data = bulk_download_dac1()
 dac1_data["Aid type"]
 ```
 
-See [DAC1 Bulk Download](#dac1-bulk-download) above for the full column list and other usage
-details.
+`Table2a_Data.zip` and `Table2b_Data.zip` (`bulk_download_dac2a()` and `bulk_download_dac2b()`)
+share this same paired-column shape, unlike the year-specific CRS files and Multisystem above. See
+[`bulk_download_dac2b()` Carries a `PART` Dimension the API Doesn't Expose](#bulk_download_dac2b-carries-a-part-dimension-the-api-doesnt-expose)
+below for DAC2b's full column list, and [DAC1 Bulk Download](#dac1-bulk-download) above for
+DAC1's.
+
+### `bulk_download_dac2b()` Carries a `PART` Dimension the API Doesn't Expose
+
+`Table2b_Data.zip` (what `bulk_download_dac2b()` downloads) pairs a code column with a label
+column for each dimension, the same shape as DAC1's and DAC2a's bulk files: `RECIPIENT`/`Recipient`,
+`DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`, `DATATYPE`/`Amount type`, `TIME`/`Year`, plus
+`Value` and `Flags`.
+
+Two of those columns don't map cleanly onto `download_dac2b()`'s API columns:
+
+- `PART` (Part I developing countries / Part II) has no equivalent dimension in the API dataflow.
+- `AIDTYPE` carries legacy .Stat aid-type codes (e.g. `204` "Other Long-term - Amounts Extended"),
+  not the `MEASURE` codes the API uses (e.g. `2204` "OOF loans, disbursements"). The two code sets
+  differ, so filtering the bulk file on an `AIDTYPE` value and the API on the matching `MEASURE`
+  value can return different rows.
+
+```python
+from oda_reader import bulk_download_dac2b
+
+dac2b_data = bulk_download_dac2b()
+dac2b_data["Aid type"]
+```
+
+See [DAC2b Bulk Download](#dac2b-bulk-download) above for the full column list and usage details.
 
 ## Troubleshooting
 

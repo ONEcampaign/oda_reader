@@ -26,6 +26,7 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 1. [Installation](#installation)
 1. [DAC1](#downloading-dac1-data)
 1. [DAC2a](#downloading-dac2a-data)
+1. [DAC2b](#downloading-dac2b-data)
 1. [CRS](#downloading-crs-data)
 1. [CPA](#downloading-cpa-data)
 1. [Multisystem](#downloading-multisystem-data)
@@ -40,7 +41,7 @@ and Other Official Flows (OOFs) directly from the OECD API.
 
 ## Features
 
-- **Data Download Tools**: Easily download data from DAC1, DAC2a, the CRS and other datasets.
+- **Data Download Tools**: Easily download data from DAC1, DAC2a, DAC2b, the CRS and other datasets.
 - **Query Builder**: Construct complex SDMX API queries easily using `QueryBuilder`.
 - **Bulk download** microdata from the CRS, the Multisystem dataset, and other datasets.
 - **Schema Translation**: Translate OECD data to `.stat` schema for easier integration.
@@ -255,6 +256,104 @@ from oda_reader import download_dac2a
 dac2_data = download_dac2a(pre_process=True, dotstat_codes=False)
 ```
 
+### Downloading DAC2b Data
+
+The `download_dac2b()` function allows you to download DAC2b data (Other Official Flows and export
+credits) from the data-explorer API. DAC2b shares DAC2a's dimensions and filters (donor,
+recipient, measure, unit_measure, price_base). Its `measure` codes are OOF and export-credit
+aggregates, not ODA measures. It accepts the same arguments as `download_dac2a()`:
+
+- `start_year`: An integer like `2018`, specifying the starting year for the data.
+  This parameter is optional - if not provided, the starting date for the dataset is used.
+- `end_year`: An integer like `2022`, specifying the end year for the data.
+  This parameter is optional - if not provided, the returned data goes up to the most recent year.
+- `filters`: An optional dictionary containing additional filters to include in the API call.
+  See the [Using filters](#using-filters) section for more details.
+- `pre_process`: A boolean to specify if light cleaning of the data should be performed.
+  If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
+- `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
+  For this to work, `pre_process` must be true.
+- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
+  This is an advanced parameter and should be used only if necessary to override the default.
+
+This basic example will get all available data (all donors, all recipients, indicators, etc) from 2018 to 2022:
+
+```python
+from oda_reader import download_dac2b
+
+dac2b_data = download_dac2b(start_year=2018, end_year=2022)
+```
+
+You can also use filters to, for example, only get export credits (gross) from Germany to specific recipients:
+
+```python
+from oda_reader import download_dac2b
+
+dac2b_data = download_dac2b(
+  start_year=2022,
+  end_year=2022,
+  filters={"donor": "DEU", "recipient": ["KEN", "TZA"], "measure": "2292"}
+)
+```
+
+By default, ODA Reader performs basic preprocessing of the returned data, and it converts the response to the OECD.Stat schema. These options can be turned off to get the data exactly as returned by the API.
+
+```python
+from oda_reader import download_dac2b
+
+dac2b_data = download_dac2b(pre_process=False, dotstat_codes=False)
+```
+
+#### Bulk downloading DAC2b data
+
+OECD publishes the entire DAC2b table as one zipped CSV, 20.6 MB compressed and 2,281,210 rows,
+expanding to 459.8 MB. The `bulk_download_dac2b()` function downloads it. Saving it to disk converts
+it to parquet.
+
+It accepts the same arguments as `bulk_download_dac1()`:
+
+- `save_to_path`: A string or `Path` object specifying a folder where the parquet file should be
+  saved. If not provided, `bulk_download_dac2b` will return a Pandas DataFrame.
+- `as_iterator`: If `True` the function yields `DataFrame` chunks one at a time. DAC2b is a zipped
+  CSV, so this reads the whole file first and hands it back in slices. Peak memory during the
+  read matches the non-iterator call. Only what you accumulate afterward is bounded.
+- `use_raw_cache`: A boolean which defaults to `True`. Set to `False` to skip the on-disk cache
+  and always download fresh.
+
+**Note** that DAC2b's bulk file follows DAC1's and DAC2a's paired code/label layout: 14 columns pairing a code
+with a label for each dimension (`RECIPIENT`/`Recipient`, `DONOR`/`Donor`, `PART`/`Part`,
+`AIDTYPE`/`Aid type`, `DATATYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`). It
+carries a `PART` dimension and legacy `AIDTYPE` codes that `download_dac2b()`'s 26-column API
+response does not expose. See
+[Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#dac2b-bulk-download)
+in the docs for the full column comparison and the `Flags` dtype caveat.
+
+To save the full parquet file to `example-folder` (saved as `table2b_data.parquet`):
+
+```python
+from oda_reader import bulk_download_dac2b
+
+bulk_download_dac2b(save_to_path="./example-folder/")
+```
+
+To process the data iteratively:
+
+```python
+from oda_reader import bulk_download_dac2b
+
+for chunk in bulk_download_dac2b(as_iterator=True):
+    # process each chunk here
+    ...
+```
+
+To keep the full file in memory as a Pandas DataFrame:
+
+```python
+from oda_reader import bulk_download_dac2b
+
+dac2b_data = bulk_download_dac2b()
+```
+
 ### Downloading CRS Data
 
 The `download_crs()` function allows you to download CRS data from the data-explorer API.
@@ -393,7 +492,7 @@ It accepts a few different arguments:
   memory usage when working with very large files.
 
 **Note** that the files provided by the OECD follow the .Stat schema (codes), but their column
-*names* are snake_case (`donor_code`, `crs_id`), unlike every other bulk file, including
+_names_ are snake_case (`donor_code`, `crs_id`), unlike every other bulk file, including
 `download_crs_file()` below, which use PascalCase (`DonorCode`, `CrsID`). See
 [Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#bulk_download_crs-uses-different-column-casing-than-everything-else)
 in the docs for the full comparison.
@@ -678,6 +777,7 @@ The same applies to other sources:
 from oda_reader import get_available_filters
 
 dac2a_filters = get_available_filters(source="dac2a")
+dac2b_filters = get_available_filters(source="dac2b")
 crs_filters = get_available_filters(source="crs")
 multisystem_filters = get_available_filters(source="multisystem")
 ```

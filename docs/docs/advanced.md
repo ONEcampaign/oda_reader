@@ -34,7 +34,7 @@ This filter string can be used to manually construct API URLs.
 **Methods available**:
 
 - `build_dac1_filter(donor, sector, measure, flow_type, unit_measure, price_base)`
-- `build_dac2_filter(donor, recipient, measure, price_base, ...)` — serves both DAC2A and DAC2B; the old `build_dac2a_filter` name still works and is deprecated
+- `build_dac2_filter(donor, recipient, measure, price_base, ...)` — serves both DAC2a and DAC2b; the old `build_dac2a_filter` name still works and is deprecated
 - `build_crs_filter(donor, recipient, sector, channel, modality, microdata, ...)`
 - `build_multisystem_filter(donor, channel, flow_type, ...)`
 
@@ -85,6 +85,7 @@ data = download_dac1(
 
 - `download_dac1(dataflow_version=...)`
 - `download_dac2a(dataflow_version=...)`
+- `download_dac2b(dataflow_version=...)`
 - `download_crs(dataflow_version=...)`
 - `download_multisystem(dataflow_version=...)`
 
@@ -106,7 +107,7 @@ https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DF_DAC1/1.0/...
 
 ODA Reader uses the appropriate version for each dataset:
 
-- **DAC1, DAC2a**: API v2
+- **DAC1, DAC2a, DAC2b**: API v2
 - **CRS, CPA, Multisystem**: Custom endpoint (CRS-specific API)
 
 You generally don't need to worry about this - ODA Reader handles it automatically.

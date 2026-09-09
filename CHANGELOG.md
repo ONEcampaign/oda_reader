@@ -1,5 +1,37 @@
 # Changelog for oda_reader
 
+## 1.11.0 (2026-09-09)
+
+- **Adds `download_dac2b()` and `bulk_download_dac2b()`** for DAC2b (`DSD_DAC2@DF_DAC2B`, version
+  1.7), Other Official Flows and export credits. DAC2b shares DAC2a's dimensions, dimension
+  order, and CSV schema (both dataflows live under `DSD_DAC2`), so it reuses the same filter
+  builder and schema translation. Only the `measure` codes differ: OOF and export-credit
+  aggregates such as `2204` OOF loans disbursements and `2292` export credits gross.
+- **The DAC2b bulk file uses the legacy .Stat schema, not the API's 26-column layout.** OECD
+  publishes it as one zipped CSV, 20.6 MB compressed and 2,281,210 rows, expanding to 459.8 MB.
+  Its 14 columns pair a code with a label for each dimension (`RECIPIENT`/`Recipient`,
+  `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`, `DATATYPE`/`Amount type`, `TIME`/`Year`,
+  plus `Value` and `Flags`), the same layout `bulk_download_dac1()` and `bulk_download_dac2a()`
+  use. The bulk file carries a `PART` dimension the API dataflow does not expose, and its
+  `AIDTYPE` codes are legacy .Stat aid types, not the API's `MEASURE` codes. `Flags` is empty
+  throughout the current release and reads as `float64` NaN, the same unstable-dtype caveat
+  DAC1's bulk file carries.
+- **Renames the DAC2 filter builder and schema-translation function to be DAC2-generic**, since
+  both now serve DAC2a and DAC2b: `QueryBuilder.build_dac2a_filter` is now `build_dac2_filter`,
+  and `convert_dac2a_to_dotstat_codes` is now `convert_dac2_to_dotstat_codes`. Both old names still
+  work. They emit a `DeprecationWarning` and delegate to the new name, so existing calls to
+  `build_dac2a_filter`, `convert_dac2a_to_dotstat_codes`, or `get_available_filters("dac2a")` are
+  unaffected.
+- **Renames the shared DAC2 schema mapping file** from `dac2a_dotstat.json` to `dac2_dotstat.json`.
+  `read_schema_translation("dac2a")` and `read_schema_translation("dac2b")` both resolve to it
+  through the existing alias mechanism (the same one `cpa` uses to reuse the CRS schema), so
+  callers are unaffected.
+- **Corrects the docs for `bulk_download_dac2a()`'s bulk file columns.** They were previously
+  documented as PascalCase (`DonorCode`, `RecipientCode`), but the file returns the same 14
+  paired code/label columns as `bulk_download_dac1()` and `bulk_download_dac2b()`:
+  `RECIPIENT`/`Recipient`, `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`,
+  `DATATYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`.
+
 ## 1.10.0 (2026-08-13)
 
 - **Raises the Python floor to 3.12.** `requires-python` moves from `>=3.11` to `>=3.12`, the

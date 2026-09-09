@@ -2,7 +2,7 @@
 
 **Programmatic access to OECD DAC data**
 
-Working with OECD Development Assistance Committee (DAC) data can be frustrating. You need to navigate multiple datasets (DAC1, DAC2a, CRS,...), understand complex SDMX API syntax, manage toy rate limits, and reconcile different schema versions. The OECD doesn't provide any first-party Python library to help.
+Working with OECD Development Assistance Committee (DAC) data can be frustrating. You need to navigate multiple datasets (DAC1, DAC2a, DAC2b, CRS,...), understand complex SDMX API syntax, manage toy rate limits, and reconcile different schema versions. The OECD doesn't provide any first-party Python library to help.
 
 Unfortunately, the OECD has a habit of introducing undocumented schema changes, breaking link URLs, and making format changes without notice. What works today might break tomorrow, making it very difficult to build robust data pipelines for research and analysis.
 
@@ -10,7 +10,7 @@ ODA Reader eliminates these headaches. It provides a unified Python interface th
 
 **Key features**:
 
-- **Access 6+ datasets** through simple functions: DAC1, DAC2a, CRS, CPA, Multisystem, AidData
+- **Access 7 datasets** through simple functions: DAC1, DAC2a, DAC2b, CRS, CPA, Multisystem, AidData
 - **Apply filters easily**: `filters={"donor": "USA", "recipient": "NGA"}` works across datasets
 - **Bulk download large files** with memory-efficient streaming for the full CRS (1GB+)
 - **Automatic rate limiting** and caching to work within API constraints
@@ -39,4 +39,4 @@ us_uk_data = download_dac1(
 
 - [Why ODA Reader](why-oda-reader.md) - Understand the rationale and compare to alternatives
 - [Getting Started](getting-started.md) - Install and run your first queries in 5 minutes
-- [Datasets Overview](datasets.md) - Learn about the 6 available datasets
+- [Datasets Overview](datasets.md) - Learn about the 7 available datasets
