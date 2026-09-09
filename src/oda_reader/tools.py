@@ -7,7 +7,7 @@ from pprint import pprint
 def get_available_filters(source: str, quiet: bool = False) -> dict:
     """
     Get the available filters for a given source (printed and as a dictionary).
-    It can be "dac1", "dac2a", "multisystem", "crs", or "cpa".
+    It can be "dac1", "dac2a", "dac2b", "multisystem", "crs", or "cpa".
 
     Args:
         source: The source to get the filters for.
@@ -24,6 +24,8 @@ def get_available_filters(source: str, quiet: bool = False) -> dict:
         case "dac1":
             f = qb.build_dac1_filter.__annotations__
         case "dac2a":
+            f = qb.build_dac2_filter.__annotations__
+        case "dac2b":
             f = qb.build_dac2_filter.__annotations__
         case "multisystem":
             f = qb.build_multisystem_filter.__annotations__

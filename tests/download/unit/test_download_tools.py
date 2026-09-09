@@ -1070,6 +1070,19 @@ class TestParseExtResourcesRealFixtures:
         )
         assert resource.version is None
 
+    def test_dac2b_unsuffixed_label(self):
+        """The DAC2B fixture's label carries no -vYYYYMMDD suffix at all --
+        the lookup must still match it as-is, and the version token must be
+        None (get_bulk_file_url_with_version falls back to an ETag/
+        Last-Modified HEAD request for this case, not tested here)."""
+        resources = _parse_ext_resources(self._load("dataflow_dac2b.xml"))
+        resource = resources["DAC2B full dataset (dotStat format)"]
+        assert (
+            resource.url
+            == "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2b_Data.zip"
+        )
+        assert resource.version is None
+
     def test_multisystem_suffixed_label(self):
         resources = _parse_ext_resources(self._load("dataflow_multi.xml"))
         resource = resources["Entire dataset (dotStat format)"]

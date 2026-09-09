@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--NSI Web Service v8.19.8.0-->
+<message:Structure xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common">
+  <message:Header>
+    <message:ID>IDREF8152</message:ID>
+    <message:Test>false</message:Test>
+    <message:Prepared>2026-09-09T12:21:52.0766485+02:00</message:Prepared>
+    <message:Sender id="Unknown" />
+    <message:Receiver id="Unknown" />
+  </message:Header>
+  <message:Structures>
+    <structure:Dataflows>
+      <structure:Dataflow id="DSD_DAC2@DF_DAC2B" agencyID="OECD.DCD.FSD" version="1.7" isFinal="true">
+        <common:Annotations>
+          <common:Annotation>
+            <common:AnnotationType>NonProductionDataflow</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">true</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>RECIPIENT</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>TIME_PERIOD</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_COLUMN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MEASURE</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW_SECTION</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>1</common:AnnotationTitle>
+            <common:AnnotationType>SEARCH_WEIGHT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>OBS_STATUS=A,FLOW_TYPE</common:AnnotationTitle>
+            <common:AnnotationType>NOT_DISPLAYED</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>RECIPIENT=DPGC,DONOR=DAC+AUS+AUT+BEL+CAN+CZE+DNK+EST+FIN+FRA+DEU+GRC+HUN+ISL+IRL+ITA+JPN+KOR+LVA+LTU+LUX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+GBR+USA,PRICE_BASE=Q,UNIT_MEASURE=USD</common:AnnotationTitle>
+            <common:AnnotationType>DEFAULT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR:OECD.DCD.FSD:HCL_DACDONORS(1.6).H,RECIPIENT:OECD.DCD.FSD:HCL_DACRECIPIENTS(1.5).H</common:AnnotationTitle>
+            <common:AnnotationType>HIER_CONTEXT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>UNIT_MEASURE,UNIT_MULT,BASE_PER</common:AnnotationTitle>
+            <common:AnnotationType>COMBINED_CONCEPTS</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">COMBINED_UNIT_MEASURE:Unit of measure</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">;COMBINED_UNIT_MEASURE:Unité de mesure</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">DAC2B full dataset (dotStat format)|https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2b_Data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">Données completes CAD2B (formatté dotStat)|https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2b_Data.zip</common:AnnotationText>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">DAC2B: Other official flows (OOF) and export credits</common:Name>
+        <common:Name xml:lang="fr">CAD2B: Autres apports du secteur public (AASP) et crédits à l'exportation</common:Name>
+        <common:Description xml:lang="en">&lt;p&gt;This dataset provides aggregate statistics on the geographical distribution of bilateral and multilateral disbursements of other official flows (OOF) to developing countries and territories on the DAC List of ODA Recipients and multilateral agencies that are ODA-eligible, including private sector instruments and officially-supported export credits.&lt;/p&gt;&lt;p&gt;OOF (excluding export credits) are transactions that do not meet the conditions for eligibility as ODA, either because they are not primarily aimed at development, or they are not sufficiently concessional. Further information on the criteria for OOF are available in Chapter 1 of the Converged Statistical Reporting Directives. Officially supported export credits are extended by government-owned or -controlled specialised export-financing agencies or institutions for commercial purposes to finance a specific purchase of goods or services from within the creditor country.&lt;/p&gt;&lt;p&gt;To assist with the transition between systems, we provide a &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/dotStat/Correspondences_DAC2b.csv"&gt;mapping of codes&lt;/a&gt; between OECD.Stat (legacy) and the OECD Data Explorer. Please consult our database of &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;development finance classifications&lt;/a&gt; for further information on all possible codes for each attribute. We also have a &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;codebook for the DAC and CRS tables&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;For more information on these flows, please see the OECD's main page on &lt;a href="https://www.oecd.org/en/topics/official-development-assistance-oda.html"&gt;official development assistance&lt;/a&gt; and &lt;a href="https://www.oecd.org/en/topics/finance-for-sustainable-development.html"&gt;finance for sustainable development&lt;/a&gt;, including &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;frequently asked questions (FAQs)&lt;/a&gt; on ODA. See also the &lt;a href="https://one.oecd.org/document/DCD/DAC(2024)40/FINAL/en/pdf"&gt;converged statistical reporting directives&lt;/a&gt; governing these data, alongside &lt;a href="https://www.oecd.org/content/oecd/en/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;other guidance on using our data&lt;/a&gt;, and a &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;DE User guide for DAC/CRS statistics&lt;/a&gt;. You may also be interested in our latest &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;dashboards&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;While you are here, please take a moment to &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;answer our short survey&lt;/a&gt; to inform the next generation of dissemination tools of OECD development finance statistics.&lt;/p&gt;</common:Description>
+        <common:Description xml:lang="fr">&lt;p&gt;Cet ensemble de données fournit des statistiques agrégées sur la répartition géographique des versements bilatéraux et multilatéraux d'autres apports du secteur public (AASP) aux pays et territoires en développement figurant sur la liste des bénéficiaires de l'APD du CAD et aux agences multilatérales éligibles à l'APD, y compris les instruments du secteur privé et les crédits à l'exportation bénéficiant d'un soutien public.&lt;/p&gt;&lt;p&gt;L'AASP (à l'exclusion des crédits à l'exportation) sont des transactions qui ne remplissent pas les conditions d'éligibilité à l'APD, soit parce qu'elles ne sont pas principalement destinées au développement, soit parce qu'elles ne sont pas suffisamment concessionnelles. De plus amples informations sur les critères de l'AASP sont disponibles dans le chapitre 1 des directives de notification statistique convergées. Les crédits à l'exportation bénéficiant d'un soutien public sont accordés par des agences ou institutions spécialisées dans le financement des exportations, détenues ou contrôlées par l'État, à des fins commerciales pour financer un achat spécifique de biens ou de services dans le pays créancier.&lt;/p&gt;&lt;p&gt;Pour faciliter la transition entre les systèmes, nous fournissons une &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/dotStat/Correspondences_DAC2b.csv"&gt;correspondance des codes&lt;/a&gt; entre OECD.Stat (ancien système) et OECD Data Explorer. Veuillez consulter notre base de données des &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;classifications du financement du développement&lt;/a&gt; pour plus d'informations sur tous les codes possibles pour chaque attribut. Nous disposons également d'un &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;manuel des codes pour les tableaux du CAD et SNPC&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Pour plus d'informations sur ces flux, veuillez consulter la page principale de l'OCDE sur &lt;a href="https://www.oecd.org/fr/themes/aide-publique-au-developpement-apd.html"&gt;l'aide publique au développement&lt;/a&gt; et le &lt;a href="https://www.oecd.org/fr/cad/financementpourledeveloppementdurable/statistiques-financement-developpement/"&gt;financement du développement durable&lt;/a&gt;, y compris la &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;foire aux questions (FAQ)&lt;/a&gt; sur l'APD. Voir également les &lt;a href="https://one.oecd.org/document/DCD/DAC/STAT(2023)9/FINAL/en/pdf"&gt;directives de notification statistique convergées&lt;/a&gt; (en anglais) régissant ces données, ainsi que d'autres &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;conseils sur l'utilisation de nos données&lt;/a&gt;, ainsi qu'un &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;guide d'utilisation de l'ED consacré aux statistiques du CAD et du CRS&lt;/a&gt; (en anglais). Nos derniers &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;tableaux de bord&lt;/a&gt; pourraient également vous intéresser.&lt;/p&gt;&lt;p&gt;Profitez de votre visite pour &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;répondre à notre brève enquête&lt;/a&gt; (en anglais) afin de contribuer à l'élaboration de la prochaine génération d'outils de diffusion des statistiques de l'OCDE sur le financement du développement.&lt;/p&gt;</common:Description>
+        <structure:Structure>
+          <Ref id="DSD_DAC2" version="1.7" agencyID="OECD.DCD.FSD" package="datastructure" class="DataStructure" />
+        </structure:Structure>
+      </structure:Dataflow>
+    </structure:Dataflows>
+  </message:Structures>
+</message:Structure>

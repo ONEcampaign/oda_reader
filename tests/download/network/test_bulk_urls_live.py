@@ -20,6 +20,7 @@ from oda_reader._http_primitives import DEFAULT_HEADERS
 from oda_reader.crs import CRS_FLOW_URL
 from oda_reader.dac1 import DAC1_BULK_LABEL, DAC1_FLOW_URL
 from oda_reader.dac2a import DAC2A_BULK_LABEL, DAC2A_FLOW_URL
+from oda_reader.dac2b import DAC2B_BULK_LABEL, DAC2B_FLOW_URL
 from oda_reader.download.download_tools import get_bulk_file_url
 from oda_reader.multisystem import MULTI_FLOW_URL, MULTISYSTEM_BULK_LABEL
 
@@ -33,6 +34,7 @@ REGISTRY: list[tuple[str, str, str]] = [
     ("CRS reduced parquet", CRS_FLOW_URL, "CRS-reduced-parquet"),
     ("DAC1 full dataset", DAC1_FLOW_URL, DAC1_BULK_LABEL),
     ("DAC2A full dataset", DAC2A_FLOW_URL, DAC2A_BULK_LABEL),
+    ("DAC2B full dataset", DAC2B_FLOW_URL, DAC2B_BULK_LABEL),
     ("Multisystem entire dataset", MULTI_FLOW_URL, MULTISYSTEM_BULK_LABEL),
 ]
 

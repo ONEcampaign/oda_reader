@@ -37,6 +37,7 @@ from oda_reader.cpa import download_cpa
 from oda_reader.crs import bulk_download_crs, download_crs, download_crs_file
 from oda_reader.dac1 import bulk_download_dac1, download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
+from oda_reader.dac2b import bulk_download_dac2b, download_dac2b
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import clear_version_cache
 
@@ -131,6 +132,8 @@ __all__ = [
     "bulk_download_dac1",
     "download_dac2a",
     "bulk_download_dac2a",
+    "download_dac2b",
+    "bulk_download_dac2b",
     "download_multisystem",
     "bulk_download_multisystem",
     "download_crs",

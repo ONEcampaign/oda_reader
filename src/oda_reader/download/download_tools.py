@@ -53,6 +53,7 @@ BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"
 DAC1_FLOW_URL = BASE_DATAFLOW + "DSD_DAC1@DF_DAC1/"
 DAC2A_FLOW_URL = BASE_DATAFLOW + "DSD_DAC2@DF_DAC2A/"
+DAC2B_FLOW_URL = BASE_DATAFLOW + "DSD_DAC2@DF_DAC2B/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
 AIDDATA_VERSION = "3.0"
 AIDDATA_DOWNLOAD_URL = (
@@ -397,6 +398,10 @@ def download(
             "convert_func": convert_dac1_to_dotstat_codes,
         },
         "dac2a": {
+            "filter_builder": qb.build_dac2_filter,
+            "convert_func": convert_dac2_to_dotstat_codes,
+        },
+        "dac2b": {
             "filter_builder": qb.build_dac2_filter,
             "convert_func": convert_dac2_to_dotstat_codes,
         },
