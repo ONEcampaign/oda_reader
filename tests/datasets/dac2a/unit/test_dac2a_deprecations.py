@@ -27,12 +27,13 @@ class TestBuildDac2aFilterAlias:
 
         assert old_result == new_result
 
-    def test_annotations_match_via_functools_wraps(self):
-        """`functools.wraps` must carry `__annotations__` onto the alias.
+    def test_annotations_match_build_dac2_filter(self):
+        """The alias's own typed signature carries the same parameter names.
 
         `get_available_filters` reads `__annotations__` off whichever object
-        it is handed; a bare wrapper would return an empty filter dict for
-        anyone still on the old name.
+        it is handed, so the alias's explicit signature must stay in lockstep
+        with `build_dac2_filter`'s parameters and their types for anyone
+        still on the old name.
         """
         assert (
             QueryBuilder.build_dac2a_filter.__annotations__
@@ -40,12 +41,7 @@ class TestBuildDac2aFilterAlias:
         )
 
     def test_alias_keeps_its_own_identity(self):
-        """`functools.wraps` must not erase the alias's own name/docstring.
-
-        `functools.wraps` also copies `__name__`/`__qualname__`/`__doc__`
-        from the wrapped function; those must be restored to the alias's
-        own so `help()` and tracebacks still show it as deprecated.
-        """
+        """The alias keeps its own name and a docstring that says deprecated."""
         assert QueryBuilder.build_dac2a_filter.__name__ == "build_dac2a_filter"
         assert "deprecated" in QueryBuilder.build_dac2a_filter.__doc__.lower()
 

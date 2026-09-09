@@ -1,8 +1,6 @@
 """A module for constructing SDMX API queries for the OECD data."""
 
-import functools
 import warnings
-from typing import Any
 
 from oda_reader.common import logger
 
@@ -205,8 +203,14 @@ class QueryBuilder:
 
         return ".".join([donor, recipient, measure, unit_measure, price_base])
 
-    @functools.wraps(build_dac2_filter)
-    def build_dac2a_filter(self, *args: Any, **kwargs: Any) -> str:
+    def build_dac2a_filter(
+        self,
+        donor: str | list[str] | None = None,
+        recipient: str | list[str] | None = None,
+        measure: str | int | list[str] | list[int] | None = None,
+        unit_measure: str | list[str] | None = None,
+        price_base: str | list[str] | None = None,
+    ) -> str:
         """Deprecated alias for `build_dac2_filter`.
 
         Kept so existing code built against the DAC2A-only name keeps
@@ -218,20 +222,13 @@ class QueryBuilder:
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.build_dac2_filter(*args, **kwargs)
-
-    # functools.wraps above copies __annotations__ (get_available_filters
-    # depends on it) but also overwrites __name__/__qualname__/__doc__ with
-    # build_dac2_filter's -- restore the alias's own identity so its
-    # deprecation is visible in help() and tracebacks.
-    build_dac2a_filter.__name__ = "build_dac2a_filter"
-    build_dac2a_filter.__qualname__ = "QueryBuilder.build_dac2a_filter"
-    build_dac2a_filter.__doc__ = (
-        "Deprecated alias for `build_dac2_filter`.\n\n"
-        "Kept so existing code built against the DAC2A-only name keeps "
-        "working. `build_dac2_filter` is the DAC2-generic name and also "
-        "serves DAC2B."
-    )
+        return self.build_dac2_filter(
+            donor=donor,
+            recipient=recipient,
+            measure=measure,
+            unit_measure=unit_measure,
+            price_base=price_base,
+        )
 
     def build_crs_filter(
         self,
