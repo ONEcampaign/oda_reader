@@ -121,11 +121,7 @@ API_RATE_LIMITER = RateLimiter()
 # Bulk-download headers and session
 # ---------------------------------------------------------------------------
 
-# webfs-dcd.oecd.org (the bulk file host) answers a plain requests-style
-# header set with a Cloudflare challenge (403, cf-mitigated: challenge). A
-# browser-like header set reliably clears it (verified 6/6 trials). This is
-# a pragmatic unblock for a public download endpoint, not a durable
-# contract -- if Cloudflare tightens further, this will need to change again.
+# Compatibility headers for requests to OECD's bulk-file host.
 DEFAULT_HEADERS: dict[str, str] = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "

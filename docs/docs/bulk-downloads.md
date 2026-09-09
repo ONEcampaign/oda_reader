@@ -448,7 +448,39 @@ See [DAC2b Bulk Download](#dac2b-bulk-download) above for the full column list a
 
 **Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached. Each attempt has a 10-second connect / 60-second read timeout, so a stalled connection now fails with an error instead of hanging indefinitely.
 
-**403 errors**: OECD's bulk-file host sits behind a Cloudflare challenge that rejects the default Python client headers. ODA Reader sends browser-like headers automatically and retries a 403 up to 3 times (1s/2s/4s backoff) before raising. If you're behind a corporate proxy that rewrites the `User-Agent` header, the challenge can still fail, so check what header your proxy is forwarding.
+### Cloudflare challenge (`BulkDownloadChallengeError`)
+
+Cloudflare can require an interactive browser check on an OECD bulk-file
+request. These checks require browser execution. ODA Reader raises
+`BulkDownloadChallengeError` and includes the `cf_ray` value supplied by
+OECD/Cloudflare. Include that value when reporting the failure to OECD.
+
+When bulk access is unavailable, choose a narrowly filtered API request
+explicitly.
+
+```python
+from oda_reader import download_dac1
+
+dac1_2024 = download_dac1(
+    start_year=2024,
+    end_year=2024,
+    filters={"donor": "USA"},
+)
+```
+
+```python
+from oda_reader import download_crs
+
+crs_2024 = download_crs(
+    start_year=2024,
+    end_year=2024,
+    filters={"donor": "USA", "recipient": "KEN"},
+)
+```
+
+Keep API requests bounded by time period and filters. Bulk files and API
+responses use different schemas. The DAC1 API omits the bulk-file `PART`
+dimension.
 
 **Column names don't match examples**: You're likely comparing bulk downloads (.Stat schema) to API downloads, or comparing `bulk_download_crs()` output to `download_crs_file()` output. See the column-casing difference above, and [Schema Translation](schema-translation.md) for the API-vs-bulk comparison.
 
