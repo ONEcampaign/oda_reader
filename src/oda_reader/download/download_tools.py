@@ -33,6 +33,7 @@ from oda_reader.common import (
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import discover_latest_version
 from oda_reader.exceptions import (
+    BulkDownloadChallengeError,
     BulkDownloadHTTPError,
     BulkPayloadCorruptError,
     validate_payload_or_raise,
@@ -88,6 +89,10 @@ _ALLOWED_URL_HOST_SUFFIXES = (".oecd.org",)
 # follows redirects itself instead, capped here, re-validating every hop.
 _MAX_REDIRECT_HOPS = 5
 
+# Error responses are streamed. Keep diagnostic previews bounded so the server
+# cannot make the error path buffer an arbitrarily large response body.
+_BULK_DOWNLOAD_ERROR_PREVIEW_BYTES = 1024
+
 _PARQUET_MAGIC = b"PAR1"
 
 # Rows per yielded chunk on the delimited (csv/txt) as_iterator path. Large
@@ -97,11 +102,9 @@ _PARQUET_MAGIC = b"PAR1"
 # point of bounding memory.
 _CSV_ITERATOR_CHUNK_SIZE = 100_000
 
-# _stream_to_file retries a 403 (Cloudflare challenge) up to 3 times with
-# this backoff. A challenge is normally deterministic per header set, so
-# retries mostly buy latency -- but intermittent challenges were observed,
-# so they do earn their keep. A 404 is never retried here; it fails fast
-# into the caller's re-resolve path instead.
+# _stream_to_file retries transient transport failures and truncated transfers
+# up to three times with this backoff. HTTP errors and Cloudflare challenges
+# raise after the first response.
 _STREAM_RETRY_BACKOFF_SECONDS = (1, 2, 4)
 
 # Same set codelists/_fetch.py's _handshake_request retries on, and the same
@@ -837,41 +840,87 @@ def _check_truncated(
     return None
 
 
+def _get_header_case_insensitively(
+    headers: typing.Mapping[str, str], name: str
+) -> str | None:
+    """Return a response header regardless of how its name was cased."""
+    expected = name.casefold()
+    for key, value in headers.items():
+        if key.casefold() == expected:
+            return value
+    return None
+
+
+def _get_bounded_response_body_preview(response: requests.Response) -> str:
+    """Return a bounded decoded preview from a streamed response.
+
+    Reading ``response.text`` would buffer the whole response, so this helper
+    reads one small chunk. A transport error while reading the optional preview
+    returns an empty string.
+    """
+    try:
+        chunk = next(
+            response.iter_content(chunk_size=_BULK_DOWNLOAD_ERROR_PREVIEW_BYTES),
+            b"",
+        )
+    except _TRANSIENT_STREAM_EXCEPTIONS:
+        # The HTTP status and challenge marker are already known. Preserve
+        # that result when the optional diagnostic read fails.
+        return ""
+    return chunk[:_BULK_DOWNLOAD_ERROR_PREVIEW_BYTES].decode(
+        response.encoding or "utf-8", errors="replace"
+    )
+
+
+def _classify_bulk_download_response(
+    response: requests.Response, *, url: str
+) -> BulkDownloadHTTPError | None:
+    """Return an exception for an unusable bulk-download response.
+
+    Classify a Cloudflare challenge before HTTP status because its marker can
+    accompany a response with any status.
+    """
+    status_code = response.status_code
+    if status_code is None:
+        raise RuntimeError("Bulk download response has no HTTP status code.")
+    challenge = _get_header_case_insensitively(response.headers, "cf-mitigated")
+    if challenge is not None and challenge.casefold() == "challenge":
+        return BulkDownloadChallengeError(
+            status_code=status_code,
+            url=url,
+            body=_get_bounded_response_body_preview(response),
+            cf_ray=_get_header_case_insensitively(response.headers, "cf-ray"),
+        )
+    if not 200 <= status_code <= 299:
+        return BulkDownloadHTTPError(
+            status_code=status_code,
+            url=url,
+            body=_get_bounded_response_body_preview(response),
+        )
+    return None
+
+
 def _stream_to_file(url: str, headers: dict, path: Path) -> None:
     """Stream a URL to the given file path.
 
-    Uses the shared bulk-stream session with browser-like headers merged in
-    (webfs-dcd.oecd.org 403s the package's plain headers behind a Cloudflare
-    challenge) and a (10s connect, 60s read) timeout, since a hung
-    connection would otherwise block forever.
+    Uses the shared bulk-stream session, browser-like compatibility headers,
+    and a 10-second connect / 60-second read timeout. An interactive Cloudflare
+    challenge raises ``BulkDownloadChallengeError``.
 
-    Every hop -- the initial URL and any redirect the server sends -- is
-    checked against the OECD host allowlist by `_get_with_validated_redirects`.
-    This also means the allowlist applies here regardless of how `url`
-    arrived, including a URL handed straight to
-    `bulk_download_parquet(url=...)` that never went through
-    `get_bulk_file_url`.
+    The initial URL and every redirect are checked against the OECD host
+    allowlist. This also protects URLs passed directly to
+    ``bulk_download_parquet(url=...)``.
 
-    Retries a 403, a truncated transfer (see `_check_truncated` -- bytes
-    written don't match `Content-Length`; truncation is the dominant
-    real-world corruption mode for a large streamed download), or one of
-    `_TRANSIENT_STREAM_EXCEPTIONS`, up to ``len(_STREAM_RETRY_BACKOFF_SECONDS)``
-    times with that backoff. A 404 is never retried -- bulk-download URLs
-    are permanently stable, so a 404 here means the URL was resolved from
-    an annotation that's since gone stale in a way version-token
-    invalidation didn't already catch (a retired dataflow version, or OECD
-    renaming/removing the file), not a transient blip a retry could fix. It
-    fails straight into the caller's re-resolve-and-retry-once path instead
-    of burning backoff here. Nor is a permanent,
-    request-is-malformed error like `MissingSchema` -- those can't be fixed
-    by retrying, so they propagate on the first attempt (in practice
-    `_validate_allowed_host` inside `_get_with_validated_redirects` already
-    rejects a malformed URL before it reaches `requests` at all; this is the
-    defense-in-depth backstop for whatever that check doesn't anticipate).
-    Each attempt reopens ``path`` with "wb" (a partial write from a failed
-    attempt is truncated, not appended to) and re-invokes
-    ``API_RATE_LIMITER.wait()``, so retries stay inside the same
-    process-wide throttle as every other request.
+    Retries truncated transfers and the errors in
+    ``_TRANSIENT_STREAM_EXCEPTIONS`` up to
+    ``len(_STREAM_RETRY_BACKOFF_SECONDS)`` times with that backoff. All HTTP
+    errors and Cloudflare challenges raise after one response.
+    ``bulk_download_parquet`` refreshes annotation metadata once after a 404
+    because that status can identify a stale annotation. Other HTTP errors and
+    challenges leave the annotation cache untouched. Permanent request-format
+    errors, such as ``MissingSchema``, also propagate on the first attempt.
+    Each attempt reopens ``path`` with ``wb`` and calls
+    ``API_RATE_LIMITER.wait()``.
     """
     request_headers = {**DEFAULT_HEADERS, **headers}
     session = _get_bulk_stream_session()
@@ -888,16 +937,9 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
             with _get_with_validated_redirects(
                 session, url, request_headers, timeout=(10, 60)
             ) as r:
-                if r.status_code > 299:
-                    if r.status_code == 403 and not is_last_attempt:
-                        logger.debug(
-                            f"403 from {url} on attempt {attempt}/{max_attempts}; "
-                            "retrying with a fresh connection."
-                        )
-                        continue
-                    raise BulkDownloadHTTPError(
-                        status_code=r.status_code, url=url, body=r.text
-                    )
+                response_error = _classify_bulk_download_response(r, url=url)
+                if response_error is not None:
+                    raise response_error
 
                 bytes_written = 0
                 with path.open("wb") as f:
@@ -1255,18 +1297,9 @@ def bulk_download_parquet(
             or if both are.
 
     Note:
-        The annotation XML that `url` was resolved from is cached for 7
-        days. Routine republishing is already handled elsewhere: the URL
-        itself is permanently stable (unlike the old GUID URLs, which
-        rotated on every republish), so `version` (see above) is what
-        forces a refetch when OECD republishes -- before any request is
-        even made. This recovery covers a narrower case: the resolved URL
-        going dead between resolution and fetch, e.g. a retired dataflow
-        version or a renamed/moved file. A plain retry would just
-        re-request the same dead URL from the same stale annotation cache,
-        so if `flow_url` and `label` are given, a final 404 or 403 here
-        re-resolves the URL (and its version token) with that annotation
-        cache bypassed and retries the download once before giving up.
+        If the resolved URL returns 404, the reader re-resolves the dataflow
+        annotation once. Challenges and other 403 responses are reported
+        immediately.
     """
     if is_txt is not None:
         warnings.warn(
@@ -1324,7 +1357,7 @@ def bulk_download_parquet(
     try:
         manager, payload_path, url_key = _fetch(url, version)
     except BulkDownloadHTTPError as e:
-        if e.status_code not in (404, 403) or flow_url is None or label is None:
+        if e.status_code != 404 or flow_url is None or label is None:
             raise
         logger.info(
             f"{url} returned HTTP {e.status_code}; re-resolving with the "

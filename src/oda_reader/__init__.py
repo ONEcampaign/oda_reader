@@ -46,6 +46,7 @@ from oda_reader.download.version_discovery import clear_version_cache
 # convert_* call must stay network-free. Callers import it explicitly:
 #     from oda_reader.codelists import fetch_codelists  # noqa: ERA001
 from oda_reader.exceptions import (
+    BulkDownloadChallengeError,
     BulkDownloadHTTPError,
     BulkPayloadCorruptError,
     CodelistError,
@@ -121,6 +122,7 @@ __all__ = [
     # Boundary contract
     "BulkPayloadCorruptError",
     "BulkDownloadHTTPError",
+    "BulkDownloadChallengeError",
     "CodelistError",
     "CodelistFetchError",
     "CodelistSourceError",

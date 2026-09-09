@@ -11,6 +11,7 @@ import pyarrow.parquet as pq
 import pytest
 import requests
 
+from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
 from oda_reader._cache.manager import CacheManager
 from oda_reader.common import get_data_from_api
 from oda_reader.download.download_tools import (
@@ -30,7 +31,11 @@ from oda_reader.download.download_tools import (
     get_bulk_file_id,
     get_bulk_file_url,
 )
-from oda_reader.exceptions import BulkDownloadHTTPError, BulkPayloadCorruptError
+from oda_reader.exceptions import (
+    BulkDownloadChallengeError,
+    BulkDownloadHTTPError,
+    BulkPayloadCorruptError,
+)
 
 _FIXTURES_DIR = Path(__file__).parent.parent.parent / "fixtures" / "dataflow"
 
@@ -1271,10 +1276,15 @@ class _FakeStreamResponse:
     ):
         self.status_code = status_code
         self.text = text
+        self.encoding = None
         self.headers = headers or {}
-        self._chunks = chunks or []
+        self._chunks = (
+            chunks if chunks is not None else ([text.encode()] if text else [])
+        )
+        self.requested_chunk_sizes: list[int] = []
 
     def iter_content(self, chunk_size: int = 8192):
+        self.requested_chunk_sizes.append(chunk_size)
         return iter(self._chunks)
 
     def close(self):
@@ -1289,7 +1299,7 @@ class _FakeStreamResponse:
 
 @pytest.mark.unit
 class TestStreamToFileRetry:
-    """`_stream_to_file`'s 403 retry-with-backoff and 404 fail-fast."""
+    """Tests response classification and retry behaviour in `_stream_to_file`."""
 
     @staticmethod
     def _fake_response(
@@ -1302,8 +1312,8 @@ class TestStreamToFileRetry:
             status_code, chunks=chunks, text=text, headers=headers
         )
 
-    def test_403_then_200_retries_and_succeeds(self, mocker, tmp_path):
-        mocker.patch("oda_reader.download.download_tools.time.sleep")
+    def test_generic_403_fails_fast_after_one_request(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
         # The global rate limiter accumulates call timestamps across the
         # whole test session; stub it out so its own internal sleep() calls
         # (unrelated to this test's retry backoff) can't pollute the
@@ -1320,10 +1330,13 @@ class TestStreamToFileRetry:
         )
         target = tmp_path / "out.bin"
 
-        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
 
-        assert target.read_bytes() == b"chunk1chunk2"
-        assert session.get.call_count == 2
+        assert type(exc_info.value) is BulkDownloadHTTPError
+        assert exc_info.value.status_code == 403
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
 
     def test_404_fails_fast_with_no_backoff(self, mocker, tmp_path):
         mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
@@ -1370,11 +1383,15 @@ class TestStreamToFileRetry:
         assert session.get.call_count == 1
         mock_sleep.assert_not_called()
 
-    def test_403_exhausts_all_retries_then_raises(self, mocker, tmp_path):
-        mocker.patch("oda_reader.download.download_tools.time.sleep")
+    def test_challenge_raises_subclass_after_one_request(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
         session = mocker.Mock()
-        session.get.return_value = self._fake_response(403, text="challenge")
+        session.get.return_value = self._fake_response(
+            403,
+            text="challenge",
+            headers={"Cf-Mitigated": "ChAlLeNgE", "CF-Ray": "abc123"},
+        )
         mocker.patch(
             "oda_reader.download.download_tools._get_bulk_stream_session",
             return_value=session,
@@ -1383,10 +1400,157 @@ class TestStreamToFileRetry:
         with pytest.raises(BulkDownloadHTTPError) as exc_info:
             _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
 
+        assert isinstance(exc_info.value, BulkDownloadChallengeError)
+        assert isinstance(exc_info.value, ConnectionError)
         assert exc_info.value.status_code == 403
-        # 1 initial attempt + 3 backoff retries, matching
-        # _STREAM_RETRY_BACKOFF_SECONDS = (1, 2, 4).
-        assert session.get.call_count == 4
+        assert exc_info.value.url == "https://sdmx.oecd.org/f.zip"
+        assert exc_info.value.body == "challenge"
+        assert exc_info.value.cf_ray == "abc123"
+        assert "Ray ID abc123" in str(exc_info.value)
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_challenge_without_ray_instructs_user_to_contact_oecd(
+        self, mocker, tmp_path
+    ):
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(
+            403, headers={"cf-mitigated": "challenge"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert exc_info.value.cf_ray is None
+        assert "Contact OECD support" in str(exc_info.value)
+
+    def test_challenge_header_wins_over_2xx_status(self, mocker, tmp_path):
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(
+            200, headers={"cf-mitigated": "challenge", "cf-ray": "ray-2xx"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert exc_info.value.status_code == 200
+        assert exc_info.value.cf_ray == "ray-2xx"
+        assert session.get.call_count == 1
+
+    def test_http_error_body_preview_is_bounded(self, mocker, tmp_path):
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        response = self._fake_response(503, chunks=[b"x" * 4096])
+        session = mocker.Mock()
+        session.get.return_value = response
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert response.requested_chunk_sizes == [1024]
+        assert exc_info.value.body == "x" * 500
+
+    def test_challenge_body_preview_is_bounded(self, mocker, tmp_path):
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        response = self._fake_response(
+            200,
+            chunks=[b"x" * 4096],
+            headers={"cf-mitigated": "challenge"},
+        )
+        session = mocker.Mock()
+        session.get.return_value = response
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert response.requested_chunk_sizes == [1024]
+        assert exc_info.value.body == "x" * 500
+
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ContentDecodingError,
+        ],
+    )
+    def test_challenge_is_preserved_when_body_preview_fails(
+        self, mocker, tmp_path, error_type
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        response = self._fake_response(
+            200, headers={"cf-mitigated": "challenge", "cf-ray": "ray-preview"}
+        )
+        mocker.patch.object(response, "iter_content", side_effect=error_type("broken"))
+        session = mocker.Mock()
+        session.get.return_value = response
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert exc_info.value.status_code == 200
+        assert exc_info.value.body == ""
+        assert exc_info.value.cf_ray == "ray-preview"
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ContentDecodingError,
+        ],
+    )
+    def test_http_error_is_preserved_when_body_preview_fails(
+        self, mocker, tmp_path, error_type
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        response = self._fake_response(503)
+        mocker.patch.object(response, "iter_content", side_effect=error_type("broken"))
+        session = mocker.Mock()
+        session.get.return_value = response
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert type(exc_info.value) is BulkDownloadHTTPError
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.body == ""
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_challenge_error_is_publicly_importable(self):
+        assert PublicBulkDownloadChallengeError is BulkDownloadChallengeError
 
     def test_truncated_download_retries_and_succeeds(self, mocker, tmp_path):
         """Bytes written short of Content-Length is retried, not a hard failure."""
@@ -1663,8 +1827,7 @@ class TestStaleAnnotationRecovery:
 
         mock_resolve.assert_not_called()
 
-    def test_non_404_403_status_is_not_retried(self, mocker):
-        """A 500 (or anything outside 404/403) is not treated as stale-annotation."""
+    def test_500_leaves_annotation_unchanged(self, mocker):
         mocker.patch(
             "oda_reader.download.download_tools._stream_to_file",
             side_effect=BulkDownloadHTTPError(
@@ -1684,6 +1847,39 @@ class TestStaleAnnotationRecovery:
             )
 
         assert exc_info.value.status_code == 500
+        mock_resolve.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            BulkDownloadChallengeError(
+                status_code=403,
+                url="https://sdmx.oecd.org/x.zip",
+                body="challenge",
+                cf_ray="ray-id",
+            ),
+            BulkDownloadHTTPError(
+                status_code=403, url="https://sdmx.oecd.org/x.zip", body="forbidden"
+            ),
+        ],
+        ids=["cloudflare-challenge", "generic-403"],
+    )
+    def test_403_leaves_annotation_unchanged(self, mocker, error):
+        mocker.patch(
+            "oda_reader.download.download_tools._stream_to_file", side_effect=error
+        )
+        mock_resolve = mocker.patch(
+            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
+        )
+
+        with pytest.raises(BulkDownloadHTTPError):
+            bulk_download_parquet(
+                url="https://sdmx.oecd.org/x.zip",
+                flow_url=FLOW_URL,
+                label=LABEL,
+                use_raw_cache=False,
+            )
+
         mock_resolve.assert_not_called()
 
 

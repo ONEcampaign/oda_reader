@@ -41,7 +41,7 @@ class BulkPayloadCorruptError(Exception):
 
 
 class BulkDownloadHTTPError(ConnectionError):
-    """Raised when a bulk download HTTP request returns a non-2xx status.
+    """Raised for a non-2xx response or a Cloudflare challenge response.
 
     Subclasses ``ConnectionError`` for backward compatibility with callers
     that catch the previous untyped exception.
@@ -57,6 +57,33 @@ class BulkDownloadHTTPError(ConnectionError):
         self.url = url
         self.body = body[:_HTTP_BODY_PREVIEW]
         super().__init__(f"HTTP {status_code} from {url}: {self.body}")
+
+
+class BulkDownloadChallengeError(BulkDownloadHTTPError):
+    """Raised when Cloudflare requires an interactive challenge for a bulk file.
+
+    Cloudflare can attach the challenge marker to a response with any status,
+    including 2xx. Inspect ``status_code`` alongside this exception type.
+
+    Attributes:
+        cf_ray: The Cloudflare Ray ID supplied by the response, when present.
+            OECD support can use it to investigate the request.
+    """
+
+    def __init__(
+        self, *, status_code: int, url: str, body: str, cf_ray: str | None
+    ) -> None:
+        self.cf_ray = cf_ray
+        super().__init__(status_code=status_code, url=url, body=body)
+        ray_hint = (
+            f" Provide Cloudflare Ray ID {cf_ray} to OECD support."
+            if cf_ray
+            else " Contact OECD support and include the response URL and timestamp."
+        )
+        self.args = (
+            "Cloudflare presented an interactive challenge for "
+            f"{url}. Browser execution is required to continue.{ray_hint}",
+        )
 
 
 _ZIP_MAGIC = b"PK\x03\x04"
