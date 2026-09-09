@@ -261,7 +261,11 @@ dac2_data = download_dac2a(pre_process=True, dotstat_codes=False)
 The `download_dac2b()` function allows you to download DAC2b data (Other Official Flows and export
 credits) from the data-explorer API. DAC2b shares DAC2a's dimensions and filters (donor,
 recipient, measure, unit_measure, price_base). Its `measure` codes are OOF and export-credit
-aggregates, not ODA measures. It accepts the same arguments as `download_dac2a()`:
+aggregates, not ODA measures, and the API returns them in its own numbering (`2204`, `2292`, ...).
+On the default path, `download_dac2b()` converts the returned `aidtype_code` to .Stat numbering
+(`204`, `292`, ...); filters still take the API code, since filters are sent before conversion.
+See the [measure code table](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/datasets.md#dac2b-other-official-flows-and-export-credits)
+in the docs for the full list. It accepts the same arguments as `download_dac2a()`:
 
 - `start_year`: An integer like `2018`, specifying the starting year for the data.
   This parameter is optional - if not provided, the starting date for the dataset is used.
@@ -284,7 +288,9 @@ from oda_reader import download_dac2b
 dac2b_data = download_dac2b(start_year=2018, end_year=2022)
 ```
 
-You can also use filters to, for example, only get export credits (gross) from Germany to specific recipients:
+You can also use filters to, for example, only get OOF gross from a specific donor to specific
+recipients. In 2022, no bilateral DAC donor reports DAC2b against an individual recipient
+country — only multilateral donors do, so this example uses `ALLM` (multilateral organisations):
 
 ```python
 from oda_reader import download_dac2b
@@ -292,7 +298,7 @@ from oda_reader import download_dac2b
 dac2b_data = download_dac2b(
   start_year=2022,
   end_year=2022,
-  filters={"donor": "DEU", "recipient": ["KEN", "TZA"], "measure": "2292"}
+  filters={"donor": "ALLM", "recipient": ["KEN", "TZA", "UGA"], "measure": "2972"}
 )
 ```
 
@@ -323,8 +329,9 @@ It accepts the same arguments as `bulk_download_dac1()`:
 **Note** that DAC2b's bulk file follows DAC1's and DAC2a's paired code/label layout: 14 columns pairing a code
 with a label for each dimension (`RECIPIENT`/`Recipient`, `DONOR`/`Donor`, `PART`/`Part`,
 `AIDTYPE`/`Aid type`, `DATATYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`). It
-carries a `PART` dimension and legacy `AIDTYPE` codes that `download_dac2b()`'s 26-column API
-response does not expose. See
+carries a `PART` dimension that `download_dac2b()`'s 26-column API response does not expose. Its
+`AIDTYPE` codes use the same .Stat numbering `download_dac2b()` returns as `aidtype_code` on the
+default path, so the two match directly. See
 [Bulk Downloads](https://github.com/ONEcampaign/oda_reader/blob/main/docs/docs/bulk-downloads.md#dac2b-bulk-download)
 in the docs for the full column comparison and the `Flags` dtype caveat.
 

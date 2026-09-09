@@ -288,15 +288,19 @@ bulk_download_dac2b(save_to_path="./data/")
 
 Passing `save_to_path` converts the CSV to parquet and writes `table2b_data.parquet` (the source
 filename, lowercased) into the folder you pass. Calling without it returns a DataFrame directly.
-At 459.8 MB expanded, `save_to_path` is recommended over holding the full table in memory.
+Either way, the conversion reads the full 459.8 MB CSV into memory before writing parquet, so
+`save_to_path` reduces what you retain afterward, not the peak memory the conversion itself uses.
 
 DAC2b's 14 columns pair a code with a label for each dimension, the same legacy .Stat layout DAC1
 uses: `RECIPIENT`/`Recipient`, `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`,
 `DATATYPE`/`Amount type`, `TIME`/`Year`, plus `Value` and `Flags`. This differs from the 26-column
 layout `download_dac2b()` returns from the API. The bulk file carries a `PART` dimension (Part I
-developing countries / Part II) that the API dataflow does not expose, and its `AIDTYPE` codes are
-the legacy .Stat aid types (e.g. `204` "Other Long-term - Amounts Extended"), not the `MEASURE`
-codes listed on the [DAC2b page](datasets.md#dac2b-other-official-flows-and-export-credits). See
+developing countries / Part II) that the API dataflow does not expose. Its `AIDTYPE` codes are the
+legacy .Stat aid types (e.g. `204` "Other Long-term - Amounts Extended"); on the default path
+(`dotstat_codes=True`), `download_dac2b()`'s `aidtype_code` column carries the same numbering, so
+the two match directly (the API's own `MEASURE` codes, e.g. `2204`, only show up with
+`dotstat_codes=False` — see the [DAC2b page](datasets.md#dac2b-other-official-flows-and-export-credits)
+for both numberings). See
 [`bulk_download_dac2b()` Carries a `PART` Dimension the API Doesn't Expose](#bulk_download_dac2b-carries-a-part-dimension-the-api-doesnt-expose)
 below for the full comparison.
 
@@ -416,13 +420,18 @@ column for each dimension, the same shape as DAC1's and DAC2a's bulk files: `REC
 `DONOR`/`Donor`, `PART`/`Part`, `AIDTYPE`/`Aid type`, `DATATYPE`/`Amount type`, `TIME`/`Year`, plus
 `Value` and `Flags`.
 
-Two of those columns don't map cleanly onto `download_dac2b()`'s API columns:
+One of those columns has no equivalent in the API dataflow, and one uses a numbering that only
+matches the API on one of its two paths:
 
 - `PART` (Part I developing countries / Part II) has no equivalent dimension in the API dataflow.
-- `AIDTYPE` carries legacy .Stat aid-type codes (e.g. `204` "Other Long-term - Amounts Extended"),
-  not the `MEASURE` codes the API uses (e.g. `2204` "OOF loans, disbursements"). The two code sets
-  differ, so filtering the bulk file on an `AIDTYPE` value and the API on the matching `MEASURE`
-  value can return different rows.
+- `AIDTYPE` carries legacy .Stat aid-type codes (e.g. `204` "Other Long-term - Amounts Extended").
+  The API's own numbering is `MEASURE` (e.g. `2204` "OOF loans, disbursements"), but on the
+  default path (`dotstat_codes=True`) `download_dac2b()` converts its `aidtype_code` column to
+  the same .Stat numbering as `AIDTYPE`, so a bulk/API join on (`aidtype_code`, `recipient_code`)
+  = (`AIDTYPE`, `RECIPIENT`) needs no translation — confirmed by joining a live USA 2022 pull
+  against `Table2b_Data.zip` this way: every row matched, with a maximum absolute value
+  difference of 0.0. Only `dotstat_codes=False` returns the raw `MEASURE` codes, which do differ
+  from `AIDTYPE`.
 
 ```python
 from oda_reader import bulk_download_dac2b

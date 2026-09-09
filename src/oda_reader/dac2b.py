@@ -73,9 +73,10 @@ def bulk_download_dac2b(
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the DAC2b data from the bulk download service. The expanded file is
-    459.8 MB and 2,281,210 rows (20.6 MB compressed), so save_to_path is recommended
-    over holding it in memory. If save_to_path is not provided, the function returns
-    a DataFrame.
+    459.8 MB and 2,281,210 rows (20.6 MB compressed). Either way, the conversion reads
+    the full CSV into memory before writing parquet, so save_to_path reduces what you
+    retain afterward, not the peak memory the conversion itself uses. If save_to_path
+    is not provided, the function returns a DataFrame.
 
     Args:
         save_to_path: The path to save the file to. Optional. If not provided, a DataFrame is returned.

@@ -6,7 +6,17 @@
   1.7), Other Official Flows and export credits. DAC2b shares DAC2a's dimensions, dimension
   order, and CSV schema (both dataflows live under `DSD_DAC2`), so it reuses the same filter
   builder and schema translation. Only the `measure` codes differ: OOF and export-credit
-  aggregates such as `2204` OOF loans disbursements and `2292` export credits gross.
+  aggregates such as `2204` OOF loans disbursements and `2292` export credits gross. Unlike
+  DAC2a's, DAC2b's API `MEASURE` codes are not already in .Stat numbering. On the default path
+  (`dotstat_codes=True`), `download_dac2b()` now converts the returned `aidtype_code` from the
+  API's numbering to .Stat numbering (`2204` → `204`, `2292` → `292`, and so on for all 13 codes),
+  via an explicit mapping table, matching the codes `bulk_download_dac2b()`'s bulk file carries.
+  `filters={"measure": ...}` still takes the API code, since filters are sent before conversion
+  runs. An unmapped code raises `ValueError` rather than silently becoming `NaN`.
+- **Corrected the Sub-Saharan Africa examples for both DAC2a and DAC2b.** `docs/docs/datasets.md`
+  passed the .Stat area code `289` as a `recipient` filter. Filters reach the API before any code
+  conversion, so the query raised rather than returning the region, and `289` denotes the
+  unspecified residual rather than the region in any case. Both now pass the API code `F6`.
 - **The DAC2b bulk file uses the legacy .Stat schema, not the API's 26-column layout.** OECD
   publishes it as one zipped CSV, 20.6 MB compressed and 2,281,210 rows, expanding to 459.8 MB.
   Its 14 columns pair a code with a label for each dimension (`RECIPIENT`/`Recipient`,

@@ -84,7 +84,7 @@ from oda_reader import download_dac2a
 africa_flows = download_dac2a(
     start_year=2020,
     end_year=2022,
-    filters={"recipient": "289"}  # Sub-Saharan Africa (regional code)
+    filters={"recipient": "F6"}  # Sub-Saharan Africa
 )
 
 # Get flows from Germany to East African countries
@@ -104,28 +104,41 @@ germany_eastafrica = download_dac2a(
 
 **Key dimensions**: Donor, recipient, measure type, and price base, the same as DAC2a.
 
-**Measure codes** are OOF/export-credit aggregates, already in .Stat numbering:
+**Measure codes** are OOF/export-credit aggregates. The API returns them in its own `MEASURE`
+numbering (`2201`, `2204`, ...); on the default path (`dotstat_codes=True`), `download_dac2b()`
+converts the returned `aidtype_code` to .Stat numbering (`201`, `204`, ...), matching the codes
+the bulk file carries. Filters take the API code, not the .Stat code, because filters are sent to
+the API before conversion runs — `filters={"measure": "2292"}` gets you `2292` export credits
+gross, and the rows come back with `aidtype_code` `292`.
 
-| Code   | Measure                              |
-| ------ | ------------------------------------ |
-| `2201` | OOF grants                           |
-| `2204` | OOF loans, disbursements             |
-| `2205` | OOF loans, repayments                |
-| `2217` | OOF equity investment                |
-| `2250` | Export credits, total net            |
-| `2255` | Net OOF                              |
-| `2292` | Export credits, gross                |
-| `2293` | Export credits, repayments           |
-| `2295` | Offsetting entries for debt relief   |
-| `2296` | Official non-concessional flows, net |
-| `2297` | Interest received on OOF             |
-| `2972` | OOF, gross                           |
+| API code | .Stat code | Measure                                                   |
+| -------- | ---------- | --------------------------------------------------------- |
+| `2201`   | `201`      | OOF grants                                                |
+| `2204`   | `204`      | OOF loans, disbursements                                  |
+| `2205`   | `205`      | OOF loans, repayments                                     |
+| `2217`   | `217`      | OOF equity investment                                     |
+| `2250`   | `250`      | Export credits, total net                                 |
+| `2255`   | `255`      | Net OOF                                                   |
+| `2292`   | `292`      | Export credits, gross                                     |
+| `2293`   | `293`      | Export credits, repayments                                |
+| `2295`   | `295`      | Offsetting entries for debt relief (export credit claims) |
+| `2296`   | `296`      | Official non-concessional flows, net                      |
+| `2297`   | `297`      | Interest received on OOF                                  |
+| `2298`   | `298`      | Offsetting entries for debt relief (OOF claims)           |
+| `2972`   | `972`      | OOF, gross                                                |
 
 **Use when**:
 
 - Analyzing non-concessional official flows to specific recipients
 - Tracking export credit exposure by donor or recipient
 - Distinguishing OOF from ODA in a donor-recipient breakdown
+
+**Recipient-level detail comes from multilateral donors.** In 2022, no bilateral DAC donor
+reports DAC2b against an individual recipient country — Germany, Japan, Korea and the United
+States all report OOF and export credits only against regional and income-group aggregates
+(`F6` Sub-Saharan Africa, `LDC`, `ACP`, and similar). Country-level detail comes from
+multilateral donors instead, such as `ALLM` (multilateral organisations) or `5WB001` (IBRD). A
+query filtering a bilateral donor to a specific recipient country returns no rows.
 
 **Example**:
 
@@ -136,22 +149,24 @@ from oda_reader import download_dac2b
 africa_oof = download_dac2b(
     start_year=2020,
     end_year=2022,
-    filters={"recipient": "289"}  # Sub-Saharan Africa (regional code)
+    filters={"recipient": "F6"}  # Sub-Saharan Africa
 )
+# -> 1,980 rows
 
-# Get export credits, gross, from Germany to East African countries
-germany_eastafrica = download_dac2b(
+# Get OOF, gross, from multilateral organisations to East African countries
+multilateral_eastafrica = download_dac2b(
     start_year=2022,
     end_year=2022,
     filters={
-        "donor": "DEU",
-        "recipient": ["KEN", "TZA", "UGA", "RWA"],
-        "measure": "2292"  # Export credits, gross
+        "donor": "ALLM",  # Multilateral organisations
+        "recipient": ["KEN", "TZA", "UGA"],
+        "measure": "2972"  # OOF, gross
     }
 )
+# -> 6 rows
 ```
 
-**Bulk download**: The full dataset is available as a single file via `bulk_download_dac2b()`. See [Bulk Downloads](bulk-downloads.md#dac2b-bulk-download) for details. The bulk file carries a `PART` dimension and legacy `AIDTYPE` codes not present in the API response above.
+**Bulk download**: The full dataset is available as a single file via `bulk_download_dac2b()`. See [Bulk Downloads](bulk-downloads.md#dac2b-bulk-download) for details. The bulk file carries a `PART` dimension not present in the API response above. Its `AIDTYPE` column uses the same .Stat numbering as the table above, matching `download_dac2b()`'s `aidtype_code` directly on the default path.
 
 ## CRS: Creditor Reporting System (Project-Level Microdata)
 
