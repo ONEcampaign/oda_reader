@@ -1,5 +1,7 @@
 """A module for constructing SDMX API queries for the OECD data."""
 
+import warnings
+
 from oda_reader.common import logger
 
 V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
@@ -165,7 +167,7 @@ class QueryBuilder:
             [donor, sector, measure, tying_status, flow_type, unit_measure, price_base]
         )
 
-    def build_dac2a_filter(
+    def build_dac2_filter(
         self,
         donor: str | list[str] | None = None,
         recipient: str | list[str] | None = None,
@@ -173,7 +175,10 @@ class QueryBuilder:
         unit_measure: str | list[str] | None = None,
         price_base: str | list[str] | None = None,
     ) -> str:
-        """Build the filter string for the DAC2A dataflow.
+        """Build the filter string for the DAC2 dataflow (DAC2A and DAC2B).
+
+        Both tables live under `DSD_DAC2` and share the same five dimensions,
+        in the same order, so one filter builder serves both.
 
         The allowed filter follows the pattern:
         {donor}.{recipient}.{measure}.{unit_measure}.{price_base}
@@ -197,6 +202,33 @@ class QueryBuilder:
         price_base = self._to_filter_str(price_base)
 
         return ".".join([donor, recipient, measure, unit_measure, price_base])
+
+    def build_dac2a_filter(
+        self,
+        donor: str | list[str] | None = None,
+        recipient: str | list[str] | None = None,
+        measure: str | int | list[str] | list[int] | None = None,
+        unit_measure: str | list[str] | None = None,
+        price_base: str | list[str] | None = None,
+    ) -> str:
+        """Deprecated alias for `build_dac2_filter`.
+
+        Kept so existing code built against the DAC2A-only name keeps
+        working. `build_dac2_filter` is the DAC2-generic name and also
+        serves DAC2B.
+        """
+        warnings.warn(
+            "build_dac2a_filter is deprecated. Use build_dac2_filter instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.build_dac2_filter(
+            donor=donor,
+            recipient=recipient,
+            measure=measure,
+            unit_measure=unit_measure,
+            price_base=price_base,
+        )
 
     def build_crs_filter(
         self,

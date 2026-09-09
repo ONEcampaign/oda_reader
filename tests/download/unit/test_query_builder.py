@@ -52,7 +52,7 @@ class TestQueryBuilderDAC2a:
     def test_dac2a_filter_basic(self):
         """Test basic DAC2a filter construction."""
         qb = QueryBuilder(dataflow_id="DF_DAC2A", api_version=1)
-        result = qb.build_dac2a_filter(
+        result = qb.build_dac2_filter(
             donor="1",
             recipient="503",
             measure="1010",
@@ -64,7 +64,7 @@ class TestQueryBuilderDAC2a:
     def test_dac2a_filter_all_parameters(self):
         """Test DAC2a filter with all parameters."""
         qb = QueryBuilder(dataflow_id="DF_DAC2A", api_version=1)
-        result = qb.build_dac2a_filter(
+        result = qb.build_dac2_filter(
             donor="1",
             recipient="503",
             measure="1010",

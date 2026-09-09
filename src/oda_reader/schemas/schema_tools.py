@@ -4,6 +4,10 @@ import pandas as pd
 
 from oda_reader.common import ImporterPaths, logger
 
+# CPA reuses the full CRS microdata schema; DAC2A and DAC2B share one
+# schema (both live on DSD_DAC2). Aliasing avoids duplicate JSON.
+_SCHEMA_ALIASES = {"cpa": "crs", "dac2a": "dac2", "dac2b": "dac2"}
+
 
 def read_schema_translation(version: str = "dac1") -> dict:
     """
@@ -17,8 +21,7 @@ def read_schema_translation(version: str = "dac1") -> dict:
     """
     logger.info(f"Reading the {version} schema translation")
 
-    # CPA reuses the full CRS microdata schema; alias to avoid duplicating crs_dotstat.json.
-    file_version = "crs" if version == "cpa" else version
+    file_version = _SCHEMA_ALIASES.get(version, version)
 
     schema = "schema" if file_version == "aidData" else "dotstat"
 

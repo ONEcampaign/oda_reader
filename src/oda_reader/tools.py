@@ -24,7 +24,7 @@ def get_available_filters(source: str, quiet: bool = False) -> dict:
         case "dac1":
             f = qb.build_dac1_filter.__annotations__
         case "dac2a":
-            f = qb.build_dac2a_filter.__annotations__
+            f = qb.build_dac2_filter.__annotations__
         case "multisystem":
             f = qb.build_multisystem_filter.__annotations__
         case "crs":
