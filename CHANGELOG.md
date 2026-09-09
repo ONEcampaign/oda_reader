@@ -1,5 +1,20 @@
 # Changelog for oda_reader
 
+## 1.11.1 (2026-09-09)
+
+- **Reports Cloudflare challenges on OECD bulk downloads.** `BulkDownloadChallengeError` carries
+  the HTTP status, URL, a bounded response preview, and the Cloudflare Ray ID. It remains a
+  subclass of `BulkDownloadHTTPError` and `ConnectionError`. Challenges and other 403 responses
+  raise after the first response, while a 404 triggers one metadata refresh. Response previews
+  are capped at 1 KiB, and a failed preview read preserves the original diagnosis.
+- **Adds an opt-in live check for stable bulk URLs.** The check uses a one-byte Range GET. The
+  bulk-download guide also explains filtered SDMX API fallbacks and their schema differences,
+  including the DAC1 API's omission of the bulk-file `PART` dimension.
+- **Raises the docs-only `mkdocs-material` dependency to 9.7.7.** This version fixes
+  [GHSA-xvg9-69gf-fjrf](https://github.com/squidfunk/mkdocs-material/security/advisories/GHSA-xvg9-69gf-fjrf),
+  a DOM XSS in the optional search-suggestion feature. ODA Reader uses the default search
+  configuration. The new dependency floor also removes the vulnerable version from `uv.lock`.
+
 ## 1.11.0 (2026-09-09)
 
 - **Adds `download_dac2b()` and `bulk_download_dac2b()`** for DAC2b (`DSD_DAC2@DF_DAC2B`, version
