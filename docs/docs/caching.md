@@ -189,12 +189,14 @@ recently it was fetched. Where the token comes from depends on the dataset:
   carry a version stamp directly in their SDMX annotation label, e.g.
   `CRS-Parquet-v20260803`. A change in that stamp is the token change.
 - **DAC2a's, DAC2b's, and DAC1's labels carry no version stamp.** For those datasets,
-  ODA Reader instead makes a lightweight HEAD request against the resolved
-  URL and uses the server's `ETag` (falling back to `Last-Modified` if no
+  ODA Reader instead makes a one-byte ranged GET against the resolved URL
+  and uses the server's `ETag` (falling back to `Last-Modified` if no
   `ETag` is sent) as the token.
 - If neither is available (offline, a server error, or the response
   carries neither header), invalidation falls back to the 30-day TTL rather
-  than failing the call. A cached file still works offline.
+  than failing the call. A cached file still works offline. A blocked
+  request (for example a Cloudflare challenge) falls back the same way and
+  logs a warning naming the HTTP status or Cloudflare Ray ID.
 
 You don't need to call anything for this; it runs automatically on every
 bulk download.

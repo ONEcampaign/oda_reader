@@ -1,6 +1,7 @@
 """Unit tests for download tools with mocked API responses."""
 
 import io
+import logging
 import warnings
 import zipfile
 from pathlib import Path
@@ -15,6 +16,7 @@ from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallenge
 from oda_reader._cache.manager import CacheManager
 from oda_reader.common import get_data_from_api
 from oda_reader.download.download_tools import (
+    _WARNED_REVALIDATION_URLS,
     _atomic_write,
     _check_truncated,
     _detect_delimiter,
@@ -881,12 +883,12 @@ class TestGetBulkFileUrl:
     """Test get_bulk_file_url with discovery and fallback paths."""
 
     @pytest.fixture(autouse=True)
-    def _no_revalidation_head(self, mocker):
+    def _no_revalidation_probe(self, mocker):
         """Several tests below resolve a bare `LABEL` (no `-vYYYYMMDD`
         suffix), which makes a successful resolution fall back to a live
-        `_fetch_revalidation_token` HEAD request. None of these fixtures
+        `_fetch_revalidation_token` ranged GET. None of these fixtures
         point at a real reachable host, so stub it out for the whole class
-        rather than per-test -- keeps this test module offline and fast
+        rather than per-test. That keeps this test module offline and fast
         regardless of which label shape an individual test happens to use.
         """
         mocker.patch(
@@ -1066,7 +1068,7 @@ class TestParseExtResourcesRealFixtures:
         """The DAC2A fixture's label carries no -vYYYYMMDD suffix at all --
         the lookup must still match it as-is, and the version token must be
         None (get_bulk_file_url_with_version falls back to an ETag/
-        Last-Modified HEAD request for this case, not tested here)."""
+        Last-Modified ranged GET for this case, not tested here)."""
         resources = _parse_ext_resources(self._load("dataflow_dac2a.xml"))
         resource = resources["DAC2A full dataset (dotStat format)"]
         assert (
@@ -1079,7 +1081,7 @@ class TestParseExtResourcesRealFixtures:
         """The DAC2B fixture's label carries no -vYYYYMMDD suffix at all --
         the lookup must still match it as-is, and the version token must be
         None (get_bulk_file_url_with_version falls back to an ETag/
-        Last-Modified HEAD request for this case, not tested here)."""
+        Last-Modified ranged GET for this case, not tested here)."""
         resources = _parse_ext_resources(self._load("dataflow_dac2b.xml"))
         resource = resources["DAC2B full dataset (dotStat format)"]
         assert (
@@ -1162,106 +1164,269 @@ class TestFinalizeResolvedUrl:
 
 @pytest.mark.unit
 class TestFetchRevalidationToken:
-    """`_fetch_revalidation_token`: the ETag/Last-Modified HEAD fallback for
-    a label with no `-vYYYYMMDD` suffix (DAC2A today)."""
+    """`_fetch_revalidation_token`: the ETag/Last-Modified ranged-GET
+    fallback for a label with no `-vYYYYMMDD` suffix (DAC1, DAC2A and
+    DAC2B today)."""
 
     _URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2a_Data.zip"
 
-    def test_success_returns_etag(self, mocker):
-        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+    @pytest.fixture(autouse=True)
+    def _clear_warned_urls(self):
+        """The probe warns only once per URL per process. Reset that state
+        so one test's warning can't silence another's."""
+        _WARNED_REVALIDATION_URLS.clear()
+        yield
+        _WARNED_REVALIDATION_URLS.clear()
+
+    @staticmethod
+    def _response(mocker, status_code, headers=None):
+        """A response double for the probe's `with ... as response:` usage.
+
+        Closes itself on context-manager exit, matching real
+        `requests.Response`. `_FakeStreamResponse` below leaves closing to
+        its callers instead, so tests here can assert the probe never
+        leaves a connection open.
+        """
+        response = mocker.MagicMock()
+        response.status_code = status_code
+        response.headers = headers or {}
+        response.encoding = "utf-8"
+        response.iter_content.return_value = iter([])
+        response.__enter__.return_value = response
+
+        def _exit(*_exc_info):
+            response.close()
+            return False
+
+        response.__exit__.side_effect = _exit
+        return response
+
+    def _session(self, mocker, *responses):
+        """A session double whose `.get` yields *responses* in order, and
+        stubs the rate limiter so the probe runs unthrottled."""
         session = mocker.Mock()
-        session.head.return_value = mocker.Mock(
-            status_code=200,
-            headers={"ETag": '"abc123"', "Last-Modified": "Tue, 07 Jul 2026"},
-        )
+        session.get.side_effect = list(responses)
         mocker.patch(
             "oda_reader.download.download_tools._get_bulk_stream_session",
             return_value=session,
         )
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        return session
+
+    def test_206_with_etag_and_last_modified_returns_etag(self, mocker):
+        response = self._response(
+            mocker,
+            206,
+            headers={"ETag": '"abc123"', "Last-Modified": "Tue, 07 Jul 2026"},
+        )
+        session = self._session(mocker, response)
 
         assert _fetch_revalidation_token(self._URL) == '"abc123"'
 
+        _, kwargs = session.get.call_args
+        assert kwargs["headers"]["Range"] == "bytes=0-0"
+        assert kwargs["stream"] is True
+        assert kwargs["allow_redirects"] is False
+        session.head.assert_not_called()
+        response.close.assert_called_once()
+
     def test_falls_back_to_last_modified_when_no_etag(self, mocker):
-        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
-        session = mocker.Mock()
-        session.head.return_value = mocker.Mock(
-            status_code=200,
-            headers={"Last-Modified": "Tue, 07 Jul 2026 13:05:26 GMT"},
+        response = self._response(
+            mocker, 206, headers={"Last-Modified": "Tue, 07 Jul 2026 13:05:26 GMT"}
         )
-        mocker.patch(
-            "oda_reader.download.download_tools._get_bulk_stream_session",
-            return_value=session,
-        )
+        self._session(mocker, response)
 
         result = _fetch_revalidation_token(self._URL)
 
         assert result == "Tue, 07 Jul 2026 13:05:26 GMT"
 
-    def test_both_headers_absent_returns_none(self, mocker):
-        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+    def test_200_with_range_ignored_returns_etag_without_reading_body(self, mocker):
+        """The server ignoring the Range header (200 instead of 206) is
+        still a usable response, and the body must never be read either
+        way. Only headers are needed."""
+        response = self._response(mocker, 200, headers={"ETag": '"abc123"'})
+        self._session(mocker, response)
+
+        assert _fetch_revalidation_token(self._URL) == '"abc123"'
+        response.iter_content.assert_not_called()
+        response.close.assert_called_once()
+
+    def test_2xx_with_neither_header_returns_none_and_warns(self, mocker, caplog):
+        response = self._response(mocker, 200, headers={})
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert "neither" in caplog.text.lower()
+        response.close.assert_called_once()
+
+    @pytest.mark.parametrize("status_code", [202, 204])
+    def test_other_2xx_returns_none_and_warns_ignoring_etag(
+        self, mocker, caplog, status_code
+    ):
+        """Only 200 and 206 are usable responses. Any other 2xx is
+        rejected without reading its validators, even when one is
+        present."""
+        response = self._response(mocker, status_code, headers={"ETag": '"abc123"'})
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert str(status_code) in caplog.text
+
+    def test_challenge_returns_none_and_warning_names_ray_id(self, mocker, caplog):
+        response = self._response(
+            mocker,
+            403,
+            headers={"cf-mitigated": "challenge", "cf-ray": "abcd1234-LHR"},
+        )
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert "abcd1234-LHR" in caplog.text
+        response.close.assert_called_once()
+
+    def test_plain_403_returns_none_and_warning_has_no_body_text(self, mocker, caplog):
+        """A plain (non-challenge) HTTP error's warning must not leak the
+        response body preview `BulkDownloadHTTPError.__str__` embeds, and
+        the probe must never read the body at all: a server that sends
+        error headers then stalls the body would otherwise cost the probe
+        up to its read timeout."""
+        response = self._response(mocker, 403, headers={})
+        response.iter_content.side_effect = AssertionError(
+            "the probe must not read an error body"
+        )
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert "403" in caplog.text
+        assert "secret internal body" not in caplog.text
+        response.iter_content.assert_not_called()
+
+    def test_500_returns_none_and_warning_names_status(self, mocker, caplog):
+        response = self._response(mocker, 500, headers={})
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert "500" in caplog.text
+
+    def test_transport_error_returns_none_and_warns(self, mocker, caplog):
         session = mocker.Mock()
-        session.head.return_value = mocker.Mock(status_code=200, headers={})
+        session.get.side_effect = requests.exceptions.ConnectionError("boom")
         mocker.patch(
             "oda_reader.download.download_tools._get_bulk_stream_session",
             return_value=session,
         )
-
-        assert _fetch_revalidation_token(self._URL) is None
-
-    def test_non_2xx_returns_none(self, mocker):
-        """A 403 (e.g. the Cloudflare challenge on a HEAD without the full
-        browser-like header set) degrades to None, not an exception."""
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
-        session = mocker.Mock()
-        session.head.return_value = mocker.Mock(
-            status_code=403, headers={"ETag": '"should-be-ignored"'}
-        )
-        mocker.patch(
-            "oda_reader.download.download_tools._get_bulk_stream_session",
-            return_value=session,
-        )
 
-        assert _fetch_revalidation_token(self._URL) is None
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
 
-    def test_transport_error_returns_none(self, mocker):
-        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
-        session = mocker.Mock()
-        session.head.side_effect = requests.exceptions.ConnectionError("boom")
-        mocker.patch(
-            "oda_reader.download.download_tools._get_bulk_stream_session",
-            return_value=session,
-        )
-
-        assert _fetch_revalidation_token(self._URL) is None
+        assert result is None
+        assert "boom" in caplog.text
 
     def test_untrusted_host_returns_none_without_a_request(self, mocker):
-        """The host allowlist applies here too -- rejected before any
-        request goes out, same as the main fetch path."""
+        """The host allowlist applies here too. The URL is rejected before
+        any request goes out, same as the main fetch path."""
         session = mocker.Mock()
         mocker.patch(
             "oda_reader.download.download_tools._get_bulk_stream_session",
             return_value=session,
         )
-
-        assert _fetch_revalidation_token("https://evil.example.com/f.zip") is None
-        session.head.assert_not_called()
-
-    def test_rate_limiter_is_invoked(self, mocker):
-        """Every other network call this package makes goes through
-        API_RATE_LIMITER.wait() first; this HEAD must too."""
         mock_wait = mocker.patch(
             "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
         )
+
+        assert _fetch_revalidation_token("https://evil.example.com/f.zip") is None
+        session.get.assert_not_called()
+        session.head.assert_not_called()
+        mock_wait.assert_not_called()
+
+    def test_redirect_without_location_returns_none(self, mocker):
+        redirect = self._response(mocker, 302, headers={})
+        self._session(mocker, redirect)
+
+        assert _fetch_revalidation_token(self._URL) is None
+
+    def test_redirect_to_disallowed_host_returns_none(self, mocker):
+        redirect = self._response(
+            mocker, 302, headers={"Location": "https://evil.example.com/f.zip"}
+        )
+        self._session(mocker, redirect)
+
+        assert _fetch_revalidation_token(self._URL) is None
+
+    def test_rate_limiter_is_invoked_once(self, mocker):
+        """Every other network call this package makes goes through
+        API_RATE_LIMITER.wait() first. This ranged GET must too."""
+        response = self._response(mocker, 200, headers={})
         session = mocker.Mock()
-        session.head.return_value = mocker.Mock(status_code=200, headers={})
+        session.get.return_value = response
         mocker.patch(
             "oda_reader.download.download_tools._get_bulk_stream_session",
             return_value=session,
+        )
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
         )
 
         _fetch_revalidation_token(self._URL)
 
         mock_wait.assert_called_once()
+
+    def test_redirect_hop_takes_its_own_rate_limiter_slot(self, mocker):
+        """The caller waits once before the first hop; each redirect hop
+        after that takes its own slot on top of it."""
+        redirect = self._response(mocker, 302, headers={"Location": self._URL})
+        final = self._response(mocker, 206, headers={"ETag": '"abc123"'})
+        session = mocker.Mock()
+        session.get.side_effect = [redirect, final]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        result = _fetch_revalidation_token(self._URL)
+
+        assert result == '"abc123"'
+        assert mock_wait.call_count == 2
+
+    def test_warns_once_per_url_then_logs_at_debug(self, mocker, caplog):
+        """Repeated failures for the same URL in one process degrade to
+        debug after the first warning."""
+        response = self._response(mocker, 500, headers={})
+        session = mocker.Mock()
+        session.get.return_value = response
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+
+        with caplog.at_level(logging.DEBUG, logger="oda_importer"):
+            _fetch_revalidation_token(self._URL)
+            _fetch_revalidation_token(self._URL)
+
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
+        assert len(warning_records) == 1
+        assert len(debug_records) == 1
 
 
 class _FakeStreamResponse:
@@ -1742,6 +1907,38 @@ class TestValidatedRedirects:
 
         session.get.assert_not_called()
 
+    def test_first_hop_does_not_wait_on_rate_limiter(self, mocker):
+        """Callers wait once before calling this helper, covering the first
+        hop; the helper itself must not wait again for it."""
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(200, chunks=[b"data"])
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        _get_with_validated_redirects(
+            session, "https://webfs-dcd.oecd.org/f.zip", {}, timeout=(10, 60)
+        )
+
+        mock_wait.assert_not_called()
+
+    def test_redirect_hop_waits_on_rate_limiter(self, mocker):
+        """Each hop after the first takes its own rate-limiter slot."""
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(302, location="https://webfs-dcd.oecd.org/moved.zip"),
+            self._fake_response(200, chunks=[b"data"]),
+        ]
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        _get_with_validated_redirects(
+            session, "https://webfs-dcd.oecd.org/f.zip", {}, timeout=(10, 60)
+        )
+
+        mock_wait.assert_called_once()
+
 
 @pytest.mark.unit
 class TestStaleAnnotationRecovery:
@@ -1993,8 +2190,9 @@ class TestVersionThreadedInvalidation:
         assert fetch_count["n"] == 2
 
     def test_no_version_falls_back_to_ttl_only(self, tmp_path, mocker):
-        """version=None (e.g. DAC2A when its HEAD revalidation also fails)
-        must not error -- it degrades to the pre-existing TTL-only behavior."""
+        """version=None (e.g. DAC2A when its ranged-GET revalidation also
+        fails) must not error -- it degrades to the pre-existing TTL-only
+        behavior."""
         manager = CacheManager(base_dir=tmp_path)
         mocker.patch(
             "oda_reader.download.download_tools.bulk_cache_manager",

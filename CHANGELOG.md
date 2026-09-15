@@ -1,5 +1,13 @@
 # Changelog for oda_reader
 
+## 1.11.2 (2026-09-15)
+
+- **DAC1, DAC2a and DAC2b bulk downloads detect republished files again on hosts that reject
+  HEAD.** The publication-version token now comes from a one-byte ranged GET against the
+  resolved URL, reading `ETag` (falling back to `Last-Modified`). A failed token lookup logs
+  one warning per URL per process naming the HTTP status or the Cloudflare Ray ID, and cache
+  invalidation falls back to the 30-day TTL.
+
 ## 1.11.1 (2026-09-09)
 
 - **Reports Cloudflare challenges on OECD bulk downloads.** `BulkDownloadChallengeError` carries

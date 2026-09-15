@@ -120,8 +120,8 @@ def bulk_download_dac2a(
 
     """
     # DAC2A's label carries no -vYYYYMMDD suffix (see get_bulk_file_url_with_version),
-    # so `version` here falls back to an ETag/Last-Modified HEAD-request token
-    # rather than the label suffix -- still enough to force a refetch on republish.
+    # so `version` here falls back to an ETag/Last-Modified ranged-GET token.
+    # That token is enough to force a refetch on republish.
     url, version = get_bulk_file_url_with_version(
         flow_url=DAC2A_FLOW_URL, label=DAC2A_BULK_LABEL
     )

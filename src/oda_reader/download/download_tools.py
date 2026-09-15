@@ -754,6 +754,10 @@ def _get_with_validated_redirects(
     chain that exceeds `_MAX_REDIRECT_HOPS`, raises rather than handing back
     a response to stream from.
 
+    Callers wait on `API_RATE_LIMITER` once before calling this helper, which
+    covers the first hop. Each extra hop a redirect chain adds takes its own
+    rate-limiter slot.
+
     Args:
         session: The session to issue the request(s) through.
         url: The URL to fetch.
@@ -770,6 +774,8 @@ def _get_with_validated_redirects(
             or the chain exceeds `_MAX_REDIRECT_HOPS`.
     """
     for hop in range(_MAX_REDIRECT_HOPS + 1):
+        if hop > 0:
+            API_RATE_LIMITER.wait()
         _validate_allowed_host(url)
         response = session.get(
             url, headers=headers, stream=True, timeout=timeout, allow_redirects=False
@@ -873,29 +879,40 @@ def _get_bounded_response_body_preview(response: requests.Response) -> str:
 
 
 def _classify_bulk_download_response(
-    response: requests.Response, *, url: str
+    response: requests.Response, *, url: str, include_body_preview: bool = True
 ) -> BulkDownloadHTTPError | None:
     """Return an exception for an unusable bulk-download response.
 
     Classify a Cloudflare challenge before HTTP status because its marker can
     accompany a response with any status.
+
+    `include_body_preview` controls whether an error carries a bounded body
+    preview. When `False`, the body is never read and the exception's `body`
+    is empty. A caller that never logs the preview pays nothing for a server
+    that sends error headers and then stalls the body.
     """
     status_code = response.status_code
     if status_code is None:
         raise RuntimeError("Bulk download response has no HTTP status code.")
+
+    def _preview() -> str:
+        return (
+            _get_bounded_response_body_preview(response) if include_body_preview else ""
+        )
+
     challenge = _get_header_case_insensitively(response.headers, "cf-mitigated")
     if challenge is not None and challenge.casefold() == "challenge":
         return BulkDownloadChallengeError(
             status_code=status_code,
             url=url,
-            body=_get_bounded_response_body_preview(response),
+            body=_preview(),
             cf_ray=_get_header_case_insensitively(response.headers, "cf-ray"),
         )
     if not 200 <= status_code <= 299:
         return BulkDownloadHTTPError(
             status_code=status_code,
             url=url,
-            body=_get_bounded_response_body_preview(response),
+            body=_preview(),
         )
     return None
 
@@ -1533,30 +1550,67 @@ def _parse_ext_resources(xml: str) -> dict[str, _ExtResource]:
     return resources
 
 
+# URLs `_fetch_revalidation_token` has already warned about once in this
+# process. A host that blocks the probe fails the same way on every
+# resolution, so only the first failure per URL is worth a warning.
+# Later ones log at debug instead.
+_WARNED_REVALIDATION_URLS: set[str] = set()
+
+
+def _warn_revalidation_failure(url: str, reason: str) -> None:
+    """Warn once per URL per process that a revalidation token is unavailable."""
+    if url in _WARNED_REVALIDATION_URLS:
+        logger.debug(f"Revalidation token still unavailable for {url}: {reason}")
+        return
+    _WARNED_REVALIDATION_URLS.add(url)
+    logger.warning(f"Revalidation token unavailable for {url}: {reason}")
+
+
+def _describe_bulk_download_error(error: BulkDownloadHTTPError) -> str:
+    """Describe *error* for a log message without its response body preview.
+
+    `BulkDownloadHTTPError.__str__` embeds a bounded body preview, useful
+    in a traceback but out of place in a warning on the best-effort
+    revalidation path, where it could carry arbitrary response content.
+    This drops the preview and keeps the status and Cloudflare details.
+    """
+    if isinstance(error, BulkDownloadChallengeError) and error.cf_ray:
+        return f"HTTP {error.status_code} Cloudflare challenge (Ray ID {error.cf_ray})"
+    if isinstance(error, BulkDownloadChallengeError):
+        return f"HTTP {error.status_code} Cloudflare challenge"
+    return f"HTTP {error.status_code}"
+
+
 def _fetch_revalidation_token(url: str) -> str | None:
-    """HEAD *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
+    """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
     Used only when an annotation label carries no `-vYYYYMMDD` version
-    suffix of its own (DAC2A's bulk label doesn't). Without this,
+    suffix of its own (DAC1, DAC2A and DAC2B today). Without this,
     `CacheEntry.version` would have nothing to compare against for that
     label, and a republish under the file's permanently-stable URL would be
-    silently invisible to the cache until the TTL naturally expires --
-    verified live against webfs-dcd.oecd.org: a HEAD with the same
-    browser-like headers `_stream_to_file` uses returns 200 with both
-    `ETag` and `Last-Modified` set.
+    silently invisible to the cache until the TTL naturally expires.
 
-    Best-effort: any transport error, non-2xx status, or a response
-    carrying neither header falls back to `None` -- the same degraded
-    TTL-only invalidation a versioned label gets if its annotation fetch
-    fails outright. This never blocks the download; it only affects how
-    eagerly a stale cache entry gets refetched.
+    Issues a single-byte `Range: bytes=0-0` GET through the same
+    redirect-validating, challenge-classifying seam `_stream_to_file` uses
+    (`_get_with_validated_redirects` / `_classify_bulk_download_response`).
+    webfs-dcd.oecd.org's Cloudflare front end scores a HEAD request as
+    anomalous and answers with an uncontestable 403. A ranged GET clears
+    the same challenge like any other request. Accepts 206 (the expected
+    response) and 200 (the server ignoring the Range header). Either way
+    the body is never read, and the response is closed as soon as its
+    headers are classified.
+
+    Best-effort: a Cloudflare challenge, any status other than 200 or 206, a
+    transport/redirect/host error, or a 200/206 response carrying neither
+    header all fall back to `None`, matching the degraded TTL-only
+    invalidation a versioned label gets when its own annotation fetch
+    fails outright. This never blocks the download, only how eagerly a
+    stale cache entry gets refetched. The first such failure for a given
+    URL in this process logs a warning naming the HTTP status or
+    Cloudflare Ray ID. Later failures for the same URL log at debug.
 
     Subject to the same process-wide rate limiter as every other request
-    this package makes (`_stream_to_file`, `_http_primitives`'s helpers) --
-    this fires on every resolution of a label without a `-vYYYYMMDD` suffix
-    against webfs-dcd.oecd.org, the one host already sensitive enough to
-    need browser-like headers to clear its Cloudflare challenge, so it must
-    not go out un-throttled.
+    this package makes (`_stream_to_file`, `_http_primitives`'s helpers).
 
     Args:
         url: The already-resolved, allowlist-checked bulk-download URL.
@@ -1564,20 +1618,54 @@ def _fetch_revalidation_token(url: str) -> str | None:
     Returns:
         The `ETag` header value, else `Last-Modified`, else `None`.
     """
+    headers = {**DEFAULT_HEADERS, "Range": "bytes=0-0"}
     try:
         _validate_allowed_host(url)
-        session = _get_bulk_stream_session()
         API_RATE_LIMITER.wait()
-        response = session.head(
-            url, headers=DEFAULT_HEADERS, timeout=(10, 30), allow_redirects=False
-        )
-    except (ValueError, requests.exceptions.RequestException) as e:
-        logger.debug(f"Revalidation HEAD failed for {url}: {e}")
-        return None
+        with _get_with_validated_redirects(
+            _get_bulk_stream_session(), url, headers, timeout=(10, 30)
+        ) as response:
+            error = _classify_bulk_download_response(
+                response, url=url, include_body_preview=False
+            )
+            if error is not None:
+                _warn_revalidation_failure(url, _describe_bulk_download_error(error))
+                return None
 
-    if response.status_code > 299:
+            if response.status_code not in (200, 206):
+                _warn_revalidation_failure(
+                    url, f"HTTP {response.status_code} (expected 200 or 206)"
+                )
+                return None
+
+            if response.status_code == 200:
+                logger.debug(
+                    f"Revalidation ranged GET for {url} got 200; "
+                    "server ignored the Range header."
+                )
+            token = response.headers.get("ETag") or response.headers.get(
+                "Last-Modified"
+            )
+            if token is None:
+                _warn_revalidation_failure(
+                    url,
+                    f"HTTP {response.status_code} carried neither ETag nor "
+                    "Last-Modified",
+                )
+            return token
+    except (
+        ValueError,
+        LookupError,
+        BulkDownloadHTTPError,
+        requests.exceptions.RequestException,
+    ) as e:
+        message = (
+            _describe_bulk_download_error(e)
+            if isinstance(e, BulkDownloadHTTPError)
+            else str(e)
+        )
+        _warn_revalidation_failure(url, message)
         return None
-    return response.headers.get("ETag") or response.headers.get("Last-Modified")
 
 
 def _finalize_resolved_url(url: str) -> str:
@@ -1678,13 +1766,15 @@ def get_bulk_file_url_with_version(
 
     - If the label carries a ``-vYYYYMMDD`` suffix, the token is that
       suffix (without the leading ``-``).
-    - If the label carries no suffix at all (DAC2A's bulk label doesn't),
-      the token falls back to a `_fetch_revalidation_token` HEAD request
-      for the resolved URL's `ETag`/`Last-Modified` -- a republish still
-      changes *that*, even though the label's own text never rotates.
-    - If neither is available (the HEAD also fails), the token is `None`
-      and invalidation falls back to TTL alone, same as the degraded path
-      for a versioned label whose annotation fetch fails outright.
+    - If the label carries no suffix at all (DAC1, DAC2A and DAC2B today),
+      the token falls back to a `_fetch_revalidation_token` one-byte
+      ranged GET for the resolved URL's `ETag`/`Last-Modified`. A
+      republish changes that, even though the label's own text never
+      rotates.
+    - If neither is available (the ranged GET also fails), the token is
+      `None` and invalidation falls back to TTL alone, same as the
+      degraded path for a versioned label whose annotation fetch fails
+      outright.
 
     The version to query is determined as follows:
 
