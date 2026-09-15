@@ -1262,6 +1262,22 @@ class TestFetchRevalidationToken:
         assert "neither" in caplog.text.lower()
         response.close.assert_called_once()
 
+    @pytest.mark.parametrize("status_code", [202, 204])
+    def test_other_2xx_returns_none_and_warns_ignoring_etag(
+        self, mocker, caplog, status_code
+    ):
+        """Only 200 and 206 are usable responses. Any other 2xx is
+        rejected without reading its validators, even when one is
+        present."""
+        response = self._response(mocker, status_code, headers={"ETag": '"abc123"'})
+        self._session(mocker, response)
+
+        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+            result = _fetch_revalidation_token(self._URL)
+
+        assert result is None
+        assert str(status_code) in caplog.text
+
     def test_challenge_returns_none_and_warning_names_ray_id(self, mocker, caplog):
         response = self._response(
             mocker,
@@ -1279,10 +1295,13 @@ class TestFetchRevalidationToken:
 
     def test_plain_403_returns_none_and_warning_has_no_body_text(self, mocker, caplog):
         """A plain (non-challenge) HTTP error's warning must not leak the
-        response body preview `BulkDownloadHTTPError.__str__` embeds."""
+        response body preview `BulkDownloadHTTPError.__str__` embeds, and
+        the probe must never read the body at all: a server that sends
+        error headers then stalls the body would otherwise cost the probe
+        up to its read timeout."""
         response = self._response(mocker, 403, headers={})
-        response.iter_content.return_value = iter(
-            [b"<html>super secret internal body</html>"]
+        response.iter_content.side_effect = AssertionError(
+            "the probe must not read an error body"
         )
         self._session(mocker, response)
 
@@ -1292,6 +1311,7 @@ class TestFetchRevalidationToken:
         assert result is None
         assert "403" in caplog.text
         assert "secret internal body" not in caplog.text
+        response.iter_content.assert_not_called()
 
     def test_500_returns_none_and_warning_names_status(self, mocker, caplog):
         response = self._response(mocker, 500, headers={})
@@ -1366,6 +1386,26 @@ class TestFetchRevalidationToken:
         _fetch_revalidation_token(self._URL)
 
         mock_wait.assert_called_once()
+
+    def test_redirect_hop_takes_its_own_rate_limiter_slot(self, mocker):
+        """The caller waits once before the first hop; each redirect hop
+        after that takes its own slot on top of it."""
+        redirect = self._response(mocker, 302, headers={"Location": self._URL})
+        final = self._response(mocker, 206, headers={"ETag": '"abc123"'})
+        session = mocker.Mock()
+        session.get.side_effect = [redirect, final]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        result = _fetch_revalidation_token(self._URL)
+
+        assert result == '"abc123"'
+        assert mock_wait.call_count == 2
 
     def test_warns_once_per_url_then_logs_at_debug(self, mocker, caplog):
         """Repeated failures for the same URL in one process degrade to
@@ -1866,6 +1906,38 @@ class TestValidatedRedirects:
             )
 
         session.get.assert_not_called()
+
+    def test_first_hop_does_not_wait_on_rate_limiter(self, mocker):
+        """Callers wait once before calling this helper, covering the first
+        hop; the helper itself must not wait again for it."""
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(200, chunks=[b"data"])
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        _get_with_validated_redirects(
+            session, "https://webfs-dcd.oecd.org/f.zip", {}, timeout=(10, 60)
+        )
+
+        mock_wait.assert_not_called()
+
+    def test_redirect_hop_waits_on_rate_limiter(self, mocker):
+        """Each hop after the first takes its own rate-limiter slot."""
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(302, location="https://webfs-dcd.oecd.org/moved.zip"),
+            self._fake_response(200, chunks=[b"data"]),
+        ]
+        mock_wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
+
+        _get_with_validated_redirects(
+            session, "https://webfs-dcd.oecd.org/f.zip", {}, timeout=(10, 60)
+        )
+
+        mock_wait.assert_called_once()
 
 
 @pytest.mark.unit

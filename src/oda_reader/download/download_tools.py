@@ -754,6 +754,10 @@ def _get_with_validated_redirects(
     chain that exceeds `_MAX_REDIRECT_HOPS`, raises rather than handing back
     a response to stream from.
 
+    Callers wait on `API_RATE_LIMITER` once before calling this helper, which
+    covers the first hop. Each extra hop a redirect chain adds takes its own
+    rate-limiter slot.
+
     Args:
         session: The session to issue the request(s) through.
         url: The URL to fetch.
@@ -770,6 +774,8 @@ def _get_with_validated_redirects(
             or the chain exceeds `_MAX_REDIRECT_HOPS`.
     """
     for hop in range(_MAX_REDIRECT_HOPS + 1):
+        if hop > 0:
+            API_RATE_LIMITER.wait()
         _validate_allowed_host(url)
         response = session.get(
             url, headers=headers, stream=True, timeout=timeout, allow_redirects=False
@@ -873,29 +879,40 @@ def _get_bounded_response_body_preview(response: requests.Response) -> str:
 
 
 def _classify_bulk_download_response(
-    response: requests.Response, *, url: str
+    response: requests.Response, *, url: str, include_body_preview: bool = True
 ) -> BulkDownloadHTTPError | None:
     """Return an exception for an unusable bulk-download response.
 
     Classify a Cloudflare challenge before HTTP status because its marker can
     accompany a response with any status.
+
+    `include_body_preview` controls whether an error carries a bounded body
+    preview. When `False`, the body is never read and the exception's `body`
+    is empty. A caller that never logs the preview pays nothing for a server
+    that sends error headers and then stalls the body.
     """
     status_code = response.status_code
     if status_code is None:
         raise RuntimeError("Bulk download response has no HTTP status code.")
+
+    def _preview() -> str:
+        return (
+            _get_bounded_response_body_preview(response) if include_body_preview else ""
+        )
+
     challenge = _get_header_case_insensitively(response.headers, "cf-mitigated")
     if challenge is not None and challenge.casefold() == "challenge":
         return BulkDownloadChallengeError(
             status_code=status_code,
             url=url,
-            body=_get_bounded_response_body_preview(response),
+            body=_preview(),
             cf_ray=_get_header_case_insensitively(response.headers, "cf-ray"),
         )
     if not 200 <= status_code <= 299:
         return BulkDownloadHTTPError(
             status_code=status_code,
             url=url,
-            body=_get_bounded_response_body_preview(response),
+            body=_preview(),
         )
     return None
 
@@ -1583,8 +1600,8 @@ def _fetch_revalidation_token(url: str) -> str | None:
     the body is never read, and the response is closed as soon as its
     headers are classified.
 
-    Best-effort: a Cloudflare challenge, any other non-2xx status, a
-    transport/redirect/host error, or a 2xx response carrying neither
+    Best-effort: a Cloudflare challenge, any status other than 200 or 206, a
+    transport/redirect/host error, or a 200/206 response carrying neither
     header all fall back to `None`, matching the degraded TTL-only
     invalidation a versioned label gets when its own annotation fetch
     fails outright. This never blocks the download, only how eagerly a
@@ -1608,9 +1625,17 @@ def _fetch_revalidation_token(url: str) -> str | None:
         with _get_with_validated_redirects(
             _get_bulk_stream_session(), url, headers, timeout=(10, 30)
         ) as response:
-            error = _classify_bulk_download_response(response, url=url)
+            error = _classify_bulk_download_response(
+                response, url=url, include_body_preview=False
+            )
             if error is not None:
                 _warn_revalidation_failure(url, _describe_bulk_download_error(error))
+                return None
+
+            if response.status_code not in (200, 206):
+                _warn_revalidation_failure(
+                    url, f"HTTP {response.status_code} (expected 200 or 206)"
+                )
                 return None
 
             if response.status_code == 200:
