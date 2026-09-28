@@ -1,3 +1,7 @@
+---
+description: Configure API and bulk-file caches, change cache locations, clear stored data, and set request limits for OECD calls.
+---
+
 # Caching & Performance
 
 ODA Reader uses caching to make repeated queries fast and reduce dependency on OECD's servers. This page explains how caching works and how to configure it.

@@ -1,3 +1,7 @@
+---
+description: Install ODA Reader with pip or uv, download a year of DAC1 data, filter it by donor, and fetch DAC2a.
+---
+
 # Getting Started with ODA Reader
 
 ODA Reader provides simple Python functions to download OECD DAC data. This page walks you through installation and your first queries.

@@ -1,3 +1,7 @@
+---
+description: What each of the seven datasets holds, from DAC1 aggregates to CRS project data and AidData, with the download function and an example for each.
+---
+
 # Datasets Overview
 
 ODA Reader provides access to seven datasets covering official development assistance (ODA), other official flows (OOF), and development finance. Each dataset serves different analytical needs.

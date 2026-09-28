@@ -1,3 +1,7 @@
+---
+description: Download the full CRS, DAC1, DAC2b, Multisystem and AidData files, stream them in chunks to save memory, and handle their .Stat schema.
+---
+
 # Bulk Downloads
 
 For large-scale analysis, bulk downloads are faster and more reliable than repeated API calls. ODA Reader provides bulk download functions for the CRS, DAC1, DAC2a, DAC2b, Multisystem, and AidData datasets.

@@ -1,3 +1,7 @@
+---
+description: How the pre_process and dotstat_codes options convert Data Explorer API columns and codes to the OECD.Stat schema, and which mode to pick.
+---
+
 # Schema Translation
 
 OECD DAC data exists in two schema formats: the modern Data Explorer API schema and the legacy OECD.Stat schema. ODA Reader can translate between them.
