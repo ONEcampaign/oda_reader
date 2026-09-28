@@ -1,3 +1,7 @@
+---
+description: Fetch OECD DAC codelists such as purpose codes, recipients and provider agencies as snapshots, read their keys, and reconcile them against stored versions.
+---
+
 # Codelists
 
 `oda_reader.codelists` fetches the OECD DAC reference tables the data is coded against. A fetch

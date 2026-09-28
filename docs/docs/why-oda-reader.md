@@ -1,3 +1,7 @@
+---
+description: Understand the access problems ODA Reader addresses, compare it with direct downloads and SDMX libraries, and decide when another tool fits better.
+---
+
 # Why ODA Reader?
 
 ## The Problem with OECD DAC Data Access

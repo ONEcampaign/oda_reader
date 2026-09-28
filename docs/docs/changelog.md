@@ -1,3 +1,7 @@
+---
+description: Find ODA Reader release notes in the repository, understand semantic versioning, and upgrade with pip or uv.
+---
+
 # Changelog
 
 For a complete version history and release notes, see the [CHANGELOG.md](https://github.com/ONEcampaign/oda_reader/blob/main/CHANGELOG.md) file in the repository.

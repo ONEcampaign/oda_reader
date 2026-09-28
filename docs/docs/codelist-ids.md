@@ -1,3 +1,7 @@
+---
+description: Map the 26 OECD codelist ids to names and fetch functions, and identify the contract that covers each codelist.
+---
+
 # Codelist ID Reference
 
 OECD's codelist dropdown has 27 options: id `0` ("All codes list", which returns every codelist

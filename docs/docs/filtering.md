@@ -1,3 +1,7 @@
+---
+description: Filter ODA Reader downloads by dimension, combine values and filters, find valid codes, and diagnose empty or slow queries.
+---
+
 # Filtering Data
 
 All ODA Reader download functions accept a `filters` parameter that lets you query specific subsets of data. This page explains how filtering works across datasets.

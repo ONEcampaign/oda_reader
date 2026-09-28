@@ -1,3 +1,7 @@
+---
+description: Check codelist function signatures, snapshot attributes, frame columns, reconciliation results, module constants and exceptions.
+---
+
 # Codelists Reference
 
 The full contract for `oda_reader.codelists`. For the common paths and what each frame's key means,
