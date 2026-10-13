@@ -6,25 +6,25 @@ description: What each of the seven datasets holds, from DAC1 aggregates to CRS 
 
 ODA Reader provides access to seven datasets covering official development assistance (ODA), other official flows (OOF), and development finance. Each dataset serves different analytical needs.
 
-## Quick Reference
+## Quick reference
 
 | Dataset         | What It Contains                   | Use When                                               |
 | --------------- | ---------------------------------- | ------------------------------------------------------ |
-| **DAC1**        | Aggregate flows by donor           | Analyzing overall ODA trends, donor performance        |
+| **DAC1**        | Aggregate flows by donor           | Analysing overall ODA trends, donor performance        |
 | **DAC2a**       | Bilateral flows by donor-recipient | Recipient-level analysis                               |
 | **DAC2b**       | Bilateral OOF and export credits   | Non-concessional flows and export credits by recipient |
 | **CRS**         | Project-level microdata            | Sector analysis, project details, activity-level data  |
 | **CPA**         | Country Programmable Aid           | The share of aid donors programme at country level     |
-| **Multisystem** | Multilateral system usage          | Analyzing multilateral channels and contributions      |
+| **Multisystem** | Multilateral system usage          | Analysing multilateral channels and contributions      |
 | **AidData**     | Chinese development finance        | Chinese aid flows                                      |
 
-## DAC1: Aggregate Flows
+## DAC1: aggregate flows
 
 **What it contains**: Total ODA and OOF by donor, aggregated across all recipients and sectors. This is the highest-level view of development assistance.
 
 **Key dimensions**:
 
-- Donor (bilateral donors and multilateral organizations)
+- Donor (bilateral donors and multilateral organisations)
 - Measure type (ODA, OOF, grants, loans, etc.)
 - Flow type (commitments, disbursements, grant equivalents)
 - Price base (current or constant prices)
@@ -33,7 +33,7 @@ ODA Reader provides access to seven datasets covering official development assis
 **Use when**:
 
 - You need donor-level totals
-- Analyzing overall ODA trends over time
+- Analysing overall ODA trends over time
 - Comparing donor performance
 - Working with high-level aggregates
 
@@ -61,7 +61,7 @@ oda_constant = download_dac1(
 
 **Bulk download**: The full dataset is available as a single file via `bulk_download_dac1()`. See [Bulk Downloads](bulk-downloads.md#dac1-bulk-download) for details.
 
-## DAC2a: Bilateral Flows by Recipient
+## DAC2a: bilateral flows by recipient
 
 **What it contains**: Bilateral ODA and OOF flows broken down by both donor and recipient country. Shows who gives to whom.
 
@@ -74,7 +74,7 @@ oda_constant = download_dac1(
 
 **Use when**:
 
-- Analyzing flows to specific recipient countries
+- Analysing flows to specific recipient countries
 - Understanding bilateral relationships
 - Studying geographic distribution of aid
 - Comparing different donors to the same recipient
@@ -102,17 +102,17 @@ germany_eastafrica = download_dac2a(
 )
 ```
 
-## DAC2b: Other Official Flows and Export Credits
+## DAC2b: other official flows and export credits
 
 **What it contains**: Bilateral OOF and export credits broken down by donor and recipient country, the non-concessional counterpart to DAC2a's ODA flows. It shares DAC2a's dimensions and dimension order (`DSD_DAC2` covers both tables), so `build_dac2_filter`, `get_available_filters`, and the schema translation all work the same way.
 
 **Key dimensions**: Donor, recipient, measure type, and price base, the same as DAC2a.
 
 **Measure codes** are OOF/export-credit aggregates. The API returns them in its own `MEASURE`
-numbering (`2201`, `2204`, ...); on the default path (`dotstat_codes=True`), `download_dac2b()`
+numbering (`2201`, `2204`, ...). On the default path (`dotstat_codes=True`), `download_dac2b()`
 converts the returned `aidtype_code` to .Stat numbering (`201`, `204`, ...), matching the codes
 the bulk file carries. Filters take the API code, not the .Stat code, because filters are sent to
-the API before conversion runs — `filters={"measure": "2292"}` gets you `2292` export credits
+the API before conversion runs. `filters={"measure": "2292"}` gets you `2292` export credits
 gross, and the rows come back with `aidtype_code` `292`.
 
 | API code | .Stat code | Measure                                                   |
@@ -133,12 +133,12 @@ gross, and the rows come back with `aidtype_code` `292`.
 
 **Use when**:
 
-- Analyzing non-concessional official flows to specific recipients
+- Analysing non-concessional official flows to specific recipients
 - Tracking export credit exposure by donor or recipient
 - Distinguishing OOF from ODA in a donor-recipient breakdown
 
 **Recipient-level detail comes from multilateral donors.** In 2022, no bilateral DAC donor
-reports DAC2b against an individual recipient country — Germany, Japan, Korea and the United
+reports DAC2b against an individual recipient country. Germany, Japan, Korea and the United
 States all report OOF and export credits only against regional and income-group aggregates
 (`F6` Sub-Saharan Africa, `LDC`, `ACP`, and similar). Country-level detail comes from
 multilateral donors instead, such as `ALLM` (multilateral organisations) or `5WB001` (IBRD). A
@@ -170,9 +170,9 @@ multilateral_eastafrica = download_dac2b(
 # -> 6 rows
 ```
 
-**Bulk download**: The full dataset is available as a single file via `bulk_download_dac2b()`. See [Bulk Downloads](bulk-downloads.md#dac2b-bulk-download) for details. The bulk file carries a `PART` dimension not present in the API response above. Its `AIDTYPE` column uses the same .Stat numbering as the table above, matching `download_dac2b()`'s `aidtype_code` directly on the default path.
+**Bulk download**: The full dataset is available as a single file via `bulk_download_dac2b()`. See [Bulk Downloads](bulk-downloads.md#dac2b-bulk-download) for details. The bulk file carries a `PART` dimension that the API does not return. Its `AIDTYPE` column uses the same .Stat numbering as the table above, matching `download_dac2b()`'s `aidtype_code` directly on the default path.
 
-## CRS: Creditor Reporting System (Project-Level Microdata)
+## CRS: Creditor Reporting System (project-level microdata)
 
 **What it contains**: Individual project and activity-level data with detailed information about each development assistance activity. This is the most granular dataset.
 
@@ -181,7 +181,7 @@ multilateral_eastafrica = download_dac2b(
 - Donor
 - Recipient
 - Sector (purpose codes at various levels of detail)
-- Channel (implementing organization type)
+- Channel (implementing organisation type)
 - Modality (grant, loan, equity, etc.)
 - Flow type
 - Microdata flag (True for project-level, False for semi-aggregates)
@@ -189,7 +189,7 @@ multilateral_eastafrica = download_dac2b(
 **Use when**:
 
 - You need project-level details (descriptions, amounts, sectors)
-- Analyzing sector-specific flows
+- Analysing sector-specific flows
 - Understanding implementation channels
 - Detailed activity-level analysis
 
@@ -234,9 +234,9 @@ semi_agg = download_crs(
 
 ## CPA: Country Programmable Aid
 
-**What it contains**: The share of bilateral ODA that donors programme for individual partner countries. CPA strips out flows a partner country has no say over — debt relief, humanitarian aid, in-donor refugee and student costs, administrative costs, and other non-programmable items. The OECD publishes it as a separate dataflow (`DSD_CPA@DF_CRS_CPA`) derived from the CRS, so it shares the CRS schema, dimensions, and filter set.
+**What it contains**: The share of bilateral ODA that donors programme for individual partner countries. CPA strips out flows a partner country has no say over (debt relief, humanitarian aid, in-donor refugee and student costs, administrative costs, and other non-programmable items). The OECD publishes it as a separate dataflow (`DSD_CPA@DF_CRS_CPA`) derived from the CRS, so it shares the CRS schema, dimensions, and filter set.
 
-**Key dimensions**: Same as the CRS — donor, recipient, sector, channel, modality, flow type, and the microdata flag.
+**Key dimensions**: Same as the CRS (donor, recipient, sector, channel, modality, flow type, and the microdata flag).
 
 **Use when**:
 
@@ -244,7 +244,7 @@ semi_agg = download_crs(
 - Comparing how much of each donor's aid is programmable at country level
 - Tracking programmable aid to specific recipients or sectors over time
 
-**Important**: Like the CRS, `download_cpa` defaults to **microdata** (`microdata=True`, i.e. `MD_DIM=DD`), returning project-level records. There is no grant-equivalent dataflow for CPA, so `as_grant_equivalent` is not available.
+**Important**: Like the CRS, `download_cpa` defaults to microdata (`MD_DIM=DD`) and returns project-level records. Set `"microdata": False` in `filters` for semi-aggregates. There is no grant-equivalent dataflow for CPA, so `as_grant_equivalent` is not available.
 
 **Example**:
 
@@ -264,21 +264,21 @@ us_nga = download_cpa(
 
 The available filters match the CRS and can be listed with `get_available_filters("cpa")`.
 
-## Multisystem: Members' Use of the Multilateral System
+## Multisystem: members' use of the multilateral system
 
-**What it contains**: Data on how DAC members use the multilateral aid system, including core contributions to multilateral organizations and earmarked funding.
+**What it contains**: Data on how DAC members use the multilateral aid system, including core contributions to multilateral organisations and earmarked funding.
 
 **Key dimensions**:
 
 - Donor
-- Recipient (multilateral organizations)
-- Channel (specific multilateral organizations)
+- Recipient (multilateral organisations)
+- Channel (specific multilateral organisations)
 - Flow type (commitments, disbursements)
 - Measure type
 
 **Use when**:
 
-- Analyzing multilateral contributions
+- Analysing multilateral contributions
 - Understanding core vs. earmarked funding
 - Studying specific multilateral channels (World Bank, UN agencies, etc.)
 
@@ -304,7 +304,7 @@ ida_contributions = download_multisystem(
 
 **Performance note**: Like CRS, Multisystem API can be slow. [Bulk download](bulk-downloads.md) is available for the full dataset.
 
-## AidData: Chinese Development Finance
+## AidData: Chinese development finance
 
 **What it contains**: Project-level data on Chinese development finance activities, compiled by AidData. Covers official finance from China that may not be reported to the OECD.
 
@@ -318,7 +318,7 @@ ida_contributions = download_multisystem(
 
 **Use when**:
 
-- Analyzing Chinese development finance
+- Analysing Chinese development finance
 - Comparing DAC donors with China
 
 **Example**:
@@ -332,9 +332,9 @@ chinese_aid = download_aiddata(start_year=2015, end_year=2020)
 # AidData is downloaded as bulk file, filtered by year after download
 ```
 
-**Note**: AidData comes from Excel files from the Aid Data website, not the OECD API. It uses a different schema than DAC datasets.
+**Note**: AidData comes from Excel files on the AidData website. It uses a different schema than the DAC datasets.
 
-## Discovering Available Filters
+## Discovering available filters
 
 Each dataset has different dimensions you can filter by. Use `get_available_filters()` to see what's available:
 
@@ -352,7 +352,7 @@ multisystem_filters = get_available_filters("multisystem")
 
 [Learn more about filtering →](filtering.md)
 
-## Next Steps
+## Next steps
 
 - **[Filtering Data](filtering.md)** - Build complex queries with multiple dimensions
 - **[Bulk Downloads](bulk-downloads.md)** - Download full CRS, Multisystem, or AidData efficiently

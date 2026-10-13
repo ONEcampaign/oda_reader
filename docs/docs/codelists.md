@@ -62,7 +62,7 @@ Each contract keys its frame differently.
 | Category | `fetch_code_categories`   | `(codelist_id, code, activation_date, crs, tossd)` |
 | Agency   | `fetch_provider_agencies` | `(codelist_id, donor_code, code, activation_date)` |
 
-`snapshot.contract` says which pair built a snapshot: `"area"`, `"category"` or `"agency"`.
+`snapshot.contract` says which contract built a snapshot: `"area"`, `"category"` or `"agency"`.
 
 The same code appears in several codelists with different meanings, so include `codelist_id` in every
 `groupby` and merge key.
@@ -88,14 +88,14 @@ All three rows stay in the frame.
 ```python
 frame = fetch_codelists().frame
 
-# ✅ One row per code, carrying its current state
+# Right: One row per code, carrying its current state
 latest = (
     frame.sort_values("activation_date")
     .groupby(["codelist_id", "code"], dropna=False)
     .tail(1)
 )
 
-# ❌ Drops every code whose latest period is withdrawn
+# Wrong: Drops every code whose latest period is withdrawn
 active = frame[frame["status"] == "active"]
 ```
 
@@ -153,8 +153,7 @@ appears under 194 of them. Join on `donor_code` and `code` together.
 ## Reconciling against history
 
 `fetch_codelists` gives you today's answer. `reconcile` merges it into the table you already have and
-tells you what moved, so a code OECD stops listing survives your next overwrite instead of
-disappearing from the table.
+tells you what moved, so a code OECD stops listing survives your next overwrite.
 
 ```python
 import pandas as pd
@@ -181,8 +180,7 @@ casting.
 untouched. The only way to lose a code is to omit `previous`.
 
 `rec.added`, `rec.retired` and `rec.changed` are small frames meant to be read or alerted on.
-`reconcile` doesn't decide whether a change matters, so thresholds and blocking checks belong in your
-orchestrator. Three behaviours matter when you alert on them:
+`reconcile` reports what changed. Your orchestrator decides whether a change matters, so thresholds and blocking checks belong there. Three behaviours matter when you alert on them:
 
 - **Retirement is scoped to the codelists in `current`.** Reconciling a codelist-5-only snapshot
   against a full table leaves codelist 13 rows at `presence="current"`.

@@ -6,29 +6,29 @@ description: How the pre_process and dotstat_codes options convert Data Explorer
 
 OECD DAC data exists in two schema formats: the modern Data Explorer API schema and the legacy OECD.Stat schema. ODA Reader can translate between them.
 
-## The Two Schemas
+## The two schemas
 
-### Data Explorer API Schema (New)
+### Data Explorer API schema (new)
 
 The current OECD Data Explorer uses a new schema:
 
 - Column names: `DONOR`, `RECIPIENT`, `MEASURE`, etc. (all caps)
-- Dimension codes: Modern conventions (e.g., donor codes)
+- Dimension codes: the API returns ISO3 donor codes such as `AUT`
 - Used by: API downloads (`download_dac1()`, `download_crs()`, etc.)
 
-### OECD.Stat Schema (Legacy)
+### OECD.Stat schema (legacy)
 
 The older OECD.Stat system uses a different schema:
 
 - Column names: `DonorCode`, `RecipientCode`, `Measure`, etc. (mixed case), except the full CRS
   parquet files (`bulk_download_crs()`), which use snake_case. See
-  [Bulk Download Schema](#bulk-download-schema) below for the split.
+  [Bulk download schema](#bulk-download-schema) below for the split.
 - Dimension codes: Legacy conventions, sometimes different from API codes
 - Used by: Bulk download files, historical .Stat exports
 
 **Why two schemas?** OECD transitioned from .Stat to Data Explorer but kept bulk files in the old format. Both are still in use.
 
-## Translation Parameters
+## Translation parameters
 
 ODA Reader provides two parameters to control schema handling:
 
@@ -38,7 +38,7 @@ Performs basic cleaning:
 
 - Renames columns to machine-readable names (e.g., `DONOR` → `donor_code`)
 - Sets proper data types (`int`, `float`, `string`)
-- Removes empty columns
+- Drops columns the schema marks as not kept
 
 **Example without preprocessing**:
 
@@ -53,9 +53,9 @@ data_raw = download_dac1(
     dotstat_codes=False
 )
 
-print(data_raw.columns)
-# Output: ['DONOR', 'RECIPIENT', 'MEASURE', 'AMOUNT_TYPE', 'FLOW_CODE', ...]
-# (exact API column names, all caps)
+print([c for c in ["DONOR", "Donor", "MEASURE", "Measure"] if c in data_raw.columns])
+# Output: ['DONOR', 'Donor', 'MEASURE', 'Measure']
+# (exact API column names: codes in capitals, labels in title case)
 ```
 
 **Example with preprocessing**:
@@ -69,8 +69,8 @@ data_clean = download_dac1(
     dotstat_codes=False
 )
 
-print(data_clean.columns)
-# Output: ['donor', 'recipient', 'measure', 'amount_type', 'flow_code', ...]
+print(list(data_clean.columns))
+# Output: ['donor_code', 'donor_name', 'aidtype_code', 'aid_type', 'flows_code', ...]
 # (clean, consistent naming)
 ```
 
@@ -79,7 +79,7 @@ print(data_clean.columns)
 Translates dimension **codes** from API format to .Stat format:
 
 - Requires `pre_process=True` to work
-- Converts codes like donor IDs, measure types, flow codes
+- Converts donor and recipient area codes and the price-base code, plus DAC2b measure codes
 - Makes data compatible with .Stat bulk downloads and historical data
 
 **Example without code translation**:
@@ -89,13 +89,14 @@ Translates dimension **codes** from API format to .Stat format:
 data_api = download_dac1(
     start_year=2022,
     end_year=2022,
+    filters={"donor": "USA"},
     pre_process=True,
     dotstat_codes=False
 )
 
-print(data_api['donor'].unique()[:5])
-# Output: ['1', '2', '3', '4', '5']
-# (numeric API codes)
+print(list(data_api['donor_code'].unique()))
+# Output: ['USA']
+# (ISO3 API code)
 ```
 
 **Example with code translation**:
@@ -105,16 +106,17 @@ print(data_api['donor'].unique()[:5])
 data_stat = download_dac1(
     start_year=2022,
     end_year=2022,
+    filters={"donor": "USA"},
     pre_process=True,
     dotstat_codes=True
 )
 
-print(data_stat['donor'].unique()[:5])
-# Output: ['AUS', 'AUT', 'BEL', 'CAN', 'CHE']
-# (ISO3 donor codes, matches .Stat format)
+print(list(data_stat['donor_code'].unique()))
+# Output: [302]
+# (numeric .Stat donor code)
 ```
 
-## Three Modes Explained
+## Three modes explained
 
 ### Mode 1: Default (Recommended)
 
@@ -126,8 +128,8 @@ data = download_dac1(start_year=2022, end_year=2022)
 
 **Result**:
 
-- Clean column names: `donor`, `recipient`, `measure`, etc.
-- .Stat codes: `'USA'`, `'GBR'` for donors
+- Clean column names: `donor_code`, `donor_name`, `aidtype_code`, etc.
+- .Stat codes: numeric donor codes such as `302` for the United States
 - Proper data types set
 - **Use when**: General analysis, compatibility with historical .Stat data
 
@@ -136,7 +138,7 @@ data = download_dac1(start_year=2022, end_year=2022)
 - Works with existing .Stat-based workflows
 - Compatible with bulk download files
 
-### Mode 2: Raw API Response
+### Mode 2: Raw API response
 
 ```python
 data = download_dac1(
@@ -150,7 +152,7 @@ data = download_dac1(
 **Result**:
 
 - Raw API column names: `DONOR`, `MEASURE` (all caps)
-- Raw API codes: numeric or internal codes
+- Raw API codes: ISO3 donor codes such as `AUT`
 - No type conversion
 - **Use when**: Debugging API issues, understanding API structure
 
@@ -163,7 +165,7 @@ data = download_dac1(
 
 - Harder to work with (inconsistent naming)
 
-### Mode 3: Preprocessed with API Codes
+### Mode 3: Preprocessed with API codes
 
 ```python
 data = download_dac1(
@@ -176,8 +178,8 @@ data = download_dac1(
 
 **Result**:
 
-- Clean column names: `donor`, `recipient`, etc.
-- API codes: numeric or internal (not .Stat codes)
+- Clean column names: `donor_code`, `donor_name`, etc.
+- API codes: ISO3 donor codes such as `AUT`
 - Proper data types
 - **Use when**: Working exclusively with new API data, don't need .Stat compatibility
 
@@ -191,30 +193,24 @@ data = download_dac1(
 - Codes differ from .Stat bulk files
 - May not match historical datasets
 
-## Code Translation Examples
+## Code translation examples
 
-### Donor Codes
+### Donor codes
 
-| .Stat Code | API code | Country        |
-| ---------- | -------- | -------------- |
-| `1`        | `AUS`    | Australia      |
-| `2`        | `AUT`    | Austria        |
-| `12`       | `USA`    | United States  |
-| `301`      | `GBR`    | United Kingdom |
+| API code | .Stat code | Country        |
+| -------- | ---------- | -------------- |
+| `AUT`    | `1`        | Austria        |
+| `BEL`    | `2`        | Belgium        |
+| `GBR`    | `12`       | United Kingdom |
+| `CAN`    | `301`      | Canada         |
+| `USA`    | `302`      | United States  |
+| `AUS`    | `801`      | Australia      |
 
-### Measure Codes (DAC1)
-
-| .Stat Code | API Code | Description           |
-| ---------- | -------- | --------------------- |
-| `100`      | `1010`   | Net ODA               |
-| `106`      | `1011`   | ODA Grants            |
-| `11017`    | `11017`  | Grant equiv. of loans |
-
-(Note: Some codes are the same across schemas)
+DAC1 measure codes, such as `1010` for net ODA, pass through unchanged.
 
 Translation mappings are maintained in `src/oda_reader/schemas/mappings/` as JSON files.
 
-## Bulk Download Schema
+## Bulk download schema
 
 **Important**: Bulk downloads (CRS, Multisystem, AidData) **always use .Stat codes**. Column
 *naming* is not as uniform: most bulk files use PascalCase column names, but the full CRS
@@ -256,33 +252,32 @@ api_data = download_crs(
 bulk_data = bulk_download_crs()
 
 # Column names differ:
-print(api_data.columns[:5])   # ['donor', 'recipient', 'year', 'sector', ...]
-print(bulk_data.columns[:5])  # ['donor_code', 'de_donorcode', 'donor_name', 'agency_code', ...]
+print(list(api_data.columns[:5]))   # ['donor_code', 'donor_name', 'recipient_code', 'recipient_name', 'sector_code']
+print(list(bulk_data.columns[:5]))  # ['year', 'donor_code', 'de_donorcode', 'donor_name', 'agency_code']
 
 # But codes are the same (both use .Stat codes):
-print(api_data['donor'].unique()[:3])       # ['USA', 'GBR', 'DEU']
-print(bulk_data['donor_code'].unique()[:3])  # ['USA', 'GBR', 'DEU']
+print(list(api_data['donor_code'].unique()[:3]))   # .Stat numeric codes, such as 302 for the United States
+print(list(bulk_data['donor_code'].unique()[:3]))  # the same .Stat codes
 ```
 
-You can harmonize column names with pandas:
+You can harmonise the names that differ with pandas:
 
 ```python
 # Rename bulk columns to match API preprocessing
 bulk_data = bulk_data.rename(columns={
-    'donor_code': 'donor',
-    'recipient_code': 'recipient',
+    'bulk_column_name': 'api_column_name',
     # ... etc
 })
 ```
 
-## When to Use Which Mode
+## When to use which mode
 
 **Use default mode (pre_process=True, dotstat_codes=True)**:
 
 - General analysis and research
 - Combining API downloads with bulk files
 - Working with historical .Stat exports
-- Human-readable codes (ISO3 country codes)
+- Numeric .Stat donor codes, as in the bulk files
 
 **Use raw mode (pre_process=False, dotstat_codes=False)**:
 
@@ -295,34 +290,41 @@ bulk_data = bulk_data.rename(columns={
 - When you prefer OECD's latest code conventions
 - Avoid if combining with bulk downloads or .Stat files
 
-## Finding Code Mappings
+## Finding code mappings
 
 Code translation mappings are defined in:
 
 ```
 src/oda_reader/schemas/mappings/
-├── dac1_mapping.json
-├── dac2_mapping.json
-├── crs_mapping.json
-└── multisystem_mapping.json
+├── dac1_dotstat.json
+├── dac2_dotstat.json
+├── crs_dotstat.json
+├── multisystem_dotstat.json
+├── dac1_codes_area.json
+└── dac2_codes_area.json
 ```
 
-Each file maps API codes to .Stat codes for that dataset's dimensions.
+The four `<dataset>_dotstat.json` files above define each dataset's columns: the API name, the clean name, the type, and whether to keep the column. The other JSON files in the folder hold code maps, among them `dac1_codes_area.json`, `dac1_codes_prices.json`, and `dac2b_measure_dotstat.json`.
 
-**Example from `dac1_mapping.json`**:
+**Example from `dac1_dotstat.json`**:
 
 ```json
 {
   "DONOR": {
-    "keep": true,
-    "name": "donor",
+    "name": "donor_code",
     "type": "string[pyarrow]",
-    "mapping": {
-      "1": "AUS",
-      "2": "AUT",
-      "12": "USA"
-    }
+    "keep": true
   }
+}
+```
+
+**Example from `dac1_codes_area.json`**, which maps .Stat codes to API codes:
+
+```json
+{
+  "1": "AUT",
+  "2": "BEL",
+  "12": "GBR"
 }
 ```
 
@@ -336,18 +338,20 @@ You can inspect these files to understand how specific codes translate.
 - Verify `dotstat_codes=True` for API downloads when combining with bulk
 - Column names differ even with same codes - rename if needed
 
-**"Translation failed" errors**:
+**"Cannot convert to dotstat codes without preprocessing" errors**:
 
-- Ensure `pre_process=True` when using `dotstat_codes=True`
-- Some newer API codes may not have .Stat mappings yet
-- File an issue if you encounter unmapped codes
+- Set `pre_process=True` when using `dotstat_codes=True`
+
+**"Unmapped DAC2B measure code(s)" errors**:
+
+- A new API measure code has no .Stat mapping yet. File an issue
 
 **Unexpected column names**:
 
 - Check `pre_process` setting - raw API uses all-caps names
 - Bulk downloads have their own naming (can't be changed)
 
-## Next Steps
+## Next steps
 
 - **[Bulk Downloads](bulk-downloads.md)** - Understand bulk download schema
 - **[Filtering Data](filtering.md)** - Use the right codes for filtering
