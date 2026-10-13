@@ -41,7 +41,7 @@ to the [`oda_reader.codelists`](codelists.md) contract that covers it.
 `parse_code_categories`. "Agency" is `fetch_provider_agencies` / `parse_provider_agencies`. All three
 are documented in [Codelists](codelists.md) and [Codelists Reference](codelists-reference.md).
 
-## Next Steps
+## Next steps
 
 - **[Codelists](codelists.md)** - The `oda_reader.codelists` API these ids feed into
 - **[Codelists Reference](codelists-reference.md)** - Signatures, frame columns, and the exception

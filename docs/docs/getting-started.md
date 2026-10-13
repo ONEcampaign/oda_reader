@@ -20,9 +20,9 @@ Or using uv (recommended for faster installs):
 uv add oda-reader
 ```
 
-That's it! ODA Reader and its dependencies (pandas, requests, pyarrow, etc.) are now installed.
+ODA Reader and its dependencies (pandas, requests, pyarrow, etc.) are now installed.
 
-## Your First Query: Download DAC1 Data
+## First query
 
 Let's download aggregate ODA data from DAC1 for a single year:
 
@@ -33,7 +33,7 @@ from oda_reader import download_dac1
 data = download_dac1(start_year=2022, end_year=2022)
 
 print(f"Downloaded {len(data)} rows")
-print(data.head())
+print(data.head(3))
 ```
 
 **Output:**
@@ -52,7 +52,7 @@ The function returns a pandas DataFrame with columns for donor, measure type, fl
 - Converts to OECD.Stat schema codes for compatibility
 - Caches results for fast repeated queries
 
-## Filtering Your Query
+## Filtering your query
 
 You can filter downloads to specific dimensions. Let's get data for just the USA and UK:
 
@@ -67,19 +67,19 @@ data = download_dac1(
 )
 
 print(f"Downloaded {len(data)} rows for USA and GBR")
-print(data['donor_name'].unique())
+print(sorted(data['donor_name'].unique()))
 ```
 
 **Output:**
 
 ```
 Downloaded 1851 rows for USA and GBR
-['United States', 'United Kingdom']
+['United Kingdom', 'United States']
 ```
 
 Filters use a dictionary where keys are dimension names and values are codes (single value or list). This pattern works across all datasets.
 
-## Download a Different Dataset: DAC2a
+## Download DAC2a data
 
 DAC2a contains bilateral flows by recipient. Let's download data for specific recipients:
 
@@ -106,26 +106,26 @@ Recipients: ['Kenya', 'Nigeria']
 
 DAC2a includes recipient countries as a dimension, making it ideal for analyzing who receives aid from whom.
 
-## What Just Happened?
+## What just happened?
 
 When you ran these examples:
 
-1. **ODA Reader constructed SDMX API queries** - You didn't need to know the complex API syntax
-1. **Results were cached** - Run the same query again and it's instant
-1. **Rate limiting was applied** - Automatic pauses prevent you from hitting API limits
-1. **Schema translation happened** - Codes were converted to .Stat format for compatibility
+1. **ODA Reader constructed SDMX API queries**: You didn't need to know the complex API syntax
+1. **Results were cached**: Run the same query again and it's instant
+1. **Rate limiting was applied**: Automatic pauses prevent you from hitting API limits
+1. **Schema translation happened**: Codes were converted to .Stat format for compatibility
 
-## Next Steps
+## Next steps
 
 Now that you've downloaded your first datasets, explore:
 
-- **[Datasets Overview](datasets.md)** - Learn about all 6 available datasets and when to use each
-- **[Filtering Data](filtering.md)** - Discover available filters and build complex queries
-- **[Bulk Downloads](bulk-downloads.md)** - Download full datasets efficiently for large-scale analysis
-- **[Caching & Performance](caching.md)** - Manage cache and configure rate limiting
+- **[Datasets Overview](datasets.md)**: Learn about all 7 available datasets and when to use each
+- **[Filtering Data](filtering.md)**: Discover available filters and build complex queries
+- **[Bulk Downloads](bulk-downloads.md)**: Download full datasets efficiently for large-scale analysis
+- **[Caching & Performance](caching.md)**: Manage cache and configure rate limiting
 
 ## Troubleshooting
 
 **Query is slow**: First-time queries can take 10-30 seconds as ODA Reader fetches from OECD's API. Subsequent identical queries are instant due to caching.
 
-**Rate limit errors**: By default, ODA Reader limits to 20 requests per hour. This should prevent rate limit errors. If you see them, your cache might have been cleared. Wait and retry.
+**Rate limit errors**: By default, ODA Reader limits requests to 20 per 60 seconds. This should prevent rate limit errors. If you see them, your cache might have been cleared. Wait and retry.

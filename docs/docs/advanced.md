@@ -4,16 +4,14 @@ description: Build SDMX filters with QueryBuilder, pin dataflow versions, tune r
 
 # Advanced Topics
 
-This page covers advanced features and customization options for power users.
-
-## Using QueryBuilder Directly
+## Using QueryBuilder directly
 
 `QueryBuilder` is the internal class that constructs SDMX API queries. You can use it directly for custom queries:
 
 ```python
 from oda_reader import QueryBuilder
 
-qb = QueryBuilder()
+qb = QueryBuilder(dataflow_id="DSD_DAC1@DF_DAC1")
 
 # Build a custom DAC1 filter
 filter_string = qb.build_dac1_filter(
@@ -24,7 +22,7 @@ filter_string = qb.build_dac1_filter(
 )
 
 print(filter_string)
-# Output: "USA._Z.1010..1140.."
+# Output: USA._Z.1010..1140..
 ```
 
 This filter string can be used to manually construct API URLs.
@@ -38,17 +36,17 @@ This filter string can be used to manually construct API URLs.
 **Methods available**:
 
 - `build_dac1_filter(donor, sector, measure, flow_type, unit_measure, price_base)`
-- `build_dac2_filter(donor, recipient, measure, price_base, ...)` — serves both DAC2a and DAC2b; the old `build_dac2a_filter` name still works and is deprecated
+- `build_dac2_filter(donor, recipient, measure, price_base, ...)` serves both DAC2a and DAC2b. The old `build_dac2a_filter` name still works and is deprecated
 - `build_crs_filter(donor, recipient, sector, channel, modality, microdata, ...)`
 - `build_multisystem_filter(donor, channel, flow_type, ...)`
 
 Each method returns a filter string suitable for the SDMX API.
 
-## Dataflow Version Handling
+## Dataflow version handling
 
 OECD occasionally changes dataflow versions (schema updates). ODA Reader handles this automatically with version discovery.
 
-### Automatic Version Discovery
+### Automatic version discovery
 
 When a dataflow version returns an error (not found), ODA Reader automatically queries the OECD's SDMX metadata endpoint to discover the latest published version and retries with it:
 
@@ -56,9 +54,9 @@ When a dataflow version returns an error (not found), ODA Reader automatically q
 1. If not found, queries the metadata endpoint for the authoritative latest version
 1. Retries once with the discovered version
 
-This means your code keeps working even when OECD updates schema versions. You'll see a log message indicating which version was discovered.
+If the new version changes the number of key dimensions, ODA Reader raises a `ConnectionError` and asks you to upgrade `oda_reader`. Otherwise it continues with the discovered version, and you see a log message indicating which version was discovered.
 
-### Clearing the Version Cache
+### Clearing the version cache
 
 Discovered versions are cached in-process so repeated queries don't trigger extra metadata lookups. If the OECD publishes a new dataflow version mid-session, you can force re-discovery:
 
@@ -68,11 +66,13 @@ from oda_reader import clear_version_cache
 clear_version_cache()
 ```
 
-### Manual Version Override
+### Manual version override
 
 You can specify an exact dataflow version:
 
 ```python
+from oda_reader import download_dac1
+
 data = download_dac1(
     start_year=2022,
     end_year=2022,
@@ -93,34 +93,34 @@ data = download_dac1(
 - `download_crs(dataflow_version=...)`
 - `download_multisystem(dataflow_version=...)`
 
-## API Version Differences
+## API version differences
 
 OECD uses two SDMX API versions:
 
 **API v1** (legacy):
 
 ```
-https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DF_DAC1,1.0/...
+https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.8/...
 ```
 
 **API v2** (current):
 
 ```
-https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DF_DAC1/1.0/...
+https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.DCD.FSD/DSD_DAC1@DF_DAC1/1.8/...
 ```
 
 ODA Reader uses the appropriate version for each dataset:
 
-- **DAC1, DAC2a, DAC2b**: API v2
+- **DAC1, DAC2a, DAC2b**: API v1
 - **CRS, CPA, Multisystem**: Custom endpoint (CRS-specific API)
 
 You generally don't need to worry about this - ODA Reader handles it automatically.
 
-## Custom Rate Limiting Strategies
+## Custom rate limiting strategies
 
 Beyond basic rate limiting configuration, you can implement custom strategies:
 
-### Disable Rate Limiting (Use Carefully)
+### Disable rate limiting (use carefully)
 
 ```python
 from oda_reader import API_RATE_LIMITER
@@ -132,7 +132,7 @@ API_RATE_LIMITER.period = 1
 
 **Warning**: This may get you blocked by OECD's servers. Only use for testing or if you have permission.
 
-### Dynamic Rate Limiting
+### Dynamic rate limiting
 
 ```python
 # Start conservative
@@ -142,19 +142,20 @@ API_RATE_LIMITER.period = 60
 # Make some calls...
 
 # Adjust based on response times or errors
+experiencing_slowdowns = True  # set from your own monitoring
 if experiencing_slowdowns:
     API_RATE_LIMITER.max_calls = 5  # Slow down
 ```
 
-### Check Rate Limiter State
+### Check rate limiter state
 
 ```python
 # Access internal state (undocumented, subject to change)
-print(f"Calls made: {len(API_RATE_LIMITER.call_times)}")
+print(f"Calls made: {len(API_RATE_LIMITER._calls)}")
 print(f"Max calls: {API_RATE_LIMITER.max_calls}")
 ```
 
-## Combining Multiple Queries
+## Combining multiple queries
 
 For complex analysis, you might combine multiple queries:
 
@@ -173,18 +174,18 @@ bilateral = download_dac2a(start_year=2022, end_year=2022)
 combined = pd.merge(
     donor_totals,
     bilateral,
-    on=['donor', 'year'],
+    on=['donor_code', 'year'],
     how='inner'
 )
 ```
 
 **Tips**:
 
-- Use same `pre_process` and `dotstat_codes` settings for compatibility
+- Use the same `pre_process` and `dotstat_codes` settings (see [Schema Translation](schema-translation.md))
 - Column names and codes must align
 - Filter carefully to avoid double-counting
 
-### Load Schema Mapping Files
+### Load schema mapping files
 
 ```python
 import json
@@ -194,38 +195,38 @@ from pathlib import Path
 import oda_reader
 package_path = Path(oda_reader.__file__).parent
 
-# Load schema mapping
-with open(package_path / 'schemas/mappings/dac1_mapping.json') as f:
+# Load the donor code map (.Stat code to API code)
+with open(package_path / 'schemas/mappings/dac1_codes_area.json') as f:
     mapping = json.load(f)
 
 # Use for custom translation
-print(mapping['DONOR']['mapping'])
-# {'1': 'AUS', '2': 'AUT', ...}
+print(dict(list(mapping.items())[:3]))
+# {'1': 'AUT', '2': 'BEL', '3': 'DNK'}
 ```
 
-## Working with Large Datasets in Production
+## Working with large datasets in production
 
 For production pipelines with large datasets:
 
-### Use Bulk Downloads + Local Storage
+### Use bulk downloads and local storage
 
 ```python
 from oda_reader import bulk_download_crs
 import pandas as pd
 
 # Download once, save locally
-bulk_download_crs(save_to_path="/data/crs_full.parquet")
+bulk_download_crs(save_to_path="/data/")
 
 # In your pipeline, read from local file (fast)
 def get_crs_data():
-    return pd.read_parquet("/data/crs_full.parquet")
+    return pd.read_parquet("/data/CRS.parquet")
 ```
 
-## Debugging Tips
+## Debugging tips
 
-### Enable Verbose Logging
+### Inspect caches
 
-ODA Reader doesn't have built-in verbose logging yet, but you can inspect behavior:
+ODA Reader doesn't have built-in verbose logging yet, but you can inspect behaviour:
 
 ```python
 # Check cache behavior
@@ -240,9 +241,11 @@ clear_cache()
 clear_http_cache()
 ```
 
-### Test with Small Queries First
+### Test with small queries first
 
 ```python
+from oda_reader import download_crs
+
 # Test with single year, single donor
 test_data = download_crs(
     start_year=2022,
@@ -255,9 +258,11 @@ print(f"Shape: {test_data.shape}")
 print(test_data.head())
 ```
 
-### Compare API vs. Bulk Schema
+### Compare API and bulk schema
 
 ```python
+from oda_reader import bulk_download_crs, download_crs
+
 # Download same data both ways
 api_data = download_crs(
     start_year=2022,
@@ -268,14 +273,14 @@ api_data = download_crs(
 bulk_data = bulk_download_crs()
 bulk_filtered = bulk_data[
     (bulk_data['year'] == 2022) &
-    (bulk_data['donor_code'] == 'USA')
+    (bulk_data['donor_code'].astype(str) == '302')  # 302 is the .Stat code for USA
 ]
 
 print("API columns:", list(api_data.columns)[:10])
 print("Bulk columns:", list(bulk_filtered.columns)[:10])
 ```
 
-## Next Steps
+## Next steps
 
 - **[Getting Started](getting-started.md)** - Return to basics if needed
-- **GitHub Issues** - Report bugs or request features at the ODA Reader repository
+- **[GitHub Issues](https://github.com/ONEcampaign/oda_reader/issues)** - Report bugs or request features

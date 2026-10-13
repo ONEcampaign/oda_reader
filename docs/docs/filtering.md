@@ -4,9 +4,9 @@ description: Filter ODA Reader downloads by dimension, combine values and filter
 
 # Filtering Data
 
-All ODA Reader download functions accept a `filters` parameter that lets you query specific subsets of data. This page explains how filtering works across datasets.
+All ODA Reader download functions accept a `filters` parameter that lets you query specific subsets of data.
 
-## Basic Filtering Pattern
+## Basic filtering pattern
 
 Filters use a dictionary where keys are dimension names and values are dimension codes:
 
@@ -23,7 +23,7 @@ data = download_dac1(
 
 This pattern works across all datasets: DAC1, DAC2a, DAC2b, CRS, CPA, and Multisystem.
 
-## Filtering with Multiple Values
+## Filtering with multiple values
 
 Pass a list to filter for multiple values of the same dimension:
 
@@ -38,12 +38,12 @@ data = download_dac1(
 
 The result includes rows matching any of the values (logical OR).
 
-## Combining Multiple Dimensions
+## Combining multiple dimensions
 
 Specify multiple dimensions to narrow your query further:
 
 ```python
-# Multiple dimensions: donor AND measure type AND price base
+# Multiple dimensions: donor AND measure AND flow type AND price base
 data = download_dac1(
     start_year=2022,
     end_year=2022,
@@ -56,9 +56,9 @@ data = download_dac1(
 )
 ```
 
-Multiple dimensions work as logical AND - results must match all specified filters.
+Multiple dimensions work as logical AND. Results must match all specified filters.
 
-## Discovering Available Filters
+## Discovering available filters
 
 Each dataset has different dimensions. Use `get_available_filters()` to see what's available:
 
@@ -72,12 +72,12 @@ dac1_filters = get_available_filters("dac1")
 **Output:**
 
 ```
-OrderedDict([('donor', typing.Union[str, list, NoneType]),
-             ('sector', typing.Union[str, list, NoneType]),
-             ('measure', typing.Union[str, list, NoneType]),
-             ('flow_type', typing.Union[str, list, NoneType]),
-             ('unit_measure', typing.Union[str, list, NoneType]),
-             ('price_base', typing.Union[str, list, NoneType])])
+OrderedDict([('donor', str | list[str] | None),
+             ('sector', str | list[str] | None),
+             ('measure', str | list[str] | None),
+             ('flow_type', str | list[str] | None),
+             ('unit_measure', str | list[str] | None),
+             ('price_base', str | list[str] | None)])
 ```
 
 Each key is a dimension name you can use in `filters`. The type hints show you can pass a string, list, or None.
@@ -107,19 +107,22 @@ cpa_filters = get_available_filters("cpa")
 multisystem_filters = get_available_filters("multisystem")
 ```
 
-## Dataset-Specific Filters
+## Dataset-specific filters
 
 ### DAC1 and DAC2a
 
-Common dimensions:
+Dimensions shared by both:
 
 - `donor` - Donor country (ISO3 codes like "USA", "GBR", "FRA")
-- `recipient` - Recipient country or region (DAC2a only)
-- `sector` - Sector code (DAC1 only, use "\_Z" for not applicable)
 - `measure` - Type of flow (ODA, OOF, grants, loans, etc.)
-- `flow_type` - Commitments, disbursements, net flows, etc.
 - `price_base` - "V" for current prices, "Q" for constant prices
 - `unit_measure` - "USD" for US dollars
+
+Dimensions specific to one dataset:
+
+- `recipient` - Recipient country or region (DAC2a only)
+- `sector` - Sector code (DAC1 only, use "\_Z" for not applicable)
+- `flow_type` - Commitments, disbursements, net flows, etc. (DAC1 only)
 
 **DAC2b** takes the same filter set as DAC2a (`donor`, `recipient`, `measure`, `unit_measure`,
 `price_base`), since both tables live under `DSD_DAC2` and share dimensions and dimension order.
@@ -147,7 +150,7 @@ data = download_dac1(
 CRS has additional dimensions:
 
 - `sector` - Purpose codes (5-digit codes like "12220" for basic health)
-- `channel` - Implementing organization (government, NGO, multilateral, etc.)
+- `channel` - Implementing organisation (government, NGO, multilateral, etc.)
 - `modality` - Grant, loan, equity, etc.
 - `microdata` - **Important**: `True` (default) for project-level, `False` for semi-aggregates
 
@@ -167,9 +170,9 @@ education_projects = download_crs(
 # Returns individual projects (microdata=True by default)
 ```
 
-### CRS Semi-Aggregates
+### CRS semi-aggregates
 
-The online OECD Data Explorer shows semi-aggregated CRS data, not microdata. To match that view:
+The online OECD Data Explorer shows semi-aggregated CRS data. To match that view:
 
 1. Set `microdata: False`
 1. Specify `channel: "_T"` (total across channels)
@@ -192,7 +195,7 @@ semi_agg = download_crs(
 )
 ```
 
-The `_T` suffix means "total" - it aggregates across that dimension to avoid double-counting.
+The `_T` suffix means "total". It aggregates across that dimension to avoid double-counting.
 
 ### Multisystem
 
@@ -218,16 +221,16 @@ un_contributions = download_multisystem(
 )
 ```
 
-## Filter Code Lookup
+## Filter code lookup
 
 Filter values use codes, not human-readable names. To find the right codes:
 
 1. **Download without filters** and inspect unique values:
 
 ```python
-data = download_dac1(start_year=2022, end_year=2022)
-print(data['donor'].unique())  # See all donor codes
-print(data['measure'].unique())  # See all measure codes
+data = download_dac1(start_year=2022, end_year=2022, dotstat_codes=False)
+print(data['donor_code'].unique())  # See all donor codes
+print(data['aidtype_code'].unique())  # See all measure codes
 ```
 
 2. **Check OECD documentation**: Code lists are in the [OECD DAC Glossary](https://www.oecd.org/dac/financing-sustainable-development/development-finance-standards/)
@@ -237,7 +240,7 @@ print(data['measure'].unique())  # See all measure codes
 **Note**: Codes differ between API schema and .Stat schema. When making API calls, you must use the
 API schema. However by default, ODA Reader returns .Stat codes. See [Schema Translation](schema-translation.md) for details.
 
-## Empty Filters
+## Empty filters
 
 Pass an empty dictionary or omit `filters` to get all data (subject to year range):
 
@@ -247,9 +250,9 @@ data1 = download_dac1(start_year=2022, end_year=2022)
 data2 = download_dac1(start_year=2022, end_year=2022, filters={})
 ```
 
-Be careful with unfiltered CRS queries - they can be very large and slow.
+Be careful with unfiltered CRS queries. They can be very large and slow.
 
-## Common Filtering Patterns
+## Common filtering patterns
 
 ### By donor and recipient
 
@@ -303,7 +306,7 @@ french_education = download_crs(
 
 **Unexpected results**: Remember that multiple values in one filter are OR, but multiple filters are AND. Also check if you need semi-aggregates (CRS `microdata: False`).
 
-## Next Steps
+## Next steps
 
 - **[Bulk Downloads](bulk-downloads.md)** - Download large datasets efficiently
 - **[Schema Translation](schema-translation.md)** - Understand filter code differences between schemas

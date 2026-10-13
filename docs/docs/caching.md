@@ -6,7 +6,7 @@ description: Configure API and bulk-file caches, change cache locations, clear s
 
 ODA Reader uses caching to make repeated queries fast and reduce dependency on OECD's servers. This page explains how caching works and how to configure it.
 
-## How Caching Works
+## How caching works
 
 ODA Reader caches three types of data:
 
@@ -16,7 +16,7 @@ ODA Reader caches three types of data:
    `download_crs_file`, `bulk_download_dac1`, `bulk_download_dac2a`, `bulk_download_dac2b`, and
    `bulk_download_multisystem`
 
-All three caches are automatic and transparent - you don't need to change your code to benefit from caching.
+All three caches are automatic and transparent. You don't need to change your code to benefit from caching.
 
 **Example of caching in action**:
 
@@ -44,7 +44,7 @@ Second call: 0.1 seconds
 
 Cached queries are ~100x faster.
 
-## Cache Location
+## Cache location
 
 By default, caches are stored in a platform-specific directory resolved by `readerkit`,
 e.g. `~/Library/Caches/readerkit/v1/oda-reader/1.10.0` on macOS. Resolution order:
@@ -55,9 +55,9 @@ e.g. `~/Library/Caches/readerkit/v1/oda-reader/1.10.0` on macOS. Resolution orde
 1. Platform default: `platformdirs.user_cache_dir("readerkit", appauthor=False)`
 
 Whichever root wins, `readerkit` appends `v<schema>/oda-reader/<oda_reader version>`
-beneath it — three extra path segments you don't choose.
+beneath it, three extra path segments you don't choose.
 
-### Get Current Cache Location
+### Get current cache location
 
 ```python
 from oda_reader import get_cache_dir
@@ -66,7 +66,7 @@ location = get_cache_dir()
 print(f"Cache directory: {location}")
 ```
 
-### Change Cache Location
+### Change cache location
 
 You can set a custom cache location:
 
@@ -77,7 +77,7 @@ from oda_reader import set_cache_dir
 set_cache_dir("/path/to/my/project/oda_cache")
 ```
 
-Files don't land directly in `oda_cache/` — `readerkit` nests them three levels
+Files don't land directly in `oda_cache/`. `readerkit` nests them three levels
 beneath whatever root you pass, so the actual cache directory becomes something
 like `/path/to/my/project/oda_cache/v1/oda-reader/1.10.0/`.
 
@@ -92,7 +92,7 @@ import oda_reader
 # Cache is now at /path/to/cache/v1/oda-reader/1.10.0
 ```
 
-### Reset to Default Location
+### Reset to default location
 
 ```python
 from oda_reader import reset_cache_dir
@@ -102,9 +102,9 @@ reset_cache_dir()
 
 This reverts to the platform default described above.
 
-## Managing the Cache
+## Managing the cache
 
-### Clear All Cached Data
+### Clear all cached data
 
 ```python
 from oda_reader import clear_cache
@@ -112,7 +112,7 @@ from oda_reader import clear_cache
 clear_cache()
 ```
 
-This removes all cached API responses and DataFrames. Your next query will hit the API again.
+This removes everything the cache stores: API responses, DataFrames, and bulk files. Your next query will hit the API again.
 
 **When to clear cache**:
 
@@ -127,7 +127,7 @@ and emit a `DeprecationWarning` pointing at the `oda_data.cache.*` API
 warning. The shims continue to work through the `1.x` series and will be
 removed in `2.0`.
 
-### Enforcing Size and Age Limits
+### Enforcing size and age limits
 
 `enforce_cache_limits()` deletes files older than a max age, then, if the
 directory is still over a max size, deletes the oldest remaining files
@@ -139,24 +139,23 @@ from oda_reader import enforce_cache_limits
 enforce_cache_limits(max_size_mb=2500, max_age_hours=168)  # 2.5 GB, 7 days
 ```
 
-Nothing calls this for you — it doesn't run on import or on any schedule,
-so you call it when you want limits enforced. It also only walks the
-current version's cache directory, not the shared cache root, so it never
-reclaims space left behind by a previous version.
+Nothing calls this for you. Call it yourself when you want limits enforced.
+It walks only the current version's cache directory, so space from
+earlier versions stays on disk.
 
-### Bulk File Cache
+### Bulk file cache
 
 The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
 `bulk_download_dac1`, `bulk_download_dac2a`, `bulk_download_dac2b`, and `bulk_download_multisystem`)
 is governed separately
-because the files are large (~1 GB each):
+because the files are large (up to 1.18 GB each):
 
-- **LRU eviction**: only the two most recent bulk files are kept; older
-  entries are removed automatically the next time you make a bulk
+- **LRU eviction**: only the two most recent bulk files are kept. Older
+  entries are removed the first time a Python session makes a bulk
   download call.
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
-  [Cache Invalidation on Republish](#cache-invalidation-on-republish).
+  [Cache invalidation on republish](#cache-invalidation-on-republish).
 - **Per-entry TTL**: 30 days. This is a fallback, used when the
   publication-version check above couldn't be made (offline, server error,
   or the relevant headers absent).
@@ -176,10 +175,10 @@ because the files are large (~1 GB each):
   place afterward, so a failed or interrupted write never leaves a
   truncated file where a good one used to be.
 
-#### Cache Invalidation on Republish
+#### Cache invalidation on republish
 
 OECD's bulk-download URLs are stable (`CRS.parquet` is always the same
-address, unlike the old GUID URLs that rotated on every republish), so the
+address), so the
 URL alone can't tell ODA Reader that OECD has replaced the file behind it.
 Left unaddressed, a republish could sit unnoticed until the 30-day TTL
 expired, and a pipeline could run against month-old figures with nothing
@@ -202,10 +201,10 @@ recently it was fetched. Where the token comes from depends on the dataset:
   request (for example a Cloudflare challenge) falls back the same way and
   logs a warning naming the HTTP status or Cloudflare Ray ID.
 
-You don't need to call anything for this; it runs automatically on every
+You don't need to call anything for this. It runs automatically on every
 bulk download.
 
-#### Bypassing the Bulk File Cache
+#### Bypassing the bulk file cache
 
 If you need a fresh download every call (e.g. for a CI job that should always
 hit the source), pass `use_raw_cache=False`:
@@ -217,33 +216,33 @@ from oda_reader import bulk_download_crs
 crs = bulk_download_crs(use_raw_cache=False)
 ```
 
-Validation still runs in this mode; only the on-disk caching is skipped. The
+Validation still runs in this mode. Only the on-disk caching is skipped. The
 flag is available on `bulk_download_crs`, `download_crs_file`,
 `bulk_download_dac1`, `bulk_download_dac2a`, `bulk_download_dac2b`, and
 `bulk_download_multisystem`. `download_aiddata` takes a different code path and is not affected.
 
-#### Stale Dataflow Metadata
+#### Stale dataflow metadata
 
 ODA Reader resolves a bulk file's download URL from the SDMX dataflow's
 metadata, and that metadata response is itself subject to the 7-day HTTP
-cache described above. The URLs themselves are stable (`CRS.parquet` is
+cache described under [HTTP caching](#http-caching-separate-from-dataframe-cache). The URLs themselves are stable (`CRS.parquet` is
 always the same address), so a routine OECD republish doesn't go stale
-here; that's handled by the version-token invalidation in
-[Cache Invalidation on Republish](#cache-invalidation-on-republish) instead.
+here. The version-token invalidation in
+[Cache invalidation on republish](#cache-invalidation-on-republish) handles that.
 
 What this guards against is the URL itself changing, e.g. if OECD retires
 the specific dataflow version a cached metadata response was fetched
-under. If a download gets back a 404 or 403, ODA Reader bypasses the 7-day
+under. If a download gets back a 404, ODA Reader bypasses the 7-day
 cache for that one metadata lookup, re-resolves the URL against the live
 OECD server, and retries the download once with the fresh result. This is
 separate from the bulk-file cache above (which governs the downloaded
 parquet/zip itself) and from `clear_version_cache()` (which governs
 discovered dataflow _versions_, not resolved file URLs). You don't need to
-call anything to get this behavior; it runs automatically for
+call anything to get this behaviour. It runs automatically for
 `bulk_download_crs()`, `download_crs_file()`, `bulk_download_dac1()`,
 `bulk_download_dac2a()`, `bulk_download_dac2b()`, and `bulk_download_multisystem()`.
 
-#### Handling Corrupt Downloads
+#### Handling corrupt downloads
 
 The OECD's bulk endpoint occasionally serves a truncated or malformed file.
 When that happens, a `BulkPayloadCorruptError` is raised and the bad entry is
@@ -260,9 +259,9 @@ except BulkPayloadCorruptError:
     crs = bulk_download_crs()
 ```
 
-## HTTP Caching (Separate from DataFrame Cache)
+## HTTP caching (separate from DataFrame cache)
 
-ODA Reader also caches raw HTTP responses using `requests-cache`:
+ODA Reader also caches raw HTTP responses using `requests-cache`. HTTP responses expire after 7 days.
 
 ```python
 from oda_reader import (
@@ -273,7 +272,7 @@ from oda_reader import (
 )
 ```
 
-### Enable/Disable HTTP Cache
+### Enable/disable HTTP cache
 
 ```python
 # HTTP cache is enabled by default
@@ -285,7 +284,7 @@ disable_http_cache()
 enable_http_cache()
 ```
 
-### Clear Version Discovery Cache
+### Clear version discovery cache
 
 ODA Reader caches discovered dataflow versions in-process. If the OECD publishes a new version mid-session:
 
@@ -297,18 +296,18 @@ clear_version_cache()
 
 This forces a fresh metadata lookup on the next query.
 
-### Clear HTTP Cache Only
+### Clear HTTP cache only
 
 ```python
 # Clear just HTTP cache (keeps DataFrame cache)
 clear_http_cache()
 ```
 
-### Get HTTP Cache Info
+### Get HTTP cache info
 
 ```python
 info = get_http_cache_info()
-print(f"HTTP cache: {info['cache_size']} responses cached")
+print(f"HTTP cache: {info['response_count']} responses cached")
 ```
 
 **Difference between caches**:
@@ -318,7 +317,7 @@ print(f"HTTP cache: {info['cache_size']} responses cached")
 
 Both caches speed up repeated queries, but DataFrame cache is faster since it skips parsing.
 
-## Rate Limiting
+## Rate limiting
 
 To avoid hitting OECD's API rate limits, ODA Reader automatically pauses between requests.
 
@@ -345,13 +344,13 @@ API_RATE_LIMITER.period = 60
 1. If limit reached, it **blocks** (pauses) until period expires
 1. Then allows the call to proceed
 
-This is transparent - your code just runs slower when rate limit is reached.
+This is transparent. Your code just runs slower when rate limit is reached.
 
 **Example**: If you make 20 calls in 30 seconds, the 21st call waits 30 more seconds before proceeding.
 
-## Performance Tips
+## Performance tips
 
-### Use Bulk Downloads for Large Queries
+### Use bulk downloads for large queries
 
 If you need large amounts of data, bulk downloads are faster than API calls:
 
@@ -364,7 +363,7 @@ crs_full = bulk_download_crs()
 
 See [Bulk Downloads](bulk-downloads.md) for details.
 
-### Cache Survives Across Sessions
+### Cache survives across sessions
 
 Once data is cached, it stays cached between Python sessions:
 
@@ -378,9 +377,9 @@ from oda_reader import download_dac1
 data = download_dac1(start_year=2022, end_year=2022)  # instant
 ```
 
-Cache persists until you clear it or it expires (7 days).
+Cache persists until you clear it. HTTP responses expire after 7 days and bulk files after 30.
 
-### Filter Aggressively to Reduce API Load
+### Filter aggressively to reduce API load
 
 Smaller queries are faster and more cache-friendly:
 

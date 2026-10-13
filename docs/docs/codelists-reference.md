@@ -11,7 +11,7 @@ start at [Codelists](codelists.md).
 from oda_reader.codelists import fetch_codelists, parse_codelists, reconcile
 ```
 
-The five exception classes are importable from `oda_reader` directly.
+The four exception classes and their base, `CodelistError`, are importable from `oda_reader` directly.
 
 ## `CodelistSnapshot`
 
@@ -53,24 +53,24 @@ Fetches area codelists from the live OECD page and parses them.
 
 **Parameters**
 
-- **`codelist_ids`** (`Sequence[str]`, default: `("5", "13")`) — which codelists to fetch, in request
-  order. Each must be `"5"` or `"13"`. Duplicates are rejected. Pass a sequence, never a bare string.
-- **`timeout`** (`int`, default: `30`) — per-request timeout in seconds, applied to every request of
+- **`codelist_ids`** (`Sequence[str]`, default: `("5", "13")`): which codelists to fetch, in request
+  order. Each must be `"5"` or `"13"`. Duplicates are rejected. A bare string raises `CodelistValidationError`.
+- **`timeout`** (`int`, default: `30`): per-request timeout in seconds, applied to every request of
   every codelist's handshake.
-- **`retries`** (`int`, default: `2`) — extra attempts after the first, per codelist. Total attempts
+- **`retries`** (`int`, default: `2`): extra attempts after the first, per codelist. Total attempts
   per codelist is `retries + 1`.
 
-**Returns** — `CodelistSnapshot` covering every id in `codelist_ids`.
+**Returns**: `CodelistSnapshot` covering every id in `codelist_ids`.
 
 **Raises**
 
-- **`CodelistValidationError`** — `codelist_ids` is a bare `str`, empty, holds a non-`str` element,
+- **`CodelistValidationError`**: `codelist_ids` is a bare `str`, empty, holds a non-`str` element,
   names an unsupported codelist, or repeats one. All raised before any request goes out. Id `"16"`
   names the agency contract instead of reporting a bare "unsupported". Also raised when a codelist's
   payload parses to zero rows.
-- **`CodelistFetchError`** — transport failure, or 5xx/429/408/425 that survived every attempt.
-- **`CodelistSourceError`** — a 4xx, a refused redirect, or a 200 that isn't the CodesList.aspx page.
-- **`CodelistShapeError`** — a required handshake token was missing, or the payload's shape isn't
+- **`CodelistFetchError`**: transport failure, or 5xx/429/408/425 that survived every attempt.
+- **`CodelistSourceError`**: a 4xx other than 408, 425, and 429, a refused redirect, or a 200 that isn't the CodesList.aspx page.
+- **`CodelistShapeError`**: a required handshake token was missing, or the payload's shape isn't
   what the parser expects.
 
 **Example**
@@ -86,7 +86,7 @@ except CodelistValidationError as exc:
 # Codelist validation error: unsupported codelist_id '10'; supported: ('5', '13') [codelist_id=10]
 ```
 
-Status is not a parameter. The handshake requests every status, so a call returns whatever states the
+The fetch functions take no status argument. The handshake requests every status, so a call returns whatever states the
 source carries. Today that is `active` and `withdrawn`; no `future` or `heading` row has been
 observed.
 
@@ -100,22 +100,22 @@ Builds the same `CodelistSnapshot` from bytes already in hand. No network access
 
 **Parameters**
 
-- **`raw`** (`Mapping[str, bytes]`) — `codelist_id` to that codelist's response bytes, in the order
+- **`raw`** (`Mapping[str, bytes]`): `codelist_id` to that codelist's response bytes, in the order
   `codelist_ids` should report.
-- **`fetched_at`** (`datetime`) — when `raw` was obtained. Must be timezone-aware. Use
+- **`fetched_at`** (`datetime`): when `raw` was obtained. Must be timezone-aware. Use
   `datetime.datetime.now(datetime.UTC)`.
-- **`source_url`** (`str`, default: the OECD CodesList.aspx URL) — recorded on the snapshot. Does not
+- **`source_url`** (`str`, default: the OECD CodesList.aspx URL): recorded on the snapshot. Does not
   affect parsing.
 
-**Returns** — `CodelistSnapshot`. Every guarantee documented on the type holds on bytes obtained any
+**Returns**: `CodelistSnapshot`. Every guarantee documented on the type holds on bytes obtained any
 other way.
 
 **Raises**
 
-- **`CodelistShapeError`** — a payload isn't JSON, its envelope is malformed, or a row is missing a
+- **`CodelistShapeError`**: a payload isn't JSON, its envelope is malformed, or a row is missing a
   required field, carries a malformed `activation_date`, or conflicts with another row sharing its
   key.
-- **`CodelistValidationError`** — `raw` is empty, a codelist in `raw` produced zero rows, or
+- **`CodelistValidationError`**: `raw` is empty, a codelist in `raw` produced zero rows, or
   `fetched_at` is naive.
 
 ### The area frame
@@ -161,15 +161,15 @@ Fetches category codelists from the live OECD page and parses them.
 
 **Parameters**
 
-- **`codelist_ids`** (`Sequence[str]`) — which codelists to fetch, in request order. Required, no
+- **`codelist_ids`** (`Sequence[str]`): which codelists to fetch, in request order. Required, no
   default, since requesting all 23 is a ~900 KB fetch. Each must be one of the 23 ids in
-  `SUPPORTED_CATEGORY_IDS`. Duplicates are rejected. Pass a sequence, never a bare string.
-- **`timeout`** (`int`, default: `30`) — as `fetch_codelists`.
-- **`retries`** (`int`, default: `2`) — as `fetch_codelists`.
+  `SUPPORTED_CATEGORY_IDS`. Duplicates are rejected. A bare string raises `CodelistValidationError`.
+- **`timeout`** (`int`, default: `30`): as `fetch_codelists`.
+- **`retries`** (`int`, default: `2`): as `fetch_codelists`.
 
-**Returns** — `CodelistSnapshot` with the eleven-column category frame.
+**Returns**: `CodelistSnapshot` with the eleven-column category frame.
 
-**Raises** — the same four classes as `fetch_codelists`. Ids `"5"`, `"13"` and `"16"` name the
+**Raises**: the same four classes as `fetch_codelists`. Ids `"5"`, `"13"` and `"16"` name the
 contract that owns them instead of reporting a bare "unsupported":
 
 ```text
@@ -244,7 +244,7 @@ Present only in Purpose code (`"10"`), where it encodes the CRS sector hierarchy
 `parent_code` is `110`, the sector row it sits under. Every non-null parent reference resolves to a
 code in the same codelist.
 
-The source sends an empty string rather than omitting the field, which normalises to `pd.NA`. Of
+The source sends an empty string, which normalises to `pd.NA`. Of
 Purpose code's 392 rows, 124 carry the `parent-code` key and 81 carry a real reference, so
 `frame["parent_code"].notna()` returns 81.
 
@@ -276,16 +276,16 @@ Fetches codelist 16 from the live OECD page and parses it.
 
 **Parameters**
 
-- **`timeout`** (`int`, default: `30`) — per-request timeout in seconds, applied to every request of
+- **`timeout`** (`int`, default: `30`): per-request timeout in seconds, applied to every request of
   the handshake.
-- **`retries`** (`int`, default: `2`) — extra attempts after the first. Total attempts is
+- **`retries`** (`int`, default: `2`): extra attempts after the first. Total attempts is
   `retries + 1`.
 
 There is no `codelist_ids` parameter. Codelist 16 is the only agency codelist.
 
-**Returns** — `CodelistSnapshot` with the twelve-column agency frame.
+**Returns**: `CodelistSnapshot` with the twelve-column agency frame.
 
-**Raises** — the same four classes as `fetch_codelists`.
+**Raises**: the same four classes as `fetch_codelists`.
 
 **Example**
 
@@ -330,7 +330,7 @@ Twelve columns, one row per `(codelist_id, donor_code, code, activation_date)`. 
 The frame holds 1,374 rows over 110 distinct agency codes across 198 donors, with [one row per
 donor](codelists.md#agency-one-row-per-donor) for a shared code.
 
-`crs` and `tossd` stay out of the key, unlike the category frame. Agency rows do not split by
+`crs` and `tossd` stay out of the key. Agency rows do not split by
 reporting standard.
 
 ## `reconcile`
@@ -346,18 +346,18 @@ three behaviours that matter when alerting on the result.
 
 **Parameters**
 
-- **`previous`** (`pd.DataFrame | None`) — an existing table, or `None` on first run. May be a plain
+- **`previous`** (`pd.DataFrame | None`): an existing table, or `None` on first run. May be a plain
   snapshot frame with no lineage columns, which are backfilled. Contract columns are coerced to
   contract dtypes on entry, so a table read back as `int64`/`object` works without manual casting.
-- **`current`** (`CodelistSnapshot`) — a snapshot from `fetch_codelists` or `parse_codelists`.
-- **`observed_at`** (`date | None`, default: `None`) — the lineage date. Defaults to
+- **`current`** (`CodelistSnapshot`): a snapshot from `fetch_codelists` or `parse_codelists`.
+- **`observed_at`** (`date | None`, default: `None`): the lineage date. Defaults to
   `current.fetched_at` as a UTC date.
 
-**Returns** — `Reconciliation`.
+**Returns**: `Reconciliation`.
 
 **Raises**
 
-- **`CodelistValidationError`** — `current.contract` is not `"area"`, or its frame is not the area
+- **`CodelistValidationError`**: `current.contract` is not `"area"`, or its frame is not the area
   contract's ten columns; `previous` or `current` has duplicate keys; a `previous` column can't be
   coerced without loss; `presence` holds a value outside `PRESENCE_DOMAIN`; or `observed_at`
   predates a `last_seen` already in `previous`.
@@ -366,14 +366,14 @@ three behaviours that matter when alerting on the result.
 
 **Attributes**
 
-- **`table`** (`pd.DataFrame`) — the union of `previous` and `current`, ready to load. Carries the
+- **`table`** (`pd.DataFrame`): the union of `previous` and `current`, ready to load. Carries the
   ten contract columns, the four lineage columns, and any extra column `previous` had.
-- **`added`** (`pd.DataFrame`) — rows whose key was absent from `previous`. Full `table` columns.
-- **`retired`** (`pd.DataFrame`) — rows that moved to `presence="retired"` this run. Full `table`
+- **`added`** (`pd.DataFrame`): rows whose key was absent from `previous`. Full `table` columns.
+- **`retired`** (`pd.DataFrame`): rows that moved to `presence="retired"` this run. Full `table`
   columns.
-- **`changed`** (`pd.DataFrame`) — one row per changed value, with columns `codelist_id`, `code`,
+- **`changed`** (`pd.DataFrame`): one row per changed value, with columns `codelist_id`, `code`,
   `activation_date`, `column`, `old_value`, `new_value`, `observed_at`.
-- **`is_unchanged`** (`bool`) — `True` only when `added`, `retired` and `changed` are all empty.
+- **`is_unchanged`** (`bool`): `True` only when `added`, `retired` and `changed` are all empty.
 
 The four lineage columns `table` adds on top of the frame's ten, named by `LINEAGE_COLUMNS`:
 
@@ -406,9 +406,9 @@ assert snapshot.frame["status"].isin(STATUS_DOMAIN).all()
 
 ## Exceptions
 
-Five classes, all importable from `oda_reader`, all inheriting from `CodelistError` and from
-`Exception` only. None subclass `OSError` or `ConnectionError`, so `except OSError` won't catch them.
-Every contract raises the same five.
+Four classes, all importable from `oda_reader`, each a subclass of `CodelistError`, which inherits
+from `Exception` only. `CodelistError` is the base class and nothing raises it directly. None subclass
+`OSError` or `ConnectionError`, so `except OSError` won't catch them. Every contract raises the same four.
 
 | Failure                                                                          | Exception                 | `is_retryable` |
 | -------------------------------------------------------------------------------- | ------------------------- | -------------- |
@@ -427,7 +427,7 @@ Every instance carries `codelist_id`, or `None` before it's known. `CodelistFetc
 `final_url`, `location` and a bounded, token-redacted `body`. `CodelistShapeError` adds `stage`,
 `detail`, `url` and the same bounded `body`. `CodelistValidationError` adds `detail`.
 
-**Redirects** — the OECD app answers a codelist selection with a same-origin redirect, which is
+**Redirects**: the OECD app answers a codelist selection with a same-origin redirect, which is
 followed automatically and is part of the normal handshake. A redirect to a different host is refused
 and raises `CodelistSourceError`.
 

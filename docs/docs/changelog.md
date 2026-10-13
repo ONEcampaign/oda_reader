@@ -6,7 +6,7 @@ description: Find ODA Reader release notes in the repository, understand semanti
 
 For a complete version history and release notes, see the [CHANGELOG.md](https://github.com/ONEcampaign/oda_reader/blob/main/CHANGELOG.md) file in the repository.
 
-## Recent Releases
+## What the changelog covers
 
 The changelog includes:
 
@@ -42,6 +42,7 @@ uv pip install --upgrade oda-reader
 Check your current version:
 
 ```python
-import oda_reader
-print(oda_reader.__version__)
+from importlib.metadata import version
+
+print(version("oda_reader"))
 ```
