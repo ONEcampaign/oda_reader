@@ -37,6 +37,8 @@ from oda_reader.codelists._fetch import _ALL_STATUSES, _fetch_codelist_bytes
 from oda_reader.codelists._types import DEFAULT_URL
 from oda_reader.common import ImporterPaths
 from oda_reader.exceptions import _redact_hidden_token_values
+from oda_reader.schemas.schema_tools import find_area_code_clashes
+from oda_reader.schemas.xml_tools import keys_to_int, read_mapping
 from scripts.data_maintenance._common import dumps_canonical, emit_json_diff
 
 _OECD_URL = DEFAULT_URL
@@ -450,11 +452,19 @@ def run(*, settings: RefreshSettings) -> int:
         return early_exit_code
 
     drift_detected = False
+    clash_detected = False
+    # Every target is built and checked before anything is written, so a
+    # clash in one target never leaves another target half-refreshed.
+    pending_writes: list[tuple[str, Path, str]] = []
     # A shape change in the live payload now surfaces as a diagnosable
     # message and exit code 1 in this unattended weekly job, rather than a
     # bare traceback several frames from the cause.
     try:
         for target in targets:
+            corrections = read_mapping(
+                ImporterPaths.mappings / "area_code_corrections.json",
+                keys_as_int=True,
+            )
             area_path = ImporterPaths.mappings / f"{target}_codes_area.json"
             original_text = (
                 area_path.read_text(encoding="utf-8") if area_path.exists() else ""
@@ -496,6 +506,19 @@ def run(*, settings: RefreshSettings) -> int:
                         file=sys.stderr,
                     )
 
+            # Check what the runtime will see: the proposed map with the
+            # corrections merged in, as area_code_mapping() builds it.
+            clashes = find_area_code_clashes(
+                keys_to_int(proposed_map) | corrections, corrections
+            )
+            for api_code, codes in sorted(clashes.items()):
+                clash_detected = True
+                print(
+                    f"[{target}] clash: API code {api_code} has .Stat codes {codes}"
+                    " and area_code_corrections.json doesn't pick one",
+                    file=sys.stderr,
+                )
+
             if original_text == proposed_text:
                 print(f"[{target}] No changes detected.", file=sys.stderr)
             else:
@@ -506,14 +529,23 @@ def run(*, settings: RefreshSettings) -> int:
                     fromfile=f"{target}_codes_area.json (current)",
                     tofile=f"{target}_codes_area.json (proposed)",
                 )
-                if settings.write:
-                    area_path.write_text(proposed_text, encoding="utf-8")
-                    print(f"[{target}] wrote {area_path}", file=sys.stderr)
+                pending_writes.append((target, area_path, proposed_text))
     except Exception as exc:
         print(f"error building area map for {target}: {exc}", file=sys.stderr)
         return 1
 
-    if settings.write and drift_detected:
+    if clash_detected:
+        print(
+            "error: an API code has more than one .Stat code and no correction"
+            " picking one, so nothing was written. Add an entry to"
+            " area_code_corrections.json choosing the .Stat code, then re-run.",
+            file=sys.stderr,
+        )
+    elif settings.write and pending_writes:
+        for target, area_path, proposed_text in pending_writes:
+            area_path.write_text(proposed_text, encoding="utf-8")
+            print(f"[{target}] wrote {area_path}", file=sys.stderr)
+
         # Update provenance sidecar with timestamp and fetched IDs.
         all_ids = sorted(
             {cid for t in targets for cid in _AREA_CODELIST_IDS[t]}, key=int
@@ -526,7 +558,7 @@ def run(*, settings: RefreshSettings) -> int:
         _PROVENANCE_PATH.write_text(prov_text, encoding="utf-8")
         print(f"wrote {_PROVENANCE_PATH}", file=sys.stderr)
 
-    if settings.check and drift_detected:
+    if settings.check and drift_detected and not clash_detected:
         print(
             "error: committed codelists are out of date with the live OECD source; "
             "run `python -m scripts.data_maintenance.refresh_dac_codelists --write` "
@@ -535,7 +567,7 @@ def run(*, settings: RefreshSettings) -> int:
         )
         return 1
 
-    return 0
+    return 1 if clash_detected else 0
 
 
 def main(argv: list[str] | None = None) -> None:
