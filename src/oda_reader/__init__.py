@@ -34,6 +34,7 @@ from oda_reader.common import (
     get_http_cache_info,
 )
 from oda_reader.cpa import download_cpa
+from oda_reader.crdf import download_crdf, download_crdf_file, list_crdf_files
 from oda_reader.crs import bulk_download_crs, download_crs, download_crs_file
 from oda_reader.dac1 import bulk_download_dac1, download_dac1
 from oda_reader.dac2a import bulk_download_dac2a, download_dac2a
@@ -56,6 +57,7 @@ from oda_reader.exceptions import (
     CodelistShapeError,
     CodelistSourceError,
     CodelistValidationError,
+    CRDFSchemaError,
 )
 from oda_reader.multisystem import bulk_download_multisystem, download_multisystem
 from oda_reader.tools import get_available_filters
@@ -131,6 +133,7 @@ __all__ = [
     "CodelistSourceError",
     "CodelistShapeError",
     "CodelistValidationError",
+    "CRDFSchemaError",
     # Data download
     "QueryBuilder",
     "download_dac1",
@@ -146,6 +149,9 @@ __all__ = [
     "download_crs_file",
     "download_cpa",
     "download_aiddata",
+    "download_crdf",
+    "download_crdf_file",
+    "list_crdf_files",
     "get_available_filters",
     # Cache configuration
     "get_cache_dir",

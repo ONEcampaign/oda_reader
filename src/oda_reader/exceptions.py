@@ -607,3 +607,49 @@ class CodelistValidationError(CodelistError):
         if codelist_id is not None:
             message += f" [codelist_id={codelist_id}]"
         super().__init__(message=message, codelist_id=codelist_id)
+
+
+# --- oda_reader.crdf exceptions ----------------------------------------
+
+
+class CRDFSchemaError(Exception):
+    """Raised when a CRDF workbook or folder does not match a known layout.
+
+    The OECD maintains the CRDF folder by hand and has renamed files and
+    columns before, so the reader refuses anything it cannot map rather
+    than guessing.
+
+    Attributes:
+        source: The URL or path being read.
+        sheet: The worksheet name, or None when the problem is not a sheet's.
+        layout: The known layout closest to the headers found, or None.
+        unmapped: Headers present in the sheet that the layout does not map.
+        missing: Headers the layout expects that the sheet lacks.
+        detail: What was wrong, in words.
+    """
+
+    def __init__(
+        self,
+        *,
+        source: str,
+        detail: str,
+        sheet: str | None = None,
+        layout: str | None = None,
+        unmapped: tuple[str, ...] = (),
+        missing: tuple[str, ...] = (),
+    ) -> None:
+        self.source = source
+        self.sheet = sheet
+        self.layout = layout
+        self.unmapped = unmapped
+        self.missing = missing
+        self.detail = detail
+        where = f"{source} [{sheet}]" if sheet else source
+        message = f"{where}: {detail}"
+        if layout is not None:
+            message += f" Closest known layout: {layout}."
+        if unmapped:
+            message += f" Unmapped columns: {list(unmapped)}."
+        if missing:
+            message += f" Missing columns: {list(missing)}."
+        super().__init__(message)

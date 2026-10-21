@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Adds `download_crdf()`, `download_crdf_file()` and `list_crdf_files()`** for the OECD
+  Climate-Related Development Finance workbooks at `webfs.oecd.org/climate/`, read over plain
+  HTTP from either perspective. File names come from the live folder listing, and each year is
+  read from the narrowest workbook that holds it. Every header layout, current and archived,
+  maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
+  `vintage`, `source_file` and `file_etag` added to each row. An unknown layout raises
+  `CRDFSchemaError`, which lists the unmapped and missing columns.
 - **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
   copies it into the bulk file cache under the key a download would use, and returns the cached
   path. A registered entry never expires and is exempt from LRU eviction. Online reads serve it
