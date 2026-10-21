@@ -5,13 +5,30 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from oda_reader._cache.manager import CacheManager
 
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+_FLOW_URL = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/DSD_CRS@DF_CRS/"
 
 
-def _populate(base_dir: Path, ages_days: dict[str, int], ttl_days: int = 90) -> None:
-    """Write a manifest entry and a file for each key, downloaded that many days ago."""
+def _populate(
+    base_dir: Path,
+    ages_days: dict[str, int],
+    *,
+    labels: dict[str, str] | None = None,
+    seqs: dict[str, int] | None = None,
+    ttl_days: int = 90,
+) -> None:
+    """Write a manifest entry and a file for each key, downloaded that many days ago.
+
+    A key in ``labels`` records ``_FLOW_URL`` and that label as its dataset. A
+    key in ``seqs`` records that ``seq``; other keys record none, as records
+    written before ``seq`` existed.
+    """
+    labels = labels or {}
+    seqs = seqs or {}
     now = datetime.now(UTC)
     manifest = {}
     for key, age in ages_days.items():
@@ -21,7 +38,12 @@ def _populate(base_dir: Path, ages_days: dict[str, int], ttl_days: int = 90) -> 
             "downloaded_at": (now - timedelta(days=age)).strftime(ISO_FORMAT),
             "ttl_days": ttl_days,
             "version": None,
+            "source": "download",
+            "flow_url": _FLOW_URL if key in labels else None,
+            "label": labels.get(key),
         }
+        if key in seqs:
+            manifest[key]["seq"] = seqs[key]
     (base_dir / "manifest.json").write_text(json.dumps(manifest))
 
 
@@ -39,17 +61,71 @@ def test_keeps_every_entry_within_ttl(tmp_path: Path) -> None:
     assert _manifest_keys(tmp_path) == {"crs", "dac1", "dac2a", "multi"}
 
 
-def test_removes_entries_past_their_ttl(tmp_path: Path) -> None:
-    _populate(tmp_path, {"old": 91, "fresh": 89})
+@pytest.mark.parametrize(
+    ("labels", "kept"),
+    [
+        ({"old": "CRS", "fresh": "CRS"}, {"fresh"}),
+        ({"old": "CRS", "fresh": "DAC1"}, {"old", "fresh"}),
+        ({}, {"old", "fresh"}),
+    ],
+    ids=["superseded", "only-copy-of-dataset", "no-dataset"],
+)
+def test_removes_expired_entry_only_when_superseded(
+    tmp_path: Path, labels: dict[str, str], kept: set[str]
+) -> None:
+    _populate(tmp_path, {"old": 91, "fresh": 89}, labels=labels)
 
     CacheManager(base_dir=tmp_path)
 
-    assert {p.stem for p in tmp_path.glob("*.zip")} == {"fresh"}
-    assert _manifest_keys(tmp_path) == {"fresh"}
+    assert {p.stem for p in tmp_path.glob("*.zip")} == kept
+    assert _manifest_keys(tmp_path) == kept
+
+
+@pytest.mark.parametrize(
+    ("seqs", "kept"),
+    [({"a": 1, "b": 2}, {"b"}), ({"a": 2, "b": 1}, {"a"})],
+    ids=["b-written-last", "a-written-last"],
+)
+def test_seq_decides_superseded_when_timestamps_tie(
+    tmp_path: Path, seqs: dict[str, int], kept: set[str]
+) -> None:
+    _populate(tmp_path, {"a": 91, "b": 91}, labels={"a": "CRS", "b": "CRS"}, seqs=seqs)
+
+    CacheManager(base_dir=tmp_path)
+
+    assert _manifest_keys(tmp_path) == kept
+
+
+@pytest.mark.parametrize(
+    ("ages_days", "seqs", "found"),
+    [
+        ({"old": 30, "fresh": 1}, {}, "fresh"),
+        ({"old": 1, "fresh": 30}, {"fresh": 1}, "fresh"),
+    ],
+    ids=["no-seq-by-downloaded-at", "seq-outranks-no-seq"],
+)
+def test_find_entry_picks_the_last_written_copy(
+    tmp_path: Path, ages_days: dict[str, int], seqs: dict[str, int], found: str
+) -> None:
+    _populate(tmp_path, ages_days, labels={"old": "CRS", "fresh": "CRS"}, seqs=seqs)
+
+    match = CacheManager(base_dir=tmp_path).find_entry(flow_url=_FLOW_URL, label="CRS")
+
+    assert match is not None
+    assert match[0] == found
+
+
+def test_newer_record_without_file_does_not_supersede(tmp_path: Path) -> None:
+    _populate(tmp_path, {"old": 120, "fresh": 1}, labels={"old": "CRS", "fresh": "CRS"})
+    (tmp_path / "fresh.zip").unlink()
+
+    CacheManager(base_dir=tmp_path)
+
+    assert (tmp_path / "old.zip").exists()
 
 
 def test_unlink_failure_keeps_record_for_retry(tmp_path: Path) -> None:
-    _populate(tmp_path, {"old": 120})
+    _populate(tmp_path, {"old": 120, "fresh": 1}, labels={"old": "CRS", "fresh": "CRS"})
     original_unlink = Path.unlink
 
     def raising_unlink(self, missing_ok=False):
@@ -59,8 +135,8 @@ def test_unlink_failure_keeps_record_for_retry(tmp_path: Path) -> None:
 
     with patch.object(Path, "unlink", raising_unlink):
         CacheManager(base_dir=tmp_path)
-    assert _manifest_keys(tmp_path) == {"old"}
+    assert _manifest_keys(tmp_path) == {"old", "fresh"}
 
     CacheManager(base_dir=tmp_path)
-    assert _manifest_keys(tmp_path) == set()
+    assert _manifest_keys(tmp_path) == {"fresh"}
     assert not (tmp_path / "old.zip").exists()

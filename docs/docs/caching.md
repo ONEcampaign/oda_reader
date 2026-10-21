@@ -145,28 +145,37 @@ earlier versions stays on disk.
 
 ### Bulk file cache
 
-The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
-`bulk_download_dac1`, `bulk_download_dac2a`, `bulk_download_dac2b`, and `bulk_download_multisystem`)
-is governed separately
-because the files are large (up to 1.18 GB each):
+The bulk file cache is used by `bulk_download_crs`, `download_crs_file`, `bulk_download_dac1`,
+`bulk_download_dac2a`, `bulk_download_dac2b`, `bulk_download_multisystem` and `download_crdf`.
+ODA Reader downloads each bulk file whole, keeps the copy here and answers queries from it. It
+never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge; see
+[Cloudflare challenge](bulk-downloads.md#cloudflare-challenge-bulkdownloadchallengeerror). A
+browser download registered with `register_bulk_file` then fills the cache (see
+[Registered files](#registered-files)).
 
-- **Expiry**: every bulk file you download stays cached until its TTL
-  below runs out, so disk use grows with the number of distinct files you
-  fetch. Expired files are deleted the first time a Python session makes a
-  bulk download call.
+The cache is governed separately because the files are large (up to 1.18 GB each):
+
+- **Expiry**: a downloaded bulk file past its TTL below is deleted the first
+  time a Python session makes a bulk download call, but only once a newer
+  copy of the same dataset is cached. A dataset's only copy stays: an online
+  read refetches it and an offline read uses it. A file downloaded by URL
+  alone, with no dataset, stays until a download replaces it or you clear
+  the cache. Registered files never expire (see
+  [Registered files](#registered-files)).
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
   [Cache invalidation on republish](#cache-invalidation-on-republish).
 - **Per-entry TTL**: 90 days. A file older than that is refetched even if
   OECD hasn't republished it, which covers the cases where the
   publication-version check above couldn't be made (offline, server error,
-  or the relevant headers absent).
+  or the relevant headers absent). Registered files have no TTL.
 - **Integrity validation**: every freshly downloaded payload is end-to-end
   checked before being trusted (a zip CRC walk, or a footer-magic check for
   the bare-parquet CRS files). Truncation is also caught earlier, during the
   download itself: streamed bytes are compared against the response's
   `Content-Length` and a mismatch is retried before it ever reaches the
-  cache. A corrupt download is removed from the cache and raises
+  cache. A corrupt download is deleted before it replaces anything, so a
+  copy already in the cache stays readable, and raises
   `BulkPayloadCorruptError` so you can simply retry. Cached files are
   trusted on hit (no recheck on every call).
 - **Self-healing**: temp files left behind by interrupted downloads (older
@@ -201,8 +210,70 @@ recently it was fetched. The token comes from the file host:
   still works offline. A blocked request (for example a Cloudflare
   challenge) logs a warning naming the HTTP status or Cloudflare Ray ID.
 
-You don't need to call anything for this. It runs automatically on every
-bulk download.
+A download happens only when the cache has no copy, the token has changed, or the copy is past
+its TTL. You don't need to call anything for this. It runs automatically on every bulk download.
+
+OECD may change bulk file names, for example by adding a timestamp. Each online read looks up the
+current name in the SDMX dataflow annotations, so a renamed file is found without an ODA Reader
+update (see [Stale dataflow metadata](#stale-dataflow-metadata) for how a cached annotation that
+names the old file is handled). An offline read finds the cached copy by dataset, whatever name it was stored under.
+
+#### Registered files
+
+`register_bulk_file()` puts a file you downloaded yourself into the bulk
+file cache, for when OECD's Cloudflare front end blocks the download (see
+[Cloudflare challenge](bulk-downloads.md#cloudflare-challenge-bulkdownloadchallengeerror)):
+
+```python
+import oda_reader
+
+oda_reader.register_bulk_file(
+    "~/Downloads/CRS.parquet", dataset="crs", url="<url from the error>"
+)
+```
+
+A registered file is stored under the same key a download of that URL
+would use. Online reads treat it like any cached file: the reader resolves
+the URL, reads the host's version token, and serves the registered copy
+when the token equals the one recorded at registration or cannot be read.
+A different token means OECD has republished, so the reader downloads the
+new file and it replaces the registration.
+
+The recorded token is the `version` you pass. The challenge error prints
+the token the reader saw just before the blocked download, so copying its
+call records the right one. Without `version`, `register_bulk_file` asks
+the host for the token itself, and records none if that request fails too.
+With no token recorded, the registered copy is served until a token
+request succeeds, which triggers a download.
+
+A registered entry has no TTL, so the 90-day expiry never removes it. It
+is replaced only by another registration, a completed
+download of the same file, or a cache clear such as
+`oda_data.cache.clear('raw')` or `bulk_cache_manager().clear()`.
+`bulk_cache_manager().list_records()` reports `source="registered"` for a
+registered entry and `source="download"` for the rest.
+
+#### Reading offline
+
+`bulk_download_crs`, the DAC1, DAC2a, DAC2b and multisystem bulk readers, and
+`bulk_download_parquet` take `offline=True`. The reader then makes no network
+request, neither the URL lookup nor the version-token request, and reads whatever copy of that dataset the cache holds, registered or
+downloaded, however old:
+
+```python
+from oda_reader import bulk_download_crs
+
+crs = bulk_download_crs(offline=True)
+```
+
+With nothing cached it raises `BulkFileNotCachedError`, which prints the
+`register_bulk_file` call to run. Offline reads find a registered file by
+its `dataset`, so register with `dataset` when you plan to read offline. A
+CRS year file has no `dataset` name. Register it with `url=` and read it
+offline through `bulk_download_parquet(url=..., offline=True)`.
+
+Set `ODA_READER_CACHE_DIR` before registering to put the file in a cache
+other than the default one.
 
 #### Bypassing the bulk file cache
 
@@ -245,9 +316,10 @@ call anything to get this behaviour. It runs automatically for
 #### Handling corrupt downloads
 
 The OECD's bulk endpoint occasionally serves a truncated or malformed file.
-When that happens, a `BulkPayloadCorruptError` is raised and the bad entry is
-already removed from disk by the time you see it, so the next call cleanly
-re-downloads:
+When that happens, a `BulkPayloadCorruptError` is raised and the bad download is
+already removed from disk by the time you see it. Any copy the cache already
+held, including a registered file, stays in place with its record, and the
+next call cleanly re-downloads:
 
 ```python
 from oda_reader import bulk_download_crs, BulkPayloadCorruptError
@@ -255,7 +327,7 @@ from oda_reader import bulk_download_crs, BulkPayloadCorruptError
 try:
     crs = bulk_download_crs()
 except BulkPayloadCorruptError:
-    # Bad entry already removed — just retry
+    # Bad download already removed, just retry
     crs = bulk_download_crs()
 ```
 
@@ -377,7 +449,7 @@ from oda_reader import download_dac1
 data = download_dac1(start_year=2022, end_year=2022)  # instant
 ```
 
-Cache persists until you clear it. HTTP responses expire after 7 days and bulk files after 30.
+Cache persists until you clear it. HTTP responses expire after 7 days. Bulk files are refetched after 90 days.
 
 ### Filter aggressively to reduce API load
 

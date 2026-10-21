@@ -1,5 +1,51 @@
 # Changelog for oda_reader
 
+## Unreleased
+
+- **Adds `download_crdf()`, `download_crdf_file()` and `list_crdf_files()`** for the OECD
+  Climate-Related Development Finance workbooks at `webfs.oecd.org/climate/`, read over plain
+  HTTP from either perspective. File names come from the live folder listing, and each year is
+  read from the narrowest workbook that holds it. Every header layout, current and archived,
+  maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
+  `vintage`, `source_file`, `file_version` and `file_version_kind` added to each row.
+  `file_version` is the file host's validator for the cached copy read, and `file_version_kind`
+  says whether it is an `etag` or a `last_modified` date. Each workbook is read from a private
+  snapshot of the cached copy, so a concurrent refresh cannot change the rows under that label. An unknown layout raises
+  `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
+  not a plain file name also raises `CRDFSchemaError`.
+- **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
+  copies it into the bulk file cache under the key a download would use, and returns the cached
+  path. A registered entry never expires, so the TTL sweep never deletes it. Online reads serve it
+  while the file host's version token matches the one recorded, or cannot be read, and download
+  a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
+  `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`. Bulk files download whole, a single-byte
+  request reads the version token first, and a renamed file still resolves: online reads take
+  the name from the SDMX dataflow annotations and offline reads find the copy by dataset.
+- **Adds `offline=True` to `bulk_download_crs()`, the DAC1, DAC2a, DAC2b and multisystem bulk
+  readers, and `bulk_download_parquet()`.** The reader makes no network request and reads the
+  cached or registered copy whatever its age. With nothing cached it raises the new
+  `BulkFileNotCachedError`, which prints the `register_bulk_file` call. A CRS year file
+  registers with `url=` and reads offline through `bulk_download_parquet(url=..., offline=True)`.
+  When two cached copies match a dataset, the one stored last is read, even within the same second.
+- **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
+  browser and the `register_bulk_file` call that registers it, including the version token the
+  reader saw. The error gains `filename`, `dataset` and `version` attributes.
+- **Bulk downloads honour `Retry-After` on 429 and 503.** A wait of up to 300 seconds is taken
+  and the request retried, up to three times. A longer wait, a missing header or a fourth
+  throttled response raises `BulkDownloadHTTPError`, which now carries `retry_after`.
+- **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
+  gains `register()`, `find_entry()` and `snapshot()`, and `list_records()` reports each entry's `source` and
+  `url`.
+- **The bulk-file cache keeps a dataset's only copy past its TTL.** In 1.11.4 the startup sweep
+  deleted every downloaded file past its TTL, including a dataset's only copy, which a scripted
+  download may not be able to replace. The sweep now deletes an expired download only when a newer
+  copy of the same dataset is cached. An only copy stays: an online read refetches it and an offline read uses it.
+  A file downloaded by URL alone stays until a download replaces it or the cache is cleared.
+- **A cache hit fills in the URL and dataset a cached record lacks**, so a file downloaded before
+  they were recorded becomes readable with `offline=True`.
+- **A bulk URL with spaces and its `%20` form share one cache entry.** Registration, downloads
+  and offline reads all key the cache on the percent-encoded URL.
+
 ## 1.11.4 (2026-10-21)
 
 - **The bulk-file cache keeps every file it downloads until its TTL.** It used to keep only the

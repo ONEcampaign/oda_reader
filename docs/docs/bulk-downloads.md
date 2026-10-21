@@ -23,6 +23,25 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 - Exploratory analysis with changing queries
 - You only need recent data
 
+## How ODA Reader fetches bulk files
+
+OECD publishes the bulk files on `webfs-dcd.oecd.org`. ODA Reader downloads each file whole,
+keeps a local copy in the [bulk file cache](caching.md#bulk-file-cache) and answers every query
+from that copy. It never reads a bulk file remotely.
+
+Before a download, ODA Reader sends one single-byte request to read the file's version token
+(its `ETag`, or `Last-Modified` when no `ETag` is sent). It downloads the file only when it has
+no copy, when the token has changed, or when the copy is past its 90-day TTL. Otherwise it reads
+the copy it has. See [Cache invalidation on republish](caching.md#cache-invalidation-on-republish).
+
+OECD may change bulk file names, for example by adding a timestamp. ODA Reader does not hard-code
+them. On each online read it looks up the current file name in the SDMX dataflow annotations,
+and an offline read finds the cached copy by dataset, whatever name it was stored under.
+
+A scripted request can meet a Cloudflare challenge; see
+[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror). The supported route
+then is to download the file in a browser and pass it to `register_bulk_file`.
+
 ## CRS bulk downloads
 
 The full Creditor Reporting System dataset is available as a bare parquet file (1.18 GB, not zipped). ODA Reader can download and load it for you.
@@ -450,20 +469,71 @@ See [DAC2b bulk download](#dac2b-bulk-download) above for the full column list a
 
 **Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached. Each attempt has a 10-second connect / 60-second read timeout, so a stalled connection fails with an error.
 
-### Cloudflare challenge (`BulkDownloadChallengeError`)
+**HTTP 429 or 503**: When the file server answers with a `Retry-After` of 300 seconds or less, ODA Reader waits that long and tries again, up to three times. A longer wait, a missing `Retry-After`, or a fourth throttled response raises `BulkDownloadHTTPError`, and its `retry_after` attribute holds the wait the server asked for in seconds.
 
-Cloudflare can require an interactive browser check on an OECD bulk-file
-request. These checks require browser execution. ODA Reader raises
-`BulkDownloadChallengeError` and includes the `cf_ray` value supplied by
-OECD/Cloudflare. Include that value when reporting the failure to OECD.
+### Cloudflare challenge (`BulkDownloadChallengeError`)
 
 OECD supports downloading the bulk files in a browser. Scripted downloads,
 including the ones ODA Reader makes, are not a service OECD has committed
 to, so OECD's file server can challenge them at any time. A pipeline that
 must run unattended should be ready to handle `BulkDownloadChallengeError`.
 
-When bulk access is unavailable, choose a narrowly filtered API request
-explicitly.
+When ODA Reader meets a challenge it raises `BulkDownloadChallengeError`. Its message names
+the file and prints the call that registers a copy downloaded in a browser:
+
+```text
+Cloudflare presented an interactive challenge for https://webfs-dcd.oecd.org/.../CRS.parquet.
+Open that URL in a browser to download CRS.parquet, then register the file so
+oda-reader reads it from the cache:
+
+    import oda_reader
+    oda_reader.register_bulk_file('~/Downloads/CRS.parquet', dataset='crs', url='https://webfs-dcd.oecd.org/.../CRS.parquet', version='"5f1c..."')
+```
+
+The error also carries these values as attributes: `url`, `filename`,
+`dataset` (set when a named reader such as `bulk_download_crs()` made the
+request), `version` (the host's token, when it could be read) and `cf_ray`.
+
+#### Register a file downloaded in a browser
+
+Open the URL in a browser, let it save the file, then register it:
+
+```python
+import oda_reader
+
+oda_reader.register_bulk_file(
+    "~/Downloads/CRS.parquet", dataset="crs", url="<url from the error>"
+)
+crs = oda_reader.bulk_download_crs()  # reads the registered copy
+```
+
+`register_bulk_file` checks that the file is a valid zip or parquet payload,
+copies it into the bulk file cache and returns the cached path. You can
+delete the download afterwards. The registered copy does not expire. Online
+reads keep serving it until OECD publishes a new version of the file.
+`bulk_download_crs(offline=True)` reads it with no network request. A CRS year file registers with `url=` and reads
+offline through `bulk_download_parquet(url=..., offline=True)`. See
+[Registered files](caching.md#registered-files) and
+[Reading offline](caching.md#reading-offline).
+
+`dataset` takes one of these names:
+
+| `dataset` | Reader |
+|---|---|
+| `"crs"` | `bulk_download_crs()` |
+| `"crs-reduced"` | `bulk_download_crs(reduced_version=True)` |
+| `"dac1"` | `bulk_download_dac1()` |
+| `"dac2a"` | `bulk_download_dac2a()` |
+| `"dac2b"` | `bulk_download_dac2b()` |
+| `"multisystem"` | `bulk_download_multisystem()` |
+
+Without `url`, ODA Reader looks the URL up in OECD's SDMX metadata, which
+needs network access to `sdmx.oecd.org`. `version` is the file host's
+version token. The call the error prints includes it when the reader could
+read it.
+
+If the browser download is also blocked, report the `cf_ray` value to OECD
+and use a narrowly filtered API request instead.
 
 ```python
 from oda_reader import download_dac1
@@ -495,8 +565,8 @@ dimension.
 
 **`BulkPayloadCorruptError`**: The OECD's bulk endpoint occasionally serves a
 truncated or malformed file (a bad zip, or a bare parquet file that fails to
-parse). The corrupt entry is removed automatically before the exception is
-raised, so the next call cleanly re-downloads. Retry the call, or pass
+parse). The corrupt download is deleted before the exception is raised and
+never replaces the cached copy, so the next call cleanly re-downloads. Retry the call, or pass
 `use_raw_cache=False` to skip the cache for that invocation.
 
 ## Next steps

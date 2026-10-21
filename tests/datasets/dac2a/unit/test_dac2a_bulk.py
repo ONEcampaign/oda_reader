@@ -68,6 +68,7 @@ class TestDAC2aBulkDownload:
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
 
     def test_bulk_download_dac2a_saves_to_path(self, mocker, tmp_path):
@@ -92,6 +93,7 @@ class TestDAC2aBulkDownload:
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
 
     def test_bulk_download_dac2a_as_iterator(self, mocker):
@@ -122,4 +124,5 @@ class TestDAC2aBulkDownload:
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )

@@ -6,7 +6,8 @@ import typing
 import zipfile
 import zlib
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 
 import pyarrow.parquet as pq
 
@@ -24,8 +25,11 @@ class BulkPayloadCorruptError(Exception):
     """Raised when a downloaded bulk payload fails integrity validation.
 
     Attributes:
-        path: The path of the failed cache entry. The entry has already
-            been removed from disk by the time this exception is raised.
+        path: The path of the payload that failed. It has already been
+            removed from disk by the time this exception is raised. A fresh
+            download that fails leaves the cached copy it was meant to
+            replace in place; a cached copy that fails at read time is
+            removed from the cache.
         reason: A short human-readable description of which check failed
             (e.g. "is_zipfile() returned False",
             "testzip() reported member 'crs.parquet'").
@@ -35,8 +39,9 @@ class BulkPayloadCorruptError(Exception):
         self.path: Path = path
         self.reason: str = reason
         super().__init__(
-            f"Cached payload at {path} failed integrity validation "
-            f"({reason}). {BULK_PAYLOAD_CORRUPT_HINT}"
+            f"Bulk payload {path} failed integrity validation ({reason}) "
+            f"and was removed. "
+            f"{BULK_PAYLOAD_CORRUPT_HINT}"
         )
 
 
@@ -50,12 +55,22 @@ class BulkDownloadHTTPError(ConnectionError):
         status_code: The HTTP status code returned by the server.
         url: The URL that was requested.
         body: A truncated preview of the response body (max 500 chars).
+        retry_after: Seconds the server asked the client to wait, from the
+            response's ``Retry-After`` header, or ``None`` when it sent none.
     """
 
-    def __init__(self, *, status_code: int, url: str, body: str) -> None:
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        url: str,
+        body: str,
+        retry_after: float | None = None,
+    ) -> None:
         self.status_code = status_code
         self.url = url
         self.body = body[:_HTTP_BODY_PREVIEW]
+        self.retry_after = retry_after
         super().__init__(f"HTTP {status_code} from {url}: {self.body}")
 
 
@@ -65,25 +80,111 @@ class BulkDownloadChallengeError(BulkDownloadHTTPError):
     Cloudflare can attach the challenge marker to a response with any status,
     including 2xx. Inspect ``status_code`` alongside this exception type.
 
+    A browser clears the challenge. The message names the file to download
+    and prints the ``register_bulk_file`` call that puts it in the cache.
+
     Attributes:
         cf_ray: The Cloudflare Ray ID supplied by the response, when present.
             OECD support can use it to investigate the request.
+        filename: The file name a browser saves the download under, taken
+            from the last segment of ``url``.
+        dataset: The ``register_bulk_file`` dataset name for ``url``, when
+            the download came from a named bulk reader such as
+            ``bulk_download_crs``. ``None`` otherwise.
+        version: The file host's version token (ETag, else Last-Modified)
+            read just before the download, when the probe succeeded.
+            Registering with it lets later online reads keep the file until
+            OECD republishes.
     """
 
     def __init__(
-        self, *, status_code: int, url: str, body: str, cf_ray: str | None
+        self,
+        *,
+        status_code: int,
+        url: str,
+        body: str,
+        cf_ray: str | None,
+        dataset: str | None = None,
+        version: str | None = None,
     ) -> None:
         self.cf_ray = cf_ray
+        self.dataset = dataset
+        self.version = version
         super().__init__(status_code=status_code, url=url, body=body)
+
+    @property
+    def filename(self) -> str:
+        """The last path segment of ``url``, percent-decoded."""
+        return _url_filename(self.url)
+
+    def __str__(self) -> str:
         ray_hint = (
-            f" Provide Cloudflare Ray ID {cf_ray} to OECD support."
-            if cf_ray
-            else " Contact OECD support and include the response URL and timestamp."
+            f"If the browser download also fails, give Cloudflare Ray ID "
+            f"{self.cf_ray} to OECD support."
+            if self.cf_ray
+            else "If the browser download also fails, contact OECD support and "
+            "include the URL and the time of the request."
         )
-        self.args = (
-            "Cloudflare presented an interactive challenge for "
-            f"{url}. Browser execution is required to continue.{ray_hint}",
+        call = _register_call(
+            path=f"~/Downloads/{self.filename}",
+            dataset=self.dataset,
+            url=self.url,
+            version=self.version,
         )
+        return (
+            f"Cloudflare presented an interactive challenge for {self.url}. "
+            f"Open that URL in a browser to download {self.filename}, then "
+            "register the file so oda-reader reads it from the cache:\n\n"
+            f"    import oda_reader\n    {call}\n\n{ray_hint}"
+        )
+
+
+class BulkFileNotCachedError(Exception):
+    """Raised when an offline bulk read finds no cached or registered file.
+
+    No request is made, so there is no HTTP response and no status code.
+
+    Attributes:
+        dataset: The ``register_bulk_file`` dataset name, when the read came
+            from a named bulk reader such as ``bulk_download_crs``.
+        url: The URL passed to the read, when one was.
+    """
+
+    def __init__(self, *, dataset: str | None, url: str | None) -> None:
+        self.dataset = dataset
+        self.url = url
+        path = (
+            f"~/Downloads/{_url_filename(url)}"
+            if url
+            else "<path to the downloaded file>"
+        )
+        call = _register_call(path=path, dataset=dataset, url=url, version=None)
+        target = f"dataset {dataset!r}" if dataset else (url or "this file")
+        super().__init__(
+            f"offline=True, but the bulk file cache holds no copy of {target}. "
+            "Read it once online, or download it in a browser and register "
+            f"it:\n\n    import oda_reader\n    {call}"
+        )
+
+
+def _url_filename(url: str) -> str:
+    """The last path segment of *url*, percent-decoded."""
+    return PurePosixPath(unquote(urlsplit(url).path)).name
+
+
+def _register_call(
+    *, path: str, dataset: str | None, url: str | None, version: str | None
+) -> str:
+    """Format the ``register_bulk_file`` call an error message prints."""
+    # repr() keeps the call valid Python when a value holds quotes, as an
+    # ETag such as "abc123" does.
+    args = [repr(path)]
+    args += [
+        f"{name}={value!r}"
+        for name, value in (("dataset", dataset), ("url", url), ("version", version))
+        if value
+    ]
+    return f"oda_reader.register_bulk_file({', '.join(args)})"
 
 
 _ZIP_MAGIC = b"PK\x03\x04"
@@ -508,3 +609,48 @@ class CodelistValidationError(CodelistError):
         if codelist_id is not None:
             message += f" [codelist_id={codelist_id}]"
         super().__init__(message=message, codelist_id=codelist_id)
+
+
+# --- oda_reader.crdf exceptions ----------------------------------------
+
+
+class CRDFSchemaError(Exception):
+    """Raised when a CRDF workbook or folder does not match a known layout.
+
+    The OECD maintains the CRDF folder by hand and has renamed files and
+    columns before, so the reader raises on any layout it cannot map.
+
+    Attributes:
+        source: The URL or path being read.
+        sheet: The worksheet name, or None when the problem concerns the whole workbook or folder.
+        layout: The known layout closest to the headers found, or None.
+        unmapped: Headers present in the sheet that the layout does not map.
+        missing: Headers the layout expects that the sheet lacks.
+        detail: What was wrong, in words.
+    """
+
+    def __init__(
+        self,
+        *,
+        source: str,
+        detail: str,
+        sheet: str | None = None,
+        layout: str | None = None,
+        unmapped: tuple[str, ...] = (),
+        missing: tuple[str, ...] = (),
+    ) -> None:
+        self.source = source
+        self.sheet = sheet
+        self.layout = layout
+        self.unmapped = unmapped
+        self.missing = missing
+        self.detail = detail
+        where = f"{source} [{sheet}]" if sheet else source
+        message = f"{where}: {detail}"
+        if layout is not None:
+            message += f" Closest known layout: {layout}."
+        if unmapped:
+            message += f" Unmapped columns: {list(unmapped)}."
+        if missing:
+            message += f" Missing columns: {list(missing)}."
+        super().__init__(message)

@@ -9,6 +9,8 @@ import time
 import typing
 import warnings
 import zipfile
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from html import unescape
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
@@ -35,6 +37,7 @@ from oda_reader.download.version_discovery import discover_latest_version
 from oda_reader.exceptions import (
     BulkDownloadChallengeError,
     BulkDownloadHTTPError,
+    BulkFileNotCachedError,
     BulkPayloadCorruptError,
     validate_payload_or_raise,
 )
@@ -59,6 +62,20 @@ DAC1_FLOW_URL = BASE_DATAFLOW + "DSD_DAC1@DF_DAC1/"
 DAC2A_FLOW_URL = BASE_DATAFLOW + "DSD_DAC2@DF_DAC2A/"
 DAC2B_FLOW_URL = BASE_DATAFLOW + "DSD_DAC2@DF_DAC2B/"
 MULTI_FLOW_URL = BASE_DATAFLOW + "DSD_MULTI@DF_MULTI/"
+
+# Names `register_bulk_file` accepts for `dataset`, each mapped to the
+# dataflow and EXT_RESOURCE label its bulk reader resolves. The labels match
+# the ones crs.py, dac1.py, dac2a.py, dac2b.py and multisystem.py pass to
+# `get_bulk_file_url_with_version`.
+BULK_DATASETS: dict[str, tuple[str, str]] = {
+    "crs": (CRS_FLOW_URL, "CRS-Parquet"),
+    "crs-reduced": (CRS_FLOW_URL, "CRS-reduced-parquet"),
+    "dac1": (DAC1_FLOW_URL, "DAC1 full dataset (dotStat format)"),
+    "dac2a": (DAC2A_FLOW_URL, "DAC2A full dataset (dotStat format)"),
+    "dac2b": (DAC2B_FLOW_URL, "DAC2B full dataset (dotStat format)"),
+    "multisystem": (MULTI_FLOW_URL, "Entire dataset (dotStat format)"),
+}
+
 AIDDATA_VERSION = "3.0"
 AIDDATA_DOWNLOAD_URL = (
     "https://docs.aiddata.org/ad4/datasets/"
@@ -104,8 +121,14 @@ _CSV_ITERATOR_CHUNK_SIZE = 100_000
 
 # _stream_to_file retries transient transport failures and truncated transfers
 # up to three times with this backoff. HTTP errors and Cloudflare challenges
-# raise after the first response.
+# raise after the first response, except a throttling response below.
 _STREAM_RETRY_BACKOFF_SECONDS = (1, 2, 4)
+
+# A 429 or 503 carrying a Retry-After of at most this many seconds is retried
+# after that wait, within the same three retries. A longer wait, or no
+# Retry-After at all, raises at once with the wait on `.retry_after`.
+_THROTTLE_STATUS_CODES = (429, 503)
+_MAX_RETRY_AFTER_SECONDS = 300
 
 # Same set codelists/_fetch.py's _handshake_request retries on, and the same
 # reasoning: these are genuinely transient transport failures (a timeout, a
@@ -913,8 +936,43 @@ def _classify_bulk_download_response(
             status_code=status_code,
             url=url,
             body=_preview(),
+            retry_after=_parse_retry_after(
+                _get_header_case_insensitively(response.headers, "Retry-After")
+            ),
         )
     return None
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    """Read a ``Retry-After`` header as seconds to wait.
+
+    The header holds either a delay in seconds or an HTTP date. A date in the
+    past reads as zero. A missing or unparseable header reads as ``None``.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max((when - datetime.now(UTC)).total_seconds(), 0.0)
+
+
+def _throttle_wait(error: BulkDownloadHTTPError) -> float | None:
+    """Seconds to wait before retrying *error*, or ``None`` to raise it now."""
+    if (
+        isinstance(error, BulkDownloadChallengeError)
+        or error.status_code not in _THROTTLE_STATUS_CODES
+        or error.retry_after is None
+        or error.retry_after > _MAX_RETRY_AFTER_SECONDS
+    ):
+        return None
+    return error.retry_after
 
 
 def _stream_to_file(url: str, headers: dict, path: Path) -> None:
@@ -930,55 +988,65 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
 
     Retries truncated transfers and the errors in
     ``_TRANSIENT_STREAM_EXCEPTIONS`` up to
-    ``len(_STREAM_RETRY_BACKOFF_SECONDS)`` times with that backoff. All HTTP
-    errors and Cloudflare challenges raise after one response.
-    ``bulk_download_parquet`` refreshes annotation metadata once after a 404
-    because that status can identify a stale annotation. Other HTTP errors and
-    challenges leave the annotation cache untouched. Permanent request-format
-    errors, such as ``MissingSchema``, also propagate on the first attempt.
-    Each attempt reopens ``path`` with ``wb`` and calls
-    ``API_RATE_LIMITER.wait()``.
+    ``len(_STREAM_RETRY_BACKOFF_SECONDS)`` times with that backoff. A 429 or
+    503 response whose ``Retry-After`` asks for at most
+    ``_MAX_RETRY_AFTER_SECONDS`` is retried after that wait, within the same
+    retry budget. Every other HTTP error and every Cloudflare challenge raises
+    after one response, as does a throttling response that is out of retries
+    or asks for a longer wait; ``BulkDownloadHTTPError.retry_after`` carries
+    the requested wait. ``bulk_download_parquet`` refreshes annotation
+    metadata once after a 404 because that status can identify a stale
+    annotation. Other HTTP errors and challenges leave the annotation cache
+    untouched. Permanent request-format errors, such as ``MissingSchema``,
+    also propagate on the first attempt. Each attempt reopens ``path`` with
+    ``wb`` and calls ``API_RATE_LIMITER.wait()``.
     """
     request_headers = {**DEFAULT_HEADERS, **headers}
     session = _get_bulk_stream_session()
     max_attempts = len(_STREAM_RETRY_BACKOFF_SECONDS) + 1
 
-    for attempt, delay in enumerate((0, *_STREAM_RETRY_BACKOFF_SECONDS), start=1):
-        if delay:
-            time.sleep(delay)
-
+    for attempt in range(1, max_attempts + 1):
         logger.info(f"Streaming download from {url} (attempt {attempt}/{max_attempts})")
         API_RATE_LIMITER.wait()
         is_last_attempt = attempt == max_attempts
+        wait: float = (
+            0 if is_last_attempt else _STREAM_RETRY_BACKOFF_SECONDS[attempt - 1]
+        )
         try:
             with _get_with_validated_redirects(
                 session, url, request_headers, timeout=(10, 60)
             ) as r:
                 response_error = _classify_bulk_download_response(r, url=url)
                 if response_error is not None:
-                    raise response_error
-
-                bytes_written = 0
-                with path.open("wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            bytes_written += len(chunk)
-
-                truncation = _check_truncated(r.headers, bytes_written)
-                if truncation is not None:
-                    if not is_last_attempt:
-                        logger.debug(
-                            f"Truncated download from {url} on attempt "
-                            f"{attempt}/{max_attempts}: {truncation}; retrying."
-                        )
-                        continue
-                    raise BulkDownloadHTTPError(
-                        status_code=r.status_code,
-                        url=url,
-                        body=f"Truncated download: {truncation}.",
+                    throttle_wait = _throttle_wait(response_error)
+                    if throttle_wait is None or is_last_attempt:
+                        raise response_error
+                    logger.info(
+                        f"HTTP {response_error.status_code} from {url}; retrying "
+                        f"after the requested {throttle_wait:.0f} s."
                     )
-                return
+                    wait = throttle_wait
+                else:
+                    bytes_written = 0
+                    with path.open("wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                bytes_written += len(chunk)
+
+                    truncation = _check_truncated(r.headers, bytes_written)
+                    if truncation is None:
+                        return
+                    if is_last_attempt:
+                        raise BulkDownloadHTTPError(
+                            status_code=r.status_code,
+                            url=url,
+                            body=f"Truncated download: {truncation}.",
+                        )
+                    logger.debug(
+                        f"Truncated download from {url} on attempt "
+                        f"{attempt}/{max_attempts}: {truncation}; retrying."
+                    )
         except _TRANSIENT_STREAM_EXCEPTIONS:
             if is_last_attempt:
                 raise
@@ -986,7 +1054,8 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
                 f"Transport error streaming {url} on attempt {attempt}/"
                 f"{max_attempts}; retrying."
             )
-            continue
+
+        time.sleep(wait)
 
 
 def _stream_to_tempfile(url: str, headers: dict) -> Path:
@@ -1254,6 +1323,7 @@ def bulk_download_parquet(
     version: str | None = None,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
+    offline: bool = False,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """Download data from the OECD bulk file download service.
 
@@ -1289,7 +1359,7 @@ def bulk_download_parquet(
             Last-Modified). Threaded straight into
             `CacheEntry.version`, so a republish forces a refetch even
             though the resolved URL itself is now permanently stable and
-            the cache key (`sha1(url)`) alone can no longer tell a
+            the cache key, derived from the URL, alone can no longer tell a
             republish apart from a genuine cache hit. `None` (the default)
             means invalidation falls back to the cache's TTL alone -- the
             same behavior as before this parameter existed.
@@ -1302,6 +1372,12 @@ def bulk_download_parquet(
             and reused across calls. If False, it is downloaded to a
             temporary directory and deleted after extraction; each call hits
             the network. Integrity validation still runs in both modes.
+        offline: If True, make no network request and read the cached copy
+            of `url`, or of the `flow_url` and `label` annotation when `url`
+            is omitted, whatever its age. A file put in the cache with
+            `register_bulk_file` counts as a cached copy. A CRS year file
+            has no annotation. Register it with `url=` and read it with
+            `bulk_download_parquet(url=..., offline=True)`.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -1309,8 +1385,12 @@ def bulk_download_parquet(
     Raises:
         BulkPayloadCorruptError: If the downloaded payload fails integrity
             validation.
-        ValueError: If neither `url` nor the deprecated `file_id` is given,
-            or if both are.
+        BulkFileNotCachedError: If `offline` is True and the cache holds no
+            copy.
+        ValueError: If neither `url` nor the deprecated `file_id` is given
+            (outside offline mode, where `flow_url` and `label` can stand in),
+            if both are, or if `offline` is combined with
+            `use_raw_cache=False`.
 
     Note:
         If the resolved URL returns 404, the reader re-resolves the dataflow
@@ -1337,6 +1417,16 @@ def bulk_download_parquet(
             raise ValueError("Pass either 'url' or the deprecated 'file_id', not both.")
         url = file_id
 
+    if offline:
+        return _read_cached_bulk_file(
+            url=url,
+            flow_url=flow_url,
+            label=label,
+            save_to_path=save_to_path,
+            as_iterator=as_iterator,
+            use_raw_cache=use_raw_cache,
+        )
+
     if url is None:
         raise ValueError("bulk_download_parquet() requires a 'url' argument.")
 
@@ -1351,22 +1441,34 @@ def bulk_download_parquet(
         target_url: str, target_version: str | None
     ) -> tuple[typing.Any, Path, str]:
         """Resolve one URL to a validated local path, cached or not."""
-        target_key = hashlib.sha1(target_url.encode()).hexdigest()
+        target_url = _encode_url_path(target_url)
+        target_key = _bulk_cache_key(target_url)
         extension = Path(urlsplit(target_url).path).suffix or ".zip"
 
-        if use_raw_cache:
-            entry = CacheEntry(
-                key=target_key,
-                filename=f"{target_key}{extension}",
-                fetcher=lambda p: _stream_to_file(target_url, headers, p),
-                version=target_version,
-            )
-            fetch_manager = bulk_cache_manager()
-            fetched_path = fetch_manager.ensure(entry)
-        else:
-            fetch_manager = None
-            fetched_path = _stream_to_tempfile(target_url, headers)
-            validate_payload_or_raise(fetched_path)
+        try:
+            if use_raw_cache:
+                entry = CacheEntry(
+                    key=target_key,
+                    filename=f"{target_key}{extension}",
+                    fetcher=lambda p: _stream_to_file(target_url, headers, p),
+                    version=target_version,
+                    url=target_url,
+                    flow_url=flow_url,
+                    label=label,
+                )
+                fetch_manager = bulk_cache_manager()
+                fetched_path = fetch_manager.ensure(entry)
+            else:
+                fetch_manager = None
+                fetched_path = _stream_to_tempfile(target_url, headers)
+                validate_payload_or_raise(fetched_path)
+        except BulkDownloadChallengeError as e:
+            # Complete the register_bulk_file call the message prints: the
+            # dataset lets offline reads find the file, and the version token
+            # lets online reads keep it until OECD republishes.
+            e.dataset = _bulk_dataset_name(flow_url, label)
+            e.version = target_version
+            raise
 
         return fetch_manager, fetched_path, target_key
 
@@ -1392,6 +1494,130 @@ def bulk_download_parquet(
         use_raw_cache=use_raw_cache,
         manager=manager,
         url_key=url_key,
+    )
+
+
+def _read_cached_bulk_file(
+    *,
+    url: str | None,
+    flow_url: str | None,
+    label: str | None,
+    save_to_path: Path | str | None,
+    as_iterator: bool,
+    use_raw_cache: bool,
+) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
+    """`bulk_download_parquet(offline=True)`: read a cached copy, no network."""
+    if not use_raw_cache:
+        raise ValueError("offline=True reads the cache; drop use_raw_cache=False.")
+    if url is None and (flow_url is None or label is None):
+        raise ValueError("offline=True needs a 'url', or a 'flow_url' and 'label'.")
+
+    manager = bulk_cache_manager()
+    found = manager.find_entry(
+        key=_bulk_cache_key(url) if url else None,
+        flow_url=flow_url,
+        label=label,
+    )
+    if found is None:
+        raise BulkFileNotCachedError(
+            dataset=_bulk_dataset_name(flow_url, label), url=url
+        )
+
+    url_key, payload_path, cached_url = found
+    logger.info(f"Reading {payload_path.name} from the bulk cache (offline).")
+    return _consume_bulk_zip(
+        zip_path=payload_path,
+        url=url or cached_url or payload_path.name,
+        save_to_path=save_to_path,
+        as_iterator=as_iterator,
+        use_raw_cache=True,
+        manager=manager,
+        url_key=url_key,
+    )
+
+
+def register_bulk_file(
+    path: Path | str,
+    *,
+    dataset: str | None = None,
+    url: str | None = None,
+    version: str | None = None,
+) -> Path:
+    """Put a bulk file downloaded outside oda-reader into the bulk cache.
+
+    Use this when OECD's Cloudflare front end challenges a bulk download
+    (`BulkDownloadChallengeError`). Download the file in a browser, then
+    register it. The entry is stored under the key a download of `url`
+    would use and never expires. Register soon after the browser download,
+    or pass the `version` the challenge error printed.
+
+    With `dataset`, the matching bulk reader (for example `bulk_download_crs`
+    for `"crs"`) reads the file with `offline=True` and no network request.
+    An online read still resolves the URL and probes the file host's version
+    token. It serves the registered file when that token equals `version`,
+    or when the probe fails (as it does behind a challenge). A different
+    token means OECD has republished, so the reader downloads the new file.
+
+    The file is copied, so `path` can be deleted afterwards. The copy is
+    validated as a zip or bare parquet payload before it enters the cache.
+
+    Args:
+        path: The downloaded file. `~` is expanded.
+        dataset: One of the names in `BULK_DATASETS`: `"crs"`,
+            `"crs-reduced"`, `"dac1"`, `"dac2a"`, `"dac2b"` or
+            `"multisystem"`.
+        url: The URL the file was downloaded from. When omitted, it is
+            resolved from `dataset`'s dataflow annotation, which needs a
+            request to OECD's SDMX API.
+        version: The file host's version token (ETag, else Last-Modified)
+            for the downloaded file. `BulkDownloadChallengeError` prints it
+            when the reader could read it. When omitted, the token is read
+            from the host now, and recorded as `None` if that fails.
+
+    Returns:
+        Path: The cached copy.
+
+    Raises:
+        ValueError: If neither `dataset` nor `url` is given, if `dataset` is
+            not a known name, or if `url` is not an OECD HTTPS URL.
+        FileNotFoundError: If `path` does not exist.
+        BulkPayloadCorruptError: If the file is not a valid zip or parquet
+            payload.
+
+    Example:
+        >>> import oda_reader
+        >>> oda_reader.register_bulk_file("~/Downloads/CRS.parquet", dataset="crs")
+        >>> crs = oda_reader.bulk_download_crs()
+    """
+    if dataset is None and url is None:
+        raise ValueError("register_bulk_file() needs a 'dataset' or a 'url'.")
+
+    flow_url = label = None
+    if dataset is not None:
+        if dataset not in BULK_DATASETS:
+            known = ", ".join(repr(name) for name in BULK_DATASETS)
+            raise ValueError(f"Unknown dataset {dataset!r}. Use one of {known}.")
+        flow_url, label = BULK_DATASETS[dataset]
+
+    if url is not None:
+        url = _finalize_resolved_url(url)
+    else:
+        assert flow_url is not None and label is not None
+        url = _resolve_bulk_file_url(flow_url, label)
+
+    if version is None:
+        version = _fetch_revalidation_token(url)
+
+    key = _bulk_cache_key(url)
+    extension = Path(urlsplit(url).path).suffix or ".zip"
+    return bulk_cache_manager().register(
+        Path(path).expanduser(),
+        key=key,
+        filename=f"{key}{extension}",
+        url=url,
+        version=version,
+        flow_url=flow_url,
+        label=label,
     )
 
 
@@ -1561,6 +1787,14 @@ def _describe_bulk_download_error(error: BulkDownloadHTTPError) -> str:
 
 
 def _fetch_revalidation_token(url: str) -> str | None:
+    """Return the token half of `_fetch_revalidation_validator`, or `None`."""
+    validator = _fetch_revalidation_validator(url)
+    return None if validator is None else validator[0]
+
+
+def _fetch_revalidation_validator(
+    url: str,
+) -> tuple[str, typing.Literal["etag", "last_modified"]] | None:
     """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
     Every resolved bulk URL is probed, because the file host is the only
@@ -1594,7 +1828,8 @@ def _fetch_revalidation_token(url: str) -> str | None:
         url: The already-resolved, allowlist-checked bulk-download URL.
 
     Returns:
-        The `ETag` header value, else `Last-Modified`, else `None`.
+        `(token, "etag")` for an `ETag` header, else
+        `(token, "last_modified")` for a `Last-Modified` header, else `None`.
     """
     headers = {**DEFAULT_HEADERS, "Range": "bytes=0-0"}
     try:
@@ -1621,16 +1856,15 @@ def _fetch_revalidation_token(url: str) -> str | None:
                     f"Revalidation ranged GET for {url} got 200; "
                     "server ignored the Range header."
                 )
-            token = response.headers.get("ETag") or response.headers.get(
-                "Last-Modified"
+            if etag := response.headers.get("ETag"):
+                return etag, "etag"
+            if last_modified := response.headers.get("Last-Modified"):
+                return last_modified, "last_modified"
+            _warn_revalidation_failure(
+                url,
+                f"HTTP {response.status_code} carried neither ETag nor Last-Modified",
             )
-            if token is None:
-                _warn_revalidation_failure(
-                    url,
-                    f"HTTP {response.status_code} carried neither ETag nor "
-                    "Last-Modified",
-                )
-            return token
+            return None
     except (
         ValueError,
         LookupError,
@@ -1668,13 +1902,32 @@ def _finalize_resolved_url(url: str) -> str:
         ValueError: If the URL's scheme isn't ``https`` or its host doesn't
             end in one of `_ALLOWED_URL_HOST_SUFFIXES`.
     """
-    parsed = urlsplit(url)
-    encoded_path = quote(parsed.path, safe="/%")
-    resolved = urlunsplit(
-        (parsed.scheme, parsed.netloc, encoded_path, parsed.query, parsed.fragment)
-    )
+    resolved = _encode_url_path(url)
     _validate_allowed_host(resolved)
     return resolved
+
+
+def _encode_url_path(url: str) -> str:
+    """Percent-encode *url*'s path, leaving ``%`` alone so encoding is idempotent."""
+    parsed = urlsplit(url)
+    return urlunsplit(parsed._replace(path=quote(parsed.path, safe="/%")))
+
+
+def _bulk_cache_key(url: str) -> str:
+    """Return the bulk cache key for *url*: the sha1 of its percent-encoded form.
+
+    A URL with spaces in its path and its ``%20`` form share one key, so a
+    file registered, downloaded or read under either form is the same entry.
+    """
+    return hashlib.sha1(_encode_url_path(url).encode()).hexdigest()
+
+
+def _bulk_dataset_name(flow_url: str | None, label: str | None) -> str | None:
+    """Return the `BULK_DATASETS` name for a dataflow annotation, if it has one."""
+    for name, annotation in BULK_DATASETS.items():
+        if annotation == (flow_url, label):
+            return name
+    return None
 
 
 def get_bulk_file_url(
@@ -1785,6 +2038,29 @@ def get_bulk_file_url_with_version(
             discovery and scan.
         ValueError: If the resolved URL fails the host allowlist check.
     """
+    url = _resolve_bulk_file_url(
+        flow_url, label, latest_flow, bypass_annotation_cache=bypass_annotation_cache
+    )
+    return url, _fetch_revalidation_token(url)
+
+
+def _resolve_bulk_file_url(
+    flow_url: str,
+    label: str,
+    latest_flow: float | None = None,
+    *,
+    bypass_annotation_cache: bool = False,
+) -> str:
+    """Resolve an EXT_RESOURCE annotation label to its finalized URL.
+
+    Follows the version order `get_bulk_file_url_with_version` documents and
+    makes no request to the file host itself.
+
+    Raises:
+        RuntimeError: If no URL for *label* can be found even after version
+            discovery and scan.
+        ValueError: If the resolved URL fails the host allowlist check.
+    """
     headers = {"Accept-Encoding": "gzip"}
 
     dataflow_id = _extract_dataflow_id_from_flow_url(flow_url)
@@ -1800,15 +2076,11 @@ def get_bulk_file_url_with_version(
             return None
         return _parse_ext_resources(response).get(label)
 
-    def _finalize(url: str) -> tuple[str, str | None]:
-        resolved = _finalize_resolved_url(url)
-        return resolved, _fetch_revalidation_token(resolved)
-
     # --- Step 1: try an explicit version if provided ---
     if latest_flow is not None:
         result = _try_version(latest_flow)
         if result is not None:
-            return _finalize(result)
+            return _finalize_resolved_url(result)
 
     # --- Step 2 (or Step 1 when latest_flow is None): use version discovery ---
     if dataflow_id is not None:
@@ -1816,7 +2088,7 @@ def get_bulk_file_url_with_version(
             discovered_version = discover_latest_version(dataflow_id)
             result = _try_version(discovered_version)
             if result is not None:
-                return _finalize(result)
+                return _finalize_resolved_url(result)
         except (ConnectionError, ValueError):
             logger.info("Version discovery failed; falling back to version scan.")
 
@@ -1828,7 +2100,7 @@ def get_bulk_file_url_with_version(
             break
         result = _try_version(scan_version)
         if result is not None:
-            return _finalize(result)
+            return _finalize_resolved_url(result)
 
     raise RuntimeError(
         f"Bulk download URL for label '{label}' could not be found "

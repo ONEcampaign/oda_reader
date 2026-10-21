@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from oda_reader import _http_primitives, disable_http_cache, enable_http_cache
+from oda_reader._cache.manager import _reset_bulk_cache_manager
 from oda_reader.common import RateLimiter
 
 
@@ -17,6 +18,20 @@ def disable_cache_for_tests():
     # in parallel test workers sharing the same cache directory.
     _http_primitives._HTTP_SESSION = None
     enable_http_cache()
+
+
+@pytest.fixture(autouse=True)
+def isolated_bulk_cache(tmp_path_factory, monkeypatch):
+    """Point every test's cache root at a fresh temporary directory.
+
+    Bulk readers consult the bulk cache for registered files before they
+    resolve a URL, so a test that reached the user's real cache could pick up
+    a real registration.
+    """
+    monkeypatch.setenv("ODA_READER_CACHE_DIR", str(tmp_path_factory.mktemp("cache")))
+    _reset_bulk_cache_manager()
+    yield
+    _reset_bulk_cache_manager()
 
 
 @pytest.fixture

@@ -46,6 +46,7 @@ class TestDAC1BulkDownload:
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
 
     def test_bulk_download_dac1_saves_to_path(self, mocker, tmp_path):
@@ -70,6 +71,7 @@ class TestDAC1BulkDownload:
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
 
     def test_bulk_download_dac1_as_iterator(self, mocker):
@@ -100,6 +102,7 @@ class TestDAC1BulkDownload:
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
 
     def test_bulk_download_dac1_use_raw_cache_false(self, mocker):
@@ -123,4 +126,5 @@ class TestDAC1BulkDownload:
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
             version="etag-abc123",
+            offline=False,
         )
