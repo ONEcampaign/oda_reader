@@ -186,20 +186,22 @@ to indicate it.
 
 The cache tracks a publication-version token alongside the URL, and a
 change in that token invalidates the entry immediately, regardless of how
-recently it was fetched. Where the token comes from depends on the dataset:
+recently it was fetched. The token comes from the file host first:
 
-- **Most bulk files** (the full CRS, CRS year-specific files, Multisystem)
-  carry a version stamp directly in their SDMX annotation label, e.g.
-  `CRS-Parquet-v20260803`. A change in that stamp is the token change.
-- **DAC2a's, DAC2b's, and DAC1's labels carry no version stamp.** For those datasets,
-  ODA Reader instead makes a one-byte ranged GET against the resolved URL
-  and uses the server's `ETag` (falling back to `Last-Modified` if no
-  `ETag` is sent) as the token.
+- **For every bulk file**, ODA Reader makes a one-byte ranged GET against
+  the resolved URL and uses the server's `ETag` (falling back to
+  `Last-Modified` if no `ETag` is sent) as the token. Any rewrite of the
+  file changes it, including one where the SDMX annotation's version stamp
+  stays the same.
+- **If that request fails**, the token is the version stamp in the file's
+  SDMX annotation label, e.g. `CRS-Parquet-v20260803`. The full CRS, the
+  CRS year-specific files and Multisystem carry one. DAC1, DAC2a and DAC2b
+  do not.
 - If neither is available (offline, a server error, or the response
   carries neither header), invalidation falls back to the 30-day TTL rather
   than failing the call. A cached file still works offline. A blocked
-  request (for example a Cloudflare challenge) falls back the same way and
-  logs a warning naming the HTTP status or Cloudflare Ray ID.
+  request (for example a Cloudflare challenge) logs a warning naming the
+  HTTP status or Cloudflare Ray ID.
 
 You don't need to call anything for this. It runs automatically on every
 bulk download.

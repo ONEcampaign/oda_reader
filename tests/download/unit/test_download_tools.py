@@ -32,6 +32,7 @@ from oda_reader.download.download_tools import (
     bulk_download_parquet,
     get_bulk_file_id,
     get_bulk_file_url,
+    get_bulk_file_url_with_version,
 )
 from oda_reader.exceptions import (
     BulkDownloadChallengeError,
@@ -1016,6 +1017,38 @@ class TestGetBulkFileUrl:
         get_bulk_file_url(FLOW_URL, LABEL, latest_flow=1.6)
 
         assert mock_get.call_args.kwargs["force_refresh"] is False
+
+    @pytest.mark.parametrize(
+        ("annotation_label", "host_token", "expected"),
+        [
+            (f"{LABEL}-v20261006", "0x8DF2B9AD7FFE00E", "0x8DF2B9AD7FFE00E"),
+            (f"{LABEL}-v20261006", None, "v20261006"),
+            (LABEL, None, None),
+        ],
+        ids=["host-token-beats-label", "label-when-probe-fails", "neither"],
+    )
+    def test_version_token_prefers_file_host(
+        self, mocker, annotation_label, host_token, expected
+    ):
+        """The file host's token wins over the label suffix, because OECD can
+        rewrite a file without changing its label date."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(
+                200,
+                _annotation_xml(annotation_label, RESOLVED_URL),
+                False,
+            ),
+        )
+        probe = mocker.patch(
+            "oda_reader.download.download_tools._fetch_revalidation_token",
+            return_value=host_token,
+        )
+
+        url, version = get_bulk_file_url_with_version(FLOW_URL, LABEL, latest_flow=1.6)
+
+        assert (url, version) == (RESOLVED_URL, expected)
+        probe.assert_called_once_with(RESOLVED_URL)
 
 
 @pytest.mark.unit

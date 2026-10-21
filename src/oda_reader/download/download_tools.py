@@ -1584,11 +1584,12 @@ def _describe_bulk_download_error(error: BulkDownloadHTTPError) -> str:
 def _fetch_revalidation_token(url: str) -> str | None:
     """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
-    Used only when an annotation label carries no `-vYYYYMMDD` version
-    suffix of its own (DAC1, DAC2A and DAC2B today). Without this,
-    `CacheEntry.version` would have nothing to compare against for that
-    label, and a republish under the file's permanently-stable URL would be
-    silently invisible to the cache until the TTL naturally expires.
+    Every resolved bulk URL is probed, because the file host is the only
+    source that changes whenever the file does. An annotation label's
+    `-vYYYYMMDD` suffix can stay put while OECD rewrites the file behind a
+    permanently-stable URL, and DAC1, DAC2A and DAC2B labels carry no
+    suffix at all. The suffix serves as the token only when this probe
+    returns `None`.
 
     Issues a single-byte `Range: bytes=0-0` GET through the same
     redirect-validating, challenge-classifying seam `_stream_to_file` uses
@@ -1602,12 +1603,11 @@ def _fetch_revalidation_token(url: str) -> str | None:
 
     Best-effort: a Cloudflare challenge, any status other than 200 or 206, a
     transport/redirect/host error, or a 200/206 response carrying neither
-    header all fall back to `None`, matching the degraded TTL-only
-    invalidation a versioned label gets when its own annotation fetch
-    fails outright. This never blocks the download, only how eagerly a
-    stale cache entry gets refetched. The first such failure for a given
-    URL in this process logs a warning naming the HTTP status or
-    Cloudflare Ray ID. Later failures for the same URL log at debug.
+    header all fall back to `None`, leaving the label suffix, else the
+    30-day TTL, to invalidate the cache. This never blocks the download,
+    only how eagerly a stale cache entry gets refetched. The first such
+    failure for a given URL in this process logs a warning naming the HTTP
+    status or Cloudflare Ray ID. Later failures for the same URL log at debug.
 
     Subject to the same process-wide rate limiter as every other request
     this package makes (`_stream_to_file`, `_http_primitives`'s helpers).
@@ -1751,10 +1751,10 @@ def get_bulk_file_url_with_version(
     """Resolve an EXT_RESOURCE annotation label to (url, cache-invalidation token).
 
     OECD dataflow XML carries a ``common:Annotation`` per bulk file, each
-    with an English ``AnnotationText`` of the form ``LABEL|URL``. Labels
-    gain a ``-vYYYYMMDD`` suffix that changes on every OECD republish;
-    lookup here is an exact match against the label with that suffix
-    stripped -- not a substring match, which is what previously let
+    with an English ``AnnotationText`` of the form ``LABEL|URL``. Some
+    labels carry a ``-vYYYYMMDD`` publication-date suffix; lookup here is
+    an exact match against the label with that suffix stripped -- not a
+    substring match, which is what previously let
     ``"CRS-Parquet"`` match inside ``"CRS-reduced-parquet"``.
 
     Because the URLs themselves are now permanently stable (``CRS.parquet``
@@ -1764,17 +1764,13 @@ def get_bulk_file_url_with_version(
     be made. The returned token exists to close that gap when threaded into
     `CacheEntry.version` (see `bulk_download_parquet`'s `version` param):
 
-    - If the label carries a ``-vYYYYMMDD`` suffix, the token is that
-      suffix (without the leading ``-``).
-    - If the label carries no suffix at all (DAC1, DAC2A and DAC2B today),
-      the token falls back to a `_fetch_revalidation_token` one-byte
-      ranged GET for the resolved URL's `ETag`/`Last-Modified`. A
-      republish changes that, even though the label's own text never
-      rotates.
-    - If neither is available (the ranged GET also fails), the token is
-      `None` and invalidation falls back to TTL alone, same as the
-      degraded path for a versioned label whose annotation fetch fails
-      outright.
+    - The token is the resolved URL's `ETag`, else `Last-Modified`, read by
+      a `_fetch_revalidation_token` one-byte ranged GET. Any rewrite of the
+      file changes it, including one under an unchanged label date.
+    - If that probe fails, the token is the label's ``-vYYYYMMDD`` suffix
+      (without the leading ``-``). DAC1, DAC2A and DAC2B labels carry none.
+    - If neither is available, the token is `None` and invalidation falls
+      back to the 30-day TTL alone.
 
     The version to query is determined as follows:
 
@@ -1829,10 +1825,7 @@ def get_bulk_file_url_with_version(
 
     def _finalize(resource: _ExtResource) -> tuple[str, str | None]:
         resolved = _finalize_resolved_url(resource.url)
-        version = resource.version
-        if version is None:
-            version = _fetch_revalidation_token(resolved)
-        return resolved, version
+        return resolved, _fetch_revalidation_token(resolved) or resource.version
 
     # --- Step 1: try an explicit version if provided ---
     if latest_flow is not None:
