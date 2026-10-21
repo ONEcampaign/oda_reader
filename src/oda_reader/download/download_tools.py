@@ -1285,10 +1285,9 @@ def bulk_download_parquet(
             to `get_bulk_file_url_with_version` if a re-resolve is needed.
             Optional.
         version: The cache-invalidation token for `url`, as returned by
-            `get_bulk_file_url_with_version` (the `-vYYYYMMDD` suffix from
-            the annotation label, or an ETag/Last-Modified fallback for a
-            label that carries no suffix). Threaded straight into
-            `CacheEntry.version`, so a label republish forces a refetch even
+            `get_bulk_file_url_with_version` (the file host's ETag, else
+            Last-Modified). Threaded straight into
+            `CacheEntry.version`, so a republish forces a refetch even
             though the resolved URL itself is now permanently stable and
             the cache key (`sha1(url)`) alone can no longer tell a
             republish apart from a genuine cache hit. `None` (the default)
@@ -1499,20 +1498,8 @@ def get_bulk_file_id(
     )
 
 
-class _ExtResource(typing.NamedTuple):
-    """One EXT_RESOURCE annotation: its URL and its `-vYYYYMMDD` version token.
-
-    `version` is the matched suffix with the leading `-` dropped (e.g.
-    ``"v20260803"`` or ``"v20260803-1"`` for a same-day republish), or
-    `None` for a label that carries no suffix at all (DAC2A's doesn't).
-    """
-
-    url: str
-    version: str | None
-
-
-def _parse_ext_resources(xml: str) -> dict[str, _ExtResource]:
-    """Map annotation label -> (URL, version) for every ``LABEL|URL`` annotation text.
+def _parse_ext_resources(xml: str) -> dict[str, str]:
+    """Map annotation label -> URL for every ``LABEL|URL`` annotation text.
 
     Scans every English (``xml:lang="en"``) ``AnnotationText`` in the
     dataflow XML for the ``LABEL|URL`` pattern OECD uses for bulk-download
@@ -1523,30 +1510,22 @@ def _parse_ext_resources(xml: str) -> dict[str, _ExtResource]:
     Any ``-vYYYYMMDD`` (or same-day-republish ``-vYYYYMMDD-N``) suffix on
     the label is stripped before it becomes a dict key, so callers can look
     up a resource by its stable label regardless of when OECD last
-    republished it -- the suffix itself is kept as `_ExtResource.version`
-    rather than simply discarded, since it is exactly the signal a bulk
-    file republish under an otherwise-permanently-stable URL needs to force
-    a cache refetch (see `get_bulk_file_url_with_version`).
+    republished it.
 
     Args:
         xml: Raw dataflow XML text.
 
     Returns:
-        dict[str, _ExtResource]: Suffix-stripped label -> (URL, version).
+        dict[str, str]: Suffix-stripped label -> URL.
     """
-    resources: dict[str, _ExtResource] = {}
+    resources: dict[str, str] = {}
     for match in _ANNOTATION_TEXT_RE.finditer(xml):
         text = unescape(match.group(1))
         label, sep, url = text.partition("|")
         if not sep:
             continue
-        label = label.strip()
-        version_match = _LABEL_VERSION_SUFFIX_RE.search(label)
-        version = (
-            version_match.group(0)[1:] if version_match else None
-        )  # drop leading "-"
-        stripped_label = _LABEL_VERSION_SUFFIX_RE.sub("", label)
-        resources[stripped_label] = _ExtResource(url=url.strip(), version=version)
+        stripped_label = _LABEL_VERSION_SUFFIX_RE.sub("", label.strip())
+        resources[stripped_label] = url.strip()
     return resources
 
 
@@ -1588,8 +1567,7 @@ def _fetch_revalidation_token(url: str) -> str | None:
     source that changes whenever the file does. An annotation label's
     `-vYYYYMMDD` suffix can stay put while OECD rewrites the file behind a
     permanently-stable URL, and DAC1, DAC2A and DAC2B labels carry no
-    suffix at all. The suffix serves as the token only when this probe
-    returns `None`.
+    suffix at all.
 
     Issues a single-byte `Range: bytes=0-0` GET through the same
     redirect-validating, challenge-classifying seam `_stream_to_file` uses
@@ -1603,8 +1581,8 @@ def _fetch_revalidation_token(url: str) -> str | None:
 
     Best-effort: a Cloudflare challenge, any status other than 200 or 206, a
     transport/redirect/host error, or a 200/206 response carrying neither
-    header all fall back to `None`, leaving the label suffix, else the
-    30-day TTL, to invalidate the cache. This never blocks the download,
+    header all fall back to `None`, leaving the 30-day TTL to invalidate
+    the cache. This never blocks the download,
     only how eagerly a stale cache entry gets refetched. The first such
     failure for a given URL in this process logs a warning naming the HTTP
     status or Cloudflare Ray ID. Later failures for the same URL log at debug.
@@ -1767,10 +1745,9 @@ def get_bulk_file_url_with_version(
     - The token is the resolved URL's `ETag`, else `Last-Modified`, read by
       a `_fetch_revalidation_token` one-byte ranged GET. Any rewrite of the
       file changes it, including one under an unchanged label date.
-    - If that probe fails, the token is the label's ``-vYYYYMMDD`` suffix
-      (without the leading ``-``). DAC1, DAC2A and DAC2B labels carry none.
-    - If neither is available, the token is `None` and invalidation falls
-      back to the 30-day TTL alone.
+    - If that probe fails, the token is `None`. The cache then skips the
+      version comparison and keeps the stored token, so a cached copy stays
+      usable until the 30-day TTL.
 
     The version to query is determined as follows:
 
@@ -1812,7 +1789,7 @@ def get_bulk_file_url_with_version(
 
     dataflow_id = _extract_dataflow_id_from_flow_url(flow_url)
 
-    def _try_version(version: float | int | str) -> _ExtResource | None:
+    def _try_version(version: float | int | str) -> str | None:
         """Attempt to resolve *label* to a URL for a given dataflow version."""
         status, response, _ = _get_response_text(
             f"{flow_url}{version}",
@@ -1823,9 +1800,9 @@ def get_bulk_file_url_with_version(
             return None
         return _parse_ext_resources(response).get(label)
 
-    def _finalize(resource: _ExtResource) -> tuple[str, str | None]:
-        resolved = _finalize_resolved_url(resource.url)
-        return resolved, _fetch_revalidation_token(resolved) or resource.version
+    def _finalize(url: str) -> tuple[str, str | None]:
+        resolved = _finalize_resolved_url(url)
+        return resolved, _fetch_revalidation_token(resolved)
 
     # --- Step 1: try an explicit version if provided ---
     if latest_flow is not None:

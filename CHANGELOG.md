@@ -9,8 +9,8 @@
   that lacks it.
 - **CRS and Multisystem bulk downloads detect a file rewritten under an unchanged label date.**
   Every bulk file's publication-version token now comes from the file host's `ETag` (falling
-  back to `Last-Modified`). The annotation label's `-vYYYYMMDD` stamp is used only when that
-  request fails.
+  back to `Last-Modified`). The annotation label's `-vYYYYMMDD` stamp is no longer a token. When
+  the token request fails, a cached file stays in use until the 30-day TTL.
 
 ## 1.11.2 (2026-09-15)
 
