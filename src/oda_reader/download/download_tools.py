@@ -1786,6 +1786,14 @@ def _describe_bulk_download_error(error: BulkDownloadHTTPError) -> str:
 
 
 def _fetch_revalidation_token(url: str) -> str | None:
+    """Return the token half of `_fetch_revalidation_validator`, or `None`."""
+    validator = _fetch_revalidation_validator(url)
+    return None if validator is None else validator[0]
+
+
+def _fetch_revalidation_validator(
+    url: str,
+) -> tuple[str, typing.Literal["etag", "last_modified"]] | None:
     """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
     Every resolved bulk URL is probed, because the file host is the only
@@ -1819,7 +1827,8 @@ def _fetch_revalidation_token(url: str) -> str | None:
         url: The already-resolved, allowlist-checked bulk-download URL.
 
     Returns:
-        The `ETag` header value, else `Last-Modified`, else `None`.
+        `(token, "etag")` for an `ETag` header, else
+        `(token, "last_modified")` for a `Last-Modified` header, else `None`.
     """
     headers = {**DEFAULT_HEADERS, "Range": "bytes=0-0"}
     try:
@@ -1846,16 +1855,15 @@ def _fetch_revalidation_token(url: str) -> str | None:
                     f"Revalidation ranged GET for {url} got 200; "
                     "server ignored the Range header."
                 )
-            token = response.headers.get("ETag") or response.headers.get(
-                "Last-Modified"
+            if etag := response.headers.get("ETag"):
+                return etag, "etag"
+            if last_modified := response.headers.get("Last-Modified"):
+                return last_modified, "last_modified"
+            _warn_revalidation_failure(
+                url,
+                f"HTTP {response.status_code} carried neither ETag nor Last-Modified",
             )
-            if token is None:
-                _warn_revalidation_failure(
-                    url,
-                    f"HTTP {response.status_code} carried neither ETag nor "
-                    "Last-Modified",
-                )
-            return token
+            return None
     except (
         ValueError,
         LookupError,

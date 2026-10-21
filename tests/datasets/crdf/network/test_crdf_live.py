@@ -29,8 +29,9 @@ def test_every_live_header_maps():
     for name, perspective, url in zip(
         workbooks["name"], workbooks["perspective"], workbooks["url"], strict=True
     ):
-        path, etag = crdf._fetch(url)
-        assert etag, name
+        path, version, version_kind = crdf._fetch(url)
+        assert version, name
+        assert version_kind in ("etag", "last_modified"), name
         _, sheets = crdf._read_headers(path)
         assert sheets, name
         for sheet, headers in sheets.items():
@@ -46,7 +47,13 @@ def test_reads_2015_to_2024(perspective):
     df = download_crdf(perspective, start_year=2015, end_year=2024)
 
     assert sorted(df["year"].unique()) == list(range(2015, 2025))
-    for column in ("price_year", "vintage", "source_file", "file_etag"):
+    for column in (
+        "price_year",
+        "vintage",
+        "source_file",
+        "file_version",
+        "file_version_kind",
+    ):
         assert df[column].notna().all(), column
     counts = df.groupby(["source_file", "vintage", "price_year"]).size()
     print(counts.to_string())

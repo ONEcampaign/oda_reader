@@ -7,8 +7,11 @@
   HTTP from either perspective. File names come from the live folder listing, and each year is
   read from the narrowest workbook that holds it. Every header layout, current and archived,
   maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
-  `vintage`, `source_file` and `file_etag` added to each row. An unknown layout raises
-  `CRDFSchemaError`, which lists the unmapped and missing columns.
+  `vintage`, `source_file`, `file_version` and `file_version_kind` added to each row.
+  `file_version` is the file host's validator for the cached copy read, and `file_version_kind`
+  says whether it is an `etag` or a `last_modified` date. An unknown layout raises
+  `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
+  not a plain file name also raises `CRDFSchemaError`.
 - **States where the OECD stands on scripted bulk downloads.** Scripted access to the bulk files
   on `webfs-dcd.oecd.org` is not a service the OECD has committed to, and scripted requests may
   meet a Cloudflare challenge. The supported route then is a browser download followed by

@@ -25,8 +25,9 @@ class BulkPayloadCorruptError(Exception):
     """Raised when a downloaded bulk payload fails integrity validation.
 
     Attributes:
-        path: The path of the failed cache entry. The entry has already
-            been removed from disk by the time this exception is raised.
+        path: The path of the payload that failed. It has already been
+            removed from disk by the time this exception is raised, and a
+            cached copy it was meant to replace is left in place.
         reason: A short human-readable description of which check failed
             (e.g. "is_zipfile() returned False",
             "testzip() reported member 'crs.parquet'").

@@ -6,6 +6,7 @@ The folder listings are snapshots of https://webfs.oecd.org/climate/.
 """
 
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -86,7 +87,8 @@ def test_fixture_headers_map_with_no_gaps(layout, workbook_for):
         "price_year",
         "vintage",
         "source_file",
-        "file_etag",
+        "file_version",
+        "file_version_kind",
     }
     assert len(df) == 2
     assert df["price_year"].tolist() == [fixture["price_year"]] * 2
@@ -95,7 +97,7 @@ def test_fixture_headers_map_with_no_gaps(layout, workbook_for):
         == [datetime.fromisoformat(fixture["modified"]).date()] * 2
     )
     assert df["source_file"].tolist() == [fixture["file"]] * 2
-    assert df["file_etag"].isna().all()
+    assert df[["file_version", "file_version_kind"]].isna().all().all()
     assert df["crs_id"].tolist() == ["2021000035", "2021000035c"]
     assert df["project_number"].tolist() == ["00123", "4567"]
     types = crdf._schema()["columns"]
@@ -114,7 +116,8 @@ def test_raw_headers_kept_without_pre_process(workbook_for):
         "price_year",
         "vintage",
         "source_file",
-        "file_etag",
+        "file_version",
+        "file_version_kind",
     ]
     assert df["price_year"].tolist() == [2024, 2024]
 
@@ -293,7 +296,7 @@ def test_download_reads_each_resolved_file(live_folder, monkeypatch, workbook_fo
 
     def fake_fetch(url):
         fetched.append(url)
-        return path, '"etag-1"'
+        return path, '"etag-1"', "etag"
 
     monkeypatch.setattr(crdf, "_fetch", fake_fetch)
 
@@ -303,7 +306,8 @@ def test_download_reads_each_resolved_file(live_folder, monkeypatch, workbook_fo
         "https://webfs.oecd.org/climate/RecipientPerspective/CRDF-RP_2014-2015.xlsx"
     ]
     assert df["year"].tolist() == [2015]
-    assert df["file_etag"].tolist() == ['"etag-1"']
+    assert df["file_version"].tolist() == ['"etag-1"']
+    assert df["file_version_kind"].tolist() == ["etag"]
     assert df["source_file"].tolist() == ["CRDF-RP_2014-2015.xlsx"]
 
 
@@ -321,7 +325,7 @@ def test_overlapping_workbooks_each_contribute_only_their_years(
     )
     path = workbook_for("recipient_2026")  # one row each for 2014 and 2015
     monkeypatch.setattr(crdf, "list_crdf_files", lambda: listing)
-    monkeypatch.setattr(crdf, "_fetch", lambda url: (path, None))
+    monkeypatch.setattr(crdf, "_fetch", lambda url: (path, None, None))
 
     df = download_crdf("recipient", start_year=2014, end_year=2015)
 
@@ -359,7 +363,7 @@ def test_listing_request_has_a_timeout(monkeypatch):
 def test_download_file_saves_into_a_directory(live_folder, monkeypatch, tmp_path):
     cached = tmp_path / "cached.xlsx"
     cached.write_bytes(b"workbook")
-    monkeypatch.setattr(crdf, "_fetch", lambda url: (cached, None))
+    monkeypatch.setattr(crdf, "_fetch", lambda url: (cached, None, None))
     target = tmp_path / "out"
     target.mkdir()
 
@@ -372,3 +376,59 @@ def test_download_file_saves_into_a_directory(live_folder, monkeypatch, tmp_path
 def test_download_file_rejects_unknown_names(live_folder, tmp_path):
     with pytest.raises(ValueError):
         download_crdf_file("CRDF-PP_2024.xls", tmp_path)
+
+
+def test_cache_hit_reports_the_version_recorded_with_the_copy(
+    monkeypatch, workbook_for
+):
+    """A failed probe still serves the cached copy and reports its validator."""
+    workbook = workbook_for("recipient_2026")
+    url = crdf.CRDF_URL + "RecipientPerspective/CRDF-RP_2016.xlsx"
+    validators = iter([("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified"), None])
+    monkeypatch.setattr(
+        crdf, "_fetch_revalidation_validator", lambda u: next(validators)
+    )
+    monkeypatch.setattr(
+        crdf, "_stream_to_file", lambda u, h, target: shutil.copyfile(workbook, target)
+    )
+
+    downloaded = crdf._fetch(url)
+    served = crdf._fetch(url)
+
+    assert served == downloaded
+    assert served[1:] == ("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified")
+
+
+@pytest.mark.parametrize(
+    "name", ["../outside.xlsx", "..", ".", "sub/inner.xlsx", "sub\\inner.xlsx"]
+)
+def test_listing_entry_that_is_not_a_plain_name_raises(monkeypatch, name):
+    listing = (
+        f'<pre>  6/4/2026  6:35 PM        96641 <A HREF="/climate/x.xlsx">{name}</A>'
+        "<br></pre>"
+    )
+    monkeypatch.setattr(crdf, "_get_listing", lambda url: (200, listing))
+
+    with pytest.raises(CRDFSchemaError) as info:
+        list_crdf_files()
+
+    assert repr(name) in info.value.detail
+
+
+def test_download_file_refuses_a_destination_outside_the_directory(
+    monkeypatch, tmp_path
+):
+    listing = pd.DataFrame(
+        {"name": ["../outside.xlsx"], "url": ["https://webfs.oecd.org/x.xlsx"]}
+    )
+    monkeypatch.setattr(crdf, "list_crdf_files", lambda: listing)
+    monkeypatch.setattr(
+        crdf, "_fetch", lambda url: pytest.fail("fetched before the path check")
+    )
+    target = tmp_path / "out"
+    target.mkdir()
+
+    with pytest.raises(ValueError, match="outside"):
+        download_crdf_file("../outside.xlsx", target)
+
+    assert not (tmp_path / "outside.xlsx").exists()

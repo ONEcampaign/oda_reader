@@ -39,6 +39,8 @@ class CacheEntry:
         fetcher: Callable that downloads and writes data to a given path
         ttl_days: Time-to-live in days (default: 90)
         version: Optional version string for cache invalidation
+        version_kind: Optional name of the validator ``version`` holds, such
+            as ``"etag"`` or ``"last_modified"``, recorded in the manifest
         url: Optional source URL, recorded in the manifest
         flow_url: Optional dataflow URL the bulk reader resolved ``url``
             from, recorded so ``find_entry`` can match it offline
@@ -50,6 +52,7 @@ class CacheEntry:
     fetcher: Callable[[Path], None]
     ttl_days: int = 90
     version: str | None = None
+    version_kind: str | None = None
     url: str | None = None
     flow_url: str | None = None
     label: str | None = None
@@ -99,11 +102,13 @@ class CacheManager:
     def ensure(self, entry: CacheEntry, refresh: bool = False) -> Path:
         """Ensure cached file exists, fetching if necessary.
 
-        On a cache-miss or refresh, the downloaded file is validated with
-        ``validate_payload_or_raise``, which dispatches on magic bytes: a zip
-        integrity walk (``is_zipfile`` + ``testzip``) for a zip payload, or a
-        footer-magic and metadata check for a bare parquet payload. On a
-        cache-hit the manifest record is trusted (no walk on every call).
+        On a cache-miss or refresh, the download is written to a temporary
+        file and validated with ``validate_payload_or_raise``, which
+        dispatches on magic bytes: a zip integrity walk (``is_zipfile`` +
+        ``testzip``) for a zip payload, or a footer-magic and metadata check
+        for a bare parquet payload. Only a payload that passes replaces the
+        cached file and its manifest record. On a cache-hit the manifest
+        record is trusted (no walk on every call).
 
         Args:
             entry: CacheEntry describing the dataset.
@@ -116,44 +121,57 @@ class CacheManager:
 
         Raises:
             BulkPayloadCorruptError: If a freshly downloaded file fails
-                integrity validation. The cache entry is removed before raising.
+                integrity validation. Any previously cached file and its
+                manifest record are left in place.
+        """
+        path, _ = self.ensure_record(entry, refresh=refresh)
+        return path
+
+    def ensure_record(
+        self, entry: CacheEntry, *, refresh: bool = False
+    ) -> tuple[Path, dict[str, Any]]:
+        """Like ``ensure``, and also return the manifest record of the file served.
+
+        The record describes the payload at the returned path, so a cache hit
+        reports the version stored with that payload, not ``entry.version``.
+
+        Returns:
+            ``(path, record)``, read under one lock acquisition.
         """
         with self._lock:
             manifest = self._load_manifest()
             record = manifest.get(entry.key)
             path = self.base_dir / entry.filename
 
-            needs_fetch = (
-                refresh
-                or record is None
-                or not path.exists()
-                or self._is_stale(record, entry)
-            )
-
-            if not needs_fetch:
+            if (
+                not refresh
+                and record is not None
+                and path.exists()
+                and not self._is_stale(record, entry)
+            ):
                 logger.info(f"Loading {entry.key} from cache")
-                return path
+                return path, record
 
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
-            self._fetch_and_cache(entry, path)
-
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            validate_payload_or_raise(path)
+            self._install(path, entry.fetcher)
 
-            manifest[entry.key] = {
+            record = {
                 "filename": entry.filename,
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
                 "version": entry.version,
+                "version_kind": entry.version_kind,
                 "source": "download",
                 "url": entry.url,
                 "flow_url": entry.flow_url,
                 "label": entry.label,
             }
+            manifest[entry.key] = record
             self._save_manifest(manifest)
 
-            return path
+            return path, record
 
     def register(
         self,
@@ -195,13 +213,7 @@ class CacheManager:
         """
         with self._lock:
             path = self.base_dir / filename
-            tmp_path = Path(f"{path}.tmp-{_HOSTNAME}-{os.getpid()}")
-            try:
-                shutil.copyfile(source, tmp_path)
-                validate_payload_or_raise(tmp_path)
-                tmp_path.replace(path)
-            finally:
-                tmp_path.unlink(missing_ok=True)
+            self._install(path, lambda tmp_path: shutil.copyfile(source, tmp_path))
 
             manifest = self._load_manifest()
             manifest[key] = {
@@ -231,29 +243,34 @@ class CacheManager:
         Offline reads use it to find a cached copy of any age.
 
         Args:
-            key: The manifest key to match.
+            key: The manifest key to match. When given, it alone decides
+                the match and ``flow_url`` and ``label`` are ignored.
             flow_url: The dataflow URL to match, together with ``label``.
             label: The annotation label to match, together with ``flow_url``.
 
         Returns:
-            ``(key, path, url)`` of the most recently stored matching entry
-            whose file exists, else ``None``. ``url`` is ``None`` for an
-            entry stored before URLs were recorded.
+            ``(key, path, url)`` of the entry stored under ``key`` when a key
+            is given, else of the most recently stored entry matching
+            ``flow_url`` and ``label``. ``None`` when no such entry's file
+            exists. ``url`` is ``None`` for an entry stored before URLs were
+            recorded.
         """
         with self._lock:
             manifest = self._load_manifest()
 
+        def matches_request(entry_key: str, record: dict) -> bool:
+            if key is not None:
+                return entry_key == key
+            return (
+                flow_url is not None
+                and record.get("flow_url") == flow_url
+                and record.get("label") == label
+            )
+
         matches = [
             (datetime.strptime(record["downloaded_at"], ISO_FORMAT), entry_key, record)
             for entry_key, record in manifest.items()
-            if (
-                entry_key == key
-                or (
-                    flow_url is not None
-                    and record.get("flow_url") == flow_url
-                    and record.get("label") == label
-                )
-            )
+            if matches_request(entry_key, record)
             and (self.base_dir / record["filename"]).exists()
         ]
         if not matches:
@@ -339,11 +356,16 @@ class CacheManager:
             "stale_entries": stale_count,
         }
 
-    def _fetch_and_cache(self, entry: CacheEntry, path: Path) -> None:
-        """Fetch data and write atomically using host+pid tmp suffix."""
+    def _install(self, path: Path, write: Callable[[Path], object]) -> None:
+        """Write a payload to a host+pid tmp file, validate it, then move it to *path*.
+
+        A payload that fails validation never reaches *path*, so the file
+        already there survives a failed download or registration.
+        """
         tmp_path = Path(f"{path}.tmp-{_HOSTNAME}-{os.getpid()}")
         try:
-            entry.fetcher(tmp_path)
+            write(tmp_path)
+            validate_payload_or_raise(tmp_path)
             tmp_path.replace(path)
         finally:
             tmp_path.unlink(missing_ok=True)

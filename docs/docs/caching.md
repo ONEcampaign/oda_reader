@@ -172,7 +172,8 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   the bare-parquet CRS files). Truncation is also caught earlier, during the
   download itself: streamed bytes are compared against the response's
   `Content-Length` and a mismatch is retried before it ever reaches the
-  cache. A corrupt download is removed from the cache and raises
+  cache. A corrupt download is deleted before it replaces anything, so a
+  copy already in the cache stays readable, and raises
   `BulkPayloadCorruptError` so you can simply retry. Cached files are
   trusted on hit (no recheck on every call).
 - **Self-healing**: temp files left behind by interrupted downloads (older
@@ -313,9 +314,10 @@ call anything to get this behaviour. It runs automatically for
 #### Handling corrupt downloads
 
 The OECD's bulk endpoint occasionally serves a truncated or malformed file.
-When that happens, a `BulkPayloadCorruptError` is raised and the bad entry is
-already removed from disk by the time you see it, so the next call cleanly
-re-downloads:
+When that happens, a `BulkPayloadCorruptError` is raised and the bad download is
+already removed from disk by the time you see it. Any copy the cache already
+held, including a registered file, stays in place with its record, and the
+next call cleanly re-downloads:
 
 ```python
 from oda_reader import bulk_download_crs, BulkPayloadCorruptError
@@ -323,7 +325,7 @@ from oda_reader import bulk_download_crs, BulkPayloadCorruptError
 try:
     crs = bulk_download_crs()
 except BulkPayloadCorruptError:
-    # Bad entry already removed — just retry
+    # Bad download already removed, just retry
     crs = bulk_download_crs()
 ```
 

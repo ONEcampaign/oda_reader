@@ -564,8 +564,8 @@ dimension.
 
 **`BulkPayloadCorruptError`**: The OECD's bulk endpoint occasionally serves a
 truncated or malformed file (a bad zip, or a bare parquet file that fails to
-parse). The corrupt entry is removed automatically before the exception is
-raised, so the next call cleanly re-downloads. Retry the call, or pass
+parse). The corrupt download is deleted before the exception is raised and
+never replaces the cached copy, so the next call cleanly re-downloads. Retry the call, or pass
 `use_raw_cache=False` to skip the cache for that invocation.
 
 ## Next steps

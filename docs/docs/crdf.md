@@ -23,18 +23,19 @@ For each year the reader picks the narrowest workbook that holds it. The 2015 re
 
 Amounts are commitments in USD thousand, as published. Each amount comes in current prices (`*_current_kusd`) and constant prices (`*_constant_kusd`). Since the June 2026 republication every workbook uses 2024 prices.
 
-Four columns describe where each row came from:
+Five columns describe where each row came from:
 
-| Column        | Meaning                                                                              |
-| ------------- | ------------------------------------------------------------------------------------ |
-| `price_year`  | The price year of the `*_constant_kusd` columns, read from the headers               |
-| `vintage`     | The workbook's last-modified date, which matches the folder's `Last-Modified` header |
-| `source_file` | The file name, for example `CRDF-PP_2024.xlsx`                                       |
-| `file_etag`   | The file host's ETag, or missing when reading a local file                           |
+| Column              | Meaning                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `price_year`        | The price year of the `*_constant_kusd` columns, read from the headers                                               |
+| `vintage`           | The workbook's last-modified date, which matches the folder's `Last-Modified` header                                 |
+| `source_file`       | The file name, for example `CRDF-PP_2024.xlsx`                                                                       |
+| `file_version`      | The file host's validator recorded when the cached copy was downloaded, or missing for a local file or no validator  |
+| `file_version_kind` | `etag` or `last_modified`, naming the header `file_version` came from                                                |
 
 The current recipient workbooks carry `climate_share_pct`, the climate share of the underlying commitment from 0 to 100. Archived recipient workbooks carry `underlying_commitment_share` instead, which runs from 0 to 1. Archived workbooks also carry `provider_short_name`, `concessionality`, `financial_instrument` and `coal_related_financing`, and lack the flow type and the environment, biodiversity and desertification markers.
 
-Pass `pre_process=False` to keep the published headers and the types Excel gives. The four provenance columns are added either way.
+Pass `pre_process=False` to keep the published headers and the types Excel gives. The five provenance columns are added either way.
 
 ## Read an archived copy
 
@@ -84,4 +85,4 @@ download_crdf_file("Imputed_multilateral_shares.xlsx", "./data/")
 
 ## Caching
 
-Workbooks are cached in the [bulk file cache](caching.md#bulk-file-cache) beside the other bulk files. Each call asks the host for the file's ETag with a one-byte request and downloads it again only when the ETag has changed or the copy is older than 90 days. The folder listing is fetched fresh on every call.
+Workbooks are cached in the [bulk file cache](caching.md#bulk-file-cache) beside the other bulk files. Each call asks the host for the file's ETag, or its `Last-Modified` date when it sends no ETag, with a one-byte request, and downloads the file again only when that value has changed or the copy is older than 90 days. When the request fails, the cached copy is read and keeps the `file_version` recorded with it. The folder listing is fetched fresh on every call.

@@ -33,7 +33,7 @@ from oda_reader._http_primitives import (
 )
 from oda_reader.common import ImporterPaths, logger
 from oda_reader.download.download_tools import (
-    _fetch_revalidation_token,
+    _fetch_revalidation_validator,
     _finalize_resolved_url,
     _stream_to_file,
 )
@@ -94,13 +94,24 @@ def _get_listing(url: str) -> tuple[int, str]:
     return cast(int, response.status_code), response.text
 
 
+def _check_entry_name(name: str, *, source: str) -> str:
+    """Return *name* if it is one plain path component, else raise CRDFSchemaError."""
+    if name in ("", ".", "..") or "/" in name or "\\" in name:
+        raise CRDFSchemaError(
+            source=source,
+            detail=f"The folder listing names an entry {name!r}, "
+            "which is not a plain file or folder name.",
+        )
+    return name
+
+
 def _list_folder(url: str) -> list[dict]:
     status, text = _get_listing(url)
     if status != 200:
         raise BulkDownloadHTTPError(status_code=status, url=url, body=text)
     entries = [
         {
-            "name": unescape(name),
+            "name": _check_entry_name(unescape(name), source=url),
             "is_dir": size.lower() == "&lt;dir&gt;",
             "size_bytes": None if size.lower() == "&lt;dir&gt;" else int(size),
             "modified": datetime.strptime(" ".join(stamp.split()), "%m/%d/%Y %I:%M %p"),
@@ -162,17 +173,26 @@ def list_crdf_files() -> pd.DataFrame:
     return listing
 
 
-def _fetch(url: str) -> tuple[Path, str | None]:
-    """Return a cached copy of the workbook at *url* and its ETag."""
-    etag = _fetch_revalidation_token(url)
+def _fetch(url: str) -> tuple[Path, str | None, str | None]:
+    """Return a cached copy of the workbook at *url* and its recorded validator.
+
+    Returns:
+        The cached path, the validator token stored with that copy, and its
+        kind (``"etag"`` or ``"last_modified"``). Both are None when the
+        host gave no validator at download time.
+    """
+    token, kind = _fetch_revalidation_validator(url) or (None, None)
     key = hashlib.sha1(url.encode()).hexdigest()
     entry = CacheEntry(
         key=key,
         filename=f"{key}.xlsx",
         fetcher=lambda path: _stream_to_file(url, {}, path),
-        version=etag,
+        version=token,
+        version_kind=kind,
+        url=url,
     )
-    return bulk_cache_manager().ensure(entry), etag
+    path, record = bulk_cache_manager().ensure_record(entry)
+    return path, record.get("version"), record.get("version_kind")
 
 
 def download_crdf_file(name: str, save_to_path: Path | str) -> Path:
@@ -188,7 +208,8 @@ def download_crdf_file(name: str, save_to_path: Path | str) -> Path:
         Path: Where the file was saved.
 
     Raises:
-        ValueError: If no file in the listing has this name.
+        ValueError: If no file in the listing has this name, or the
+            destination falls outside *save_to_path*.
     """
     listing = list_crdf_files()
     match = listing.loc[listing["name"] == name]
@@ -198,10 +219,14 @@ def download_crdf_file(name: str, save_to_path: Path | str) -> Path:
             f"{name!r} is not in the CRDF listing at {CRDF_URL}. Close names: {close}"
         )
 
-    cached, _ = _fetch(match["url"].iloc[0])
     target = Path(save_to_path)
     if target.is_dir():
+        folder = target.resolve()
         target = target / name
+        if target.resolve().parent != folder:
+            raise ValueError(f"{name!r} would be saved outside {save_to_path}.")
+
+    cached, _, _ = _fetch(match["url"].iloc[0])
     shutil.copyfile(cached, target)
     return target
 
@@ -292,7 +317,8 @@ def _read_workbook(
     *,
     perspective: Perspective,
     source_file: str,
-    file_etag: str | None,
+    file_version: str | None,
+    file_version_kind: str | None,
     pre_process: bool,
 ) -> pd.DataFrame:
     """Read every data sheet of one CRDF workbook into one DataFrame."""
@@ -346,7 +372,11 @@ def _read_workbook(
     df["price_year"] = df["price_year"].astype("int32[pyarrow]")
     df["vintage"] = pd.Series([modified.date()] * len(df), dtype="date32[pyarrow]")
     df["source_file"] = pd.Series(source_file, index=df.index, dtype="string[pyarrow]")
-    df["file_etag"] = pd.Series(file_etag, index=df.index, dtype="string[pyarrow]")
+    for column, value in (
+        ("file_version", file_version),
+        ("file_version_kind", file_version_kind),
+    ):
+        df[column] = pd.Series(value, index=df.index, dtype="string[pyarrow]")
     return df
 
 
@@ -432,8 +462,11 @@ def download_crdf(
     Returns:
         pd.DataFrame: One row per CRDF record, amounts in USD thousand, plus
             ``price_year`` (the price year of the constant-price amounts),
-            ``vintage`` (the workbook's last-modified date), ``source_file``
-            and ``file_etag`` (missing when reading a local *file*).
+            ``vintage`` (the workbook's last-modified date), ``source_file``,
+            ``file_version`` (the file host's validator for the copy read)
+            and ``file_version_kind`` (``"etag"`` or ``"last_modified"``).
+            Both are missing when reading a local *file* or when the host
+            gave no validator.
 
     Raises:
         CRDFSchemaError: If a sheet's headers match no known layout, the
@@ -442,7 +475,7 @@ def download_crdf(
     """
     if file is not None:
         path = Path(file)
-        workbooks = [(path, path.name, None, None)]
+        workbooks = [(path, path.name, None, None, None)]
     else:
         files = _files_for_years(list_crdf_files(), perspective, start_year, end_year)
         workbooks = []
@@ -450,16 +483,17 @@ def download_crdf(
             files["name"], files["url"], files["years"], strict=True
         ):
             logger.info(f"Reading CRDF workbook {name}")
-            path, etag = _fetch(url)
-            workbooks.append((path, name, etag, years))
+            path, version, version_kind = _fetch(url)
+            workbooks.append((path, name, version, version_kind, years))
 
     frames = []
-    for path, name, etag, years in workbooks:
+    for path, name, version, version_kind, years in workbooks:
         df = _read_workbook(
             path,
             perspective=perspective,
             source_file=name,
-            file_etag=etag,
+            file_version=version,
+            file_version_kind=version_kind,
             pre_process=pre_process,
         )
         year = df["year" if pre_process else "Year"]

@@ -22,6 +22,7 @@ from oda_reader.download.download_tools import (
     _detect_delimiter,
     _extract_dataflow_id_from_flow_url,
     _fetch_revalidation_token,
+    _fetch_revalidation_validator,
     _finalize_resolved_url,
     _get_with_validated_redirects,
     _iter_csv_chunks,
@@ -1250,9 +1251,9 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        result = _fetch_revalidation_token(self._URL)
+        result = _fetch_revalidation_validator(self._URL)
 
-        assert result == "Tue, 07 Jul 2026 13:05:26 GMT"
+        assert result == ("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified")
 
     def test_200_with_range_ignored_returns_etag_without_reading_body(self, mocker):
         """The server ignoring the Range header (200 instead of 206) is

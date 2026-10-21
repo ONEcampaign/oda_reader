@@ -147,6 +147,26 @@ class TestOfflineRead:
         pd.testing.assert_frame_equal(result, _FRAME)
         _assert_no_network(no_sockets)
 
+    def test_url_wins_over_a_newer_copy_of_the_same_dataset(
+        self, crs_parquet, tmp_path, no_sockets
+    ):
+        newer = tmp_path / "CRS-newer.parquet"
+        newer_frame = _FRAME.assign(usd_disbursement=0.0)
+        newer_frame.to_parquet(newer)
+        newer_url = _CRS_URL.replace("CRS.parquet", "CRS-newer.parquet")
+        with freeze_time("2026-01-01"):
+            register_bulk_file(crs_parquet, dataset="crs", url=_CRS_URL, version="e1")
+        with freeze_time("2026-02-01"):
+            register_bulk_file(newer, dataset="crs", url=newer_url, version="e2")
+
+        result = bulk_download_parquet(
+            url=_CRS_URL, flow_url=CRS_FLOW_URL, label=CRS_BULK_LABEL, offline=True
+        )
+
+        pd.testing.assert_frame_equal(result, _FRAME)
+        pd.testing.assert_frame_equal(bulk_download_crs(offline=True), newer_frame)
+        _assert_no_network(no_sockets)
+
 
 @pytest.mark.unit
 class TestOnlineReadOfRegisteredEntry:
@@ -295,6 +315,25 @@ class TestRegisteredEntryLifetime:
             [record] = manager.list_records()
 
         assert (record["source"], record["is_stale"]) == ("registered", False)
+
+    def test_corrupt_refetch_keeps_registered_entry(
+        self, crs_parquet, no_sockets, mocker
+    ):
+        register_bulk_file(crs_parquet, url=_CRS_URL, version="e1")
+        crs_parquet.unlink()
+        mocker.patch(
+            "oda_reader.download.download_tools._stream_to_file",
+            side_effect=lambda url, headers, path: path.write_bytes(b"<html>"),
+        )
+
+        # A new version token triggers a refetch, which returns a bad payload.
+        with pytest.raises(BulkPayloadCorruptError):
+            bulk_download_parquet(url=_CRS_URL, version="e2")
+
+        [record] = bulk_cache_manager().list_records()
+        assert (record["source"], record["version"]) == ("registered", "e1")
+        result = bulk_download_parquet(url=_CRS_URL, offline=True)
+        pd.testing.assert_frame_equal(result, _FRAME)
 
 
 @pytest.mark.unit
