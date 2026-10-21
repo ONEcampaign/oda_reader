@@ -84,4 +84,4 @@ download_crdf_file("Imputed_multilateral_shares.xlsx", "./data/")
 
 ## Caching
 
-Workbooks are cached under the bulk cache directory in `bulk_files/crdf/`. Each call asks the host for the file's ETag with a one-byte request and downloads it again only when the ETag has changed or the copy is older than 30 days. The folder listing is fetched fresh on every call.
+Workbooks are cached in the [bulk file cache](caching.md#bulk-file-cache) beside the other bulk files. Each call asks the host for the file's ETag with a one-byte request and downloads it again only when the ETag has changed or the copy is older than 90 days. The folder listing is fetched fresh on every call.

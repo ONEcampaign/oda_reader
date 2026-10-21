@@ -24,8 +24,7 @@ import requests
 from openpyxl import load_workbook
 
 from oda_reader import _http_primitives
-from oda_reader._cache.config import get_bulk_cache_dir
-from oda_reader._cache.manager import CacheEntry, CacheManager
+from oda_reader._cache.manager import CacheEntry, bulk_cache_manager
 from oda_reader._http_primitives import (
     API_RATE_LIMITER,
     DEFAULT_HEADERS,
@@ -60,10 +59,6 @@ _FILE_YEARS_RE = re.compile(r"(\d{4})(?:-(\d{4}))?\.xlsx$")
 # Constant-price amount headers embed their price year: "- 2024 USD thousand".
 _PRICE_YEAR_RE = re.compile(r" - (\d{4}) USD ")
 _PRICE_YEAR_PLACEHOLDER = " - {price_year} USD "
-
-# The bulk cache keeps only its two newest entries, so CRDF workbooks get a
-# cache of their own. The live folder holds about 30 workbooks.
-_CACHE_KEEP_N = 64
 
 # Connect and read timeouts for a folder listing request, in seconds.
 _LISTING_TIMEOUT = (10, 30)
@@ -177,8 +172,7 @@ def _fetch(url: str) -> tuple[Path, str | None]:
         fetcher=lambda path: _stream_to_file(url, {}, path),
         version=etag,
     )
-    manager = CacheManager(get_bulk_cache_dir() / "crdf", keep_n=_CACHE_KEEP_N)
-    return manager.ensure(entry), etag
+    return bulk_cache_manager().ensure(entry), etag
 
 
 def download_crdf_file(name: str, save_to_path: Path | str) -> Path:

@@ -9,9 +9,18 @@
   maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
   `vintage`, `source_file` and `file_etag` added to each row. An unknown layout raises
   `CRDFSchemaError`, which lists the unmapped and missing columns.
+- **States where the OECD stands on scripted bulk downloads.** Scripted access to the bulk files
+  on `webfs-dcd.oecd.org` is not a service the OECD has committed to, and scripted requests may
+  meet a Cloudflare challenge. The supported route then is a browser download followed by
+  `register_bulk_file()`. oda-reader downloads each bulk file whole, keeps a local copy and
+  answers queries from it; it never reads a bulk file remotely. Before a download it sends one
+  single-byte request for the file's version token and downloads only when it has no copy, the
+  token has changed or the copy is past its TTL. The current file name comes from the SDMX
+  dataflow annotations on each online read, and an offline read finds the copy by dataset, so a
+  renamed file (for example one with a timestamp added) still resolves.
 - **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
   copies it into the bulk file cache under the key a download would use, and returns the cached
-  path. A registered entry never expires and is exempt from LRU eviction. Online reads serve it
+  path. A registered entry never expires, so the TTL sweep never deletes it. Online reads serve it
   while the file host's version token matches the one recorded, or cannot be read, and download
   a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
   `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`.
@@ -29,6 +38,16 @@
 - **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
   gains `register()` and `find_entry()`, and `list_records()` reports each entry's `source` and
   `url`.
+
+## 1.11.4 (2026-10-21)
+
+- **The bulk-file cache keeps every file it downloads until its TTL.** It used to keep only the
+  two most recently downloaded bulk files across all datasets, so a pipeline using three or more
+  (for example CRS, DAC1 and DAC2a) downloaded every file again on each run. Each URL has one
+  cache entry and a new version overwrites it in place, so the cache now deletes an entry only
+  once it is past its TTL. `CacheManager` no longer takes `keep_n`.
+- **Bulk files have a 90-day TTL, up from 30.** The ETag check catches a republish on any call,
+  so the TTL only matters when that check fails.
 
 ## 1.11.3 (2026-10-21)
 

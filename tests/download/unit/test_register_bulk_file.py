@@ -83,10 +83,19 @@ def test_socket_block_stops_a_real_request(no_sockets):
 
 @pytest.mark.unit
 class TestOfflineRead:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            _CRS_URL,
+            # OECD renamed the file after it was registered; offline reads go by
+            # dataset, so the stored URL's name does not matter.
+            _CRS_URL.replace("CRS.parquet", "CRS_20261021T0900.parquet"),
+        ],
+    )
     def test_reads_registered_crs_with_sockets_blocked(
-        self, crs_parquet, no_sockets, stream
+        self, crs_parquet, no_sockets, stream, url
     ):
-        register_bulk_file(crs_parquet, dataset="crs", url=_CRS_URL, version="e1")
+        register_bulk_file(crs_parquet, dataset="crs", url=url, version="e1")
 
         result = bulk_download_crs(offline=True)
 
@@ -259,21 +268,21 @@ class TestRegisteredEntryLifetime:
             CacheEntry(key=key, filename=f"{key}.parquet", fetcher=_FRAME.to_parquet)
         )
 
-    def test_lru_keeps_registered_entry(self, tmp_path, crs_parquet):
+    def test_expiry_sweep_keeps_registered_entry(self, tmp_path, crs_parquet):
         base = tmp_path / "bulk"
-        manager = CacheManager(base_dir=base, keep_n=2)
+        manager = CacheManager(base_dir=base)
         with freeze_time("2026-01-01"):
             manager.register(
                 crs_parquet, key="registered", filename="r.parquet", url=_CRS_URL
             )
-        for day, key in enumerate(["a", "b", "c"], start=2):
-            with freeze_time(f"2026-01-0{day}"):
-                self._download(manager, key)
+            self._download(manager, "expired")
+        with freeze_time("2026-06-01"):
+            self._download(manager, "fresh")
+            CacheManager(base_dir=base)  # runs the startup expiry sweep
 
-        CacheManager(base_dir=base, keep_n=2)  # runs startup eviction
+            keys = {r["key"] for r in manager.list_records()}
 
-        keys = {r["key"] for r in manager.list_records()}
-        assert keys == {"registered", "b", "c"}
+        assert keys == {"registered", "fresh"}
         assert (base / "r.parquet").exists()
 
     def test_registration_is_not_refetched_after_ttl(self, tmp_path, crs_parquet):

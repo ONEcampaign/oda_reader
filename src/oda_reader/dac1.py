@@ -89,11 +89,10 @@ def bulk_download_dac1(
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     Note:
-        OECD stamps no publication version on the DAC1 annotation label, so each
-        call makes a one-byte ranged GET against the resolved URL to read the
-        server's ETag (falling back to Last-Modified) and decide whether a cached
-        copy is current. A failed lookup logs a warning and invalidation falls
-        back to the 30-day TTL.
+        Each call makes a one-byte ranged GET against the resolved URL to read
+        the server's ETag (falling back to Last-Modified) and decide whether a
+        cached copy is current. A failed lookup logs a warning and invalidation
+        falls back to the 90-day TTL.
 
     """
     url, version = (

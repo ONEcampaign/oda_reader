@@ -23,6 +23,26 @@ For large-scale analysis, bulk downloads are faster and more reliable than repea
 - Exploratory analysis with changing queries
 - You only need recent data
 
+## How ODA Reader fetches bulk files
+
+OECD publishes the bulk files on `webfs-dcd.oecd.org`. ODA Reader downloads each file whole,
+keeps a local copy in the [bulk file cache](caching.md#bulk-file-cache) and answers every query
+from that copy. It never reads a bulk file remotely.
+
+Before a download, ODA Reader sends one single-byte request to read the file's version token
+(its `ETag`, or `Last-Modified` when no `ETag` is sent). It downloads the file only when it has
+no copy, when the token has changed, or when the copy is past its 90-day TTL. Otherwise it reads
+the copy it has. See [Cache invalidation on republish](caching.md#cache-invalidation-on-republish).
+
+OECD may change bulk file names, for example by adding a timestamp. ODA Reader does not hard-code
+them. On each online read it looks up the current file name in the SDMX dataflow annotations,
+and an offline read finds the cached copy by dataset, whatever name it was stored under.
+
+OECD has not committed to scripted access to these files as a service, and a scripted request may
+meet a Cloudflare challenge. When that happens, the supported route is to download the file in a
+browser and pass it to `register_bulk_file`. See
+[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror).
+
 ## CRS bulk downloads
 
 The full Creditor Reporting System dataset is available as a bare parquet file (1.18 GB, not zipped). ODA Reader can download and load it for you.
@@ -140,7 +160,7 @@ on-disk caching is skipped. This flag is available on `bulk_download_crs`,
 `bulk_download_dac2b`, and `bulk_download_multisystem`.
 
 See [Caching & Performance](caching.md#bulk-file-cache) for how the bulk
-cache is managed (LRU eviction, TTL, integrity validation).
+cache is managed (TTL, expiry, integrity validation).
 
 ## Year-specific CRS files
 
@@ -454,10 +474,11 @@ See [DAC2b bulk download](#dac2b-bulk-download) above for the full column list a
 
 ### Cloudflare challenge (`BulkDownloadChallengeError`)
 
-Cloudflare can require an interactive browser check on an OECD bulk-file
-request. Only a browser can pass it. ODA Reader raises
-`BulkDownloadChallengeError`, whose message names the file and prints the
-call that registers it:
+Scripted access to the bulk files on `webfs-dcd.oecd.org` is not a service OECD has committed
+to, and Cloudflare can require an interactive browser check on a scripted request. Only a
+browser can pass it. The supported route is to download the file in a browser and register it
+with `register_bulk_file`. ODA Reader raises `BulkDownloadChallengeError`, whose message names
+the file and prints the call that registers it:
 
 ```text
 Cloudflare presented an interactive challenge for https://webfs-dcd.oecd.org/.../CRS.parquet.
@@ -487,10 +508,9 @@ crs = oda_reader.bulk_download_crs()  # reads the registered copy
 
 `register_bulk_file` checks that the file is a valid zip or parquet payload,
 copies it into the bulk file cache and returns the cached path. You can
-delete the download afterwards. The registered copy does not expire and is
-not evicted. Online reads keep serving it until OECD publishes a new
-version of the file. `bulk_download_crs(offline=True)` reads it with no
-network request. A CRS year file registers with `url=` and reads
+delete the download afterwards. The registered copy does not expire. Online
+reads keep serving it until OECD publishes a new version of the file.
+`bulk_download_crs(offline=True)` reads it with no network request. A CRS year file registers with `url=` and reads
 offline through `bulk_download_parquet(url=..., offline=True)`. See
 [Registered files](caching.md#registered-files) and
 [Reading offline](caching.md#reading-offline).

@@ -145,19 +145,26 @@ earlier versions stays on disk.
 
 ### Bulk file cache
 
-The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
-`bulk_download_dac1`, `bulk_download_dac2a`, `bulk_download_dac2b`, and `bulk_download_multisystem`)
-is governed separately
-because the files are large (up to 1.18 GB each):
+The bulk file cache is used by `bulk_download_crs`, `download_crs_file`, `bulk_download_dac1`,
+`bulk_download_dac2a`, `bulk_download_dac2b`, `bulk_download_multisystem` and `download_crdf`.
+ODA Reader downloads each bulk file whole, keeps the copy here and answers queries from it. It
+never reads a bulk file remotely. Scripted access to the OECD bulk files on `webfs-dcd.oecd.org`
+is not a service OECD has committed to, and a scripted request may meet a Cloudflare challenge.
+The supported route then is a browser download followed by `register_bulk_file` (see
+[Registered files](#registered-files)).
 
-- **LRU eviction**: only the two most recent downloaded bulk files are
-  kept. Older entries are removed the first time a Python session makes a
-  bulk download call. Registered files are exempt (see
+The cache is governed separately because the files are large (up to 1.18 GB each):
+
+- **Expiry**: every bulk file you download stays cached until its TTL
+  below runs out, so disk use grows with the number of distinct files you
+  fetch. Expired files are deleted the first time a Python session makes a
+  bulk download call. Registered files never expire (see
   [Registered files](#registered-files)).
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
   [Cache invalidation on republish](#cache-invalidation-on-republish).
-- **Per-entry TTL**: 30 days. This is a fallback, used when the
+- **Per-entry TTL**: 90 days. A file older than that is refetched even if
+  OECD hasn't republished it, which covers the cases where the
   publication-version check above couldn't be made (offline, server error,
   or the relevant headers absent). Registered files have no TTL.
 - **Integrity validation**: every freshly downloaded payload is end-to-end
@@ -181,9 +188,9 @@ because the files are large (up to 1.18 GB each):
 OECD's bulk-download URLs are stable (`CRS.parquet` is always the same
 address), so the
 URL alone can't tell ODA Reader that OECD has replaced the file behind it.
-Left unaddressed, a republish could sit unnoticed until the 30-day TTL
-expired, and a pipeline could run against month-old figures with nothing
-to indicate it.
+Left unaddressed, a republish could sit unnoticed until the 90-day TTL
+expired, and a pipeline could run against figures up to three months old
+with nothing to indicate it.
 
 The cache tracks a publication-version token alongside the URL, and a
 change in that token invalidates the entry immediately, regardless of how
@@ -196,12 +203,17 @@ recently it was fetched. The token comes from the file host:
   annotation label, such as `CRS-Parquet-v20260803`, stays the same.
 - If that request fails (offline, a server error, or a response carrying
   neither header), the cache keeps the token it stored and invalidation
-  falls back to the 30-day TTL rather than failing the call. A cached file
+  falls back to the 90-day TTL rather than failing the call. A cached file
   still works offline. A blocked request (for example a Cloudflare
   challenge) logs a warning naming the HTTP status or Cloudflare Ray ID.
 
-You don't need to call anything for this. It runs automatically on every
-bulk download.
+A download happens only when the cache has no copy, the token has changed, or the copy is past
+its TTL. You don't need to call anything for this. It runs automatically on every bulk download.
+
+OECD may change bulk file names, for example by adding a timestamp. Each online read looks up the
+current name in the SDMX dataflow annotations, so a renamed file is found without an ODA Reader
+update (see [Stale dataflow metadata](#stale-dataflow-metadata) for how a cached annotation that
+names the old file is handled). An offline read finds the cached copy by dataset, whatever name it was stored under.
 
 #### Registered files
 
@@ -231,13 +243,8 @@ the host for the token itself, and records none if that request fails too.
 With no token recorded, the registered copy is served until a token
 request succeeds, which triggers a download.
 
-Registered entries differ from downloaded ones in two ways:
-
-- **No expiry.** The 30-day TTL does not apply.
-- **No LRU eviction.** They are not counted towards, or removed by, the
-  two-file limit.
-
-A registered entry is replaced only by another registration, a completed
+A registered entry has no TTL, so the 90-day expiry never removes it. It
+is replaced only by another registration, a completed
 download of the same file, or a cache clear such as
 `oda_data.cache.clear('raw')` or `bulk_cache_manager().clear()`.
 `bulk_cache_manager().list_records()` reports `source="registered"` for a

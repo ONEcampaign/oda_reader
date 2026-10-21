@@ -1547,9 +1547,8 @@ def register_bulk_file(
     Use this when OECD's Cloudflare front end challenges a bulk download
     (`BulkDownloadChallengeError`). Download the file in a browser, then
     register it. The entry is stored under the key a download of `url`
-    would use, never expires, and is exempt from LRU eviction. Register soon
-    after the browser download, or pass the `version` the challenge error
-    printed.
+    would use and never expires. Register soon after the browser download,
+    or pass the `version` the challenge error printed.
 
     With `dataset`, the matching bulk reader (for example `bulk_download_crs`
     for `"crs"`) reads the file with `offline=True` and no network request.
@@ -1807,7 +1806,7 @@ def _fetch_revalidation_token(url: str) -> str | None:
 
     Best-effort: a Cloudflare challenge, any status other than 200 or 206, a
     transport/redirect/host error, or a 200/206 response carrying neither
-    header all fall back to `None`, leaving the 30-day TTL to invalidate
+    header all fall back to `None`, leaving the 90-day TTL to invalidate
     the cache. This never blocks the download,
     only how eagerly a stale cache entry gets refetched. The first such
     failure for a given URL in this process logs a warning naming the HTTP
@@ -1981,7 +1980,7 @@ def get_bulk_file_url_with_version(
       file changes it, including one under an unchanged label date.
     - If that probe fails, the token is `None`. The cache then skips the
       version comparison and keeps the stored token, so a cached copy stays
-      usable until the 30-day TTL.
+      usable until the 90-day TTL.
 
     The version to query is determined as follows:
 
