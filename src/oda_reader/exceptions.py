@@ -26,8 +26,10 @@ class BulkPayloadCorruptError(Exception):
 
     Attributes:
         path: The path of the payload that failed. It has already been
-            removed from disk by the time this exception is raised, and a
-            cached copy it was meant to replace is left in place.
+            removed from disk by the time this exception is raised. A fresh
+            download that fails leaves the cached copy it was meant to
+            replace in place; a cached copy that fails at read time is
+            removed from the cache.
         reason: A short human-readable description of which check failed
             (e.g. "is_zipfile() returned False",
             "testzip() reported member 'crs.parquet'").
@@ -37,8 +39,9 @@ class BulkPayloadCorruptError(Exception):
         self.path: Path = path
         self.reason: str = reason
         super().__init__(
-            f"Cached payload at {path} failed integrity validation "
-            f"({reason}). {BULK_PAYLOAD_CORRUPT_HINT}"
+            f"Bulk payload {path} failed integrity validation ({reason}) "
+            f"and was removed. "
+            f"{BULK_PAYLOAD_CORRUPT_HINT}"
         )
 
 

@@ -12,21 +12,14 @@
   says whether it is an `etag` or a `last_modified` date. An unknown layout raises
   `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
   not a plain file name also raises `CRDFSchemaError`.
-- **States where the OECD stands on scripted bulk downloads.** Scripted access to the bulk files
-  on `webfs-dcd.oecd.org` is not a service the OECD has committed to, and scripted requests may
-  meet a Cloudflare challenge. The supported route then is a browser download followed by
-  `register_bulk_file()`. oda-reader downloads each bulk file whole, keeps a local copy and
-  answers queries from it; it never reads a bulk file remotely. Before a download it sends one
-  single-byte request for the file's version token and downloads only when it has no copy, the
-  token has changed or the copy is past its TTL. The current file name comes from the SDMX
-  dataflow annotations on each online read, and an offline read finds the copy by dataset, so a
-  renamed file (for example one with a timestamp added) still resolves.
 - **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
   copies it into the bulk file cache under the key a download would use, and returns the cached
   path. A registered entry never expires, so the TTL sweep never deletes it. Online reads serve it
   while the file host's version token matches the one recorded, or cannot be read, and download
   a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
-  `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`.
+  `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`. Bulk files download whole, a single-byte
+  request reads the version token first, and a renamed file still resolves: online reads take
+  the name from the SDMX dataflow annotations and offline reads find the copy by dataset.
 - **Adds `offline=True` to `bulk_download_crs()`, the DAC1, DAC2a, DAC2b and multisystem bulk
   readers, and `bulk_download_parquet()`.** The reader makes no network request and reads the
   cached or registered copy whatever its age. With nothing cached it raises the new

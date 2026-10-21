@@ -148,9 +148,9 @@ earlier versions stays on disk.
 The bulk file cache is used by `bulk_download_crs`, `download_crs_file`, `bulk_download_dac1`,
 `bulk_download_dac2a`, `bulk_download_dac2b`, `bulk_download_multisystem` and `download_crdf`.
 ODA Reader downloads each bulk file whole, keeps the copy here and answers queries from it. It
-never reads a bulk file remotely. Scripted access to the OECD bulk files on `webfs-dcd.oecd.org`
-is not a service OECD has committed to, and a scripted request may meet a Cloudflare challenge.
-The supported route then is a browser download followed by `register_bulk_file` (see
+never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge; see
+[Cloudflare challenge](bulk-downloads.md#cloudflare-challenge-bulkdownloadchallengeerror). A
+browser download registered with `register_bulk_file` then fills the cache (see
 [Registered files](#registered-files)).
 
 The cache is governed separately because the files are large (up to 1.18 GB each):

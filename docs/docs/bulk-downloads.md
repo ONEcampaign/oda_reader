@@ -38,10 +38,9 @@ OECD may change bulk file names, for example by adding a timestamp. ODA Reader d
 them. On each online read it looks up the current file name in the SDMX dataflow annotations,
 and an offline read finds the cached copy by dataset, whatever name it was stored under.
 
-OECD has not committed to scripted access to these files as a service, and a scripted request may
-meet a Cloudflare challenge. When that happens, the supported route is to download the file in a
-browser and pass it to `register_bulk_file`. See
-[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror).
+A scripted request can meet a Cloudflare challenge; see
+[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror). The supported route
+then is to download the file in a browser and pass it to `register_bulk_file`.
 
 ## CRS bulk downloads
 
@@ -474,11 +473,13 @@ See [DAC2b bulk download](#dac2b-bulk-download) above for the full column list a
 
 ### Cloudflare challenge (`BulkDownloadChallengeError`)
 
-Scripted access to the bulk files on `webfs-dcd.oecd.org` is not a service OECD has committed
-to, and Cloudflare can require an interactive browser check on a scripted request. Only a
-browser can pass it. The supported route is to download the file in a browser and register it
-with `register_bulk_file`. ODA Reader raises `BulkDownloadChallengeError`, whose message names
-the file and prints the call that registers it:
+OECD supports downloading the bulk files in a browser. Scripted downloads,
+including the ones ODA Reader makes, are not a service OECD has committed
+to, so OECD's file server can challenge them at any time. A pipeline that
+must run unattended should be ready to handle `BulkDownloadChallengeError`.
+
+When ODA Reader meets a challenge it raises `BulkDownloadChallengeError`. Its message names
+the file and prints the call that registers a copy downloaded in a browser:
 
 ```text
 Cloudflare presented an interactive challenge for https://webfs-dcd.oecd.org/.../CRS.parquet.
