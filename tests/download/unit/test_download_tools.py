@@ -1606,7 +1606,7 @@ class TestStreamToFileRetry:
             _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
 
         assert exc_info.value.cf_ray is None
-        assert "Contact OECD support" in str(exc_info.value)
+        assert "OECD support" in str(exc_info.value)
 
     def test_challenge_header_wins_over_2xx_status(self, mocker, tmp_path):
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
@@ -1725,6 +1725,113 @@ class TestStreamToFileRetry:
         assert type(exc_info.value) is BulkDownloadHTTPError
         assert exc_info.value.status_code == 503
         assert exc_info.value.body == ""
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize("status_code", [429, 503])
+    def test_throttle_waits_retry_after_then_succeeds(
+        self, mocker, tmp_path, status_code
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(status_code, headers={"Retry-After": "7"}),
+            self._fake_response(200, chunks=[b"payload"]),
+        ]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+        target = tmp_path / "out.bin"
+
+        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
+
+        assert target.read_bytes() == b"payload"
+        mock_sleep.assert_called_once_with(7.0)
+
+    def test_throttle_raises_after_three_retries(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = lambda *a, **k: self._fake_response(
+            429, headers={"retry-after": "2"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.retry_after == 2.0
+        assert session.get.call_count == 4
+        assert [c.args for c in mock_sleep.call_args_list] == [(2.0,)] * 3
+
+    @pytest.mark.parametrize(
+        ("headers", "retry_after"),
+        [
+            ({"Retry-After": "301"}, 301.0),
+            ({"Retry-After": "soon"}, None),
+            ({}, None),
+        ],
+        ids=["over-cap", "unparseable", "absent"],
+    )
+    def test_throttle_without_usable_retry_after_raises_at_once(
+        self, mocker, tmp_path, headers, retry_after
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(503, headers=headers)
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+        assert exc_info.value.retry_after == retry_after
+
+    def test_http_date_retry_after_is_honoured(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(
+                429, headers={"Retry-After": "Sun, 06 Nov 1994 08:49:37 GMT"}
+            ),
+            self._fake_response(200, chunks=[b"payload"]),
+        ]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        mock_sleep.assert_called_once_with(0.0)
+
+    def test_challenge_with_retry_after_is_not_retried(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(
+            429, headers={"cf-mitigated": "challenge", "Retry-After": "1"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError):
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
         assert session.get.call_count == 1
         mock_sleep.assert_not_called()
 

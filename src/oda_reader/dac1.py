@@ -66,6 +66,7 @@ def bulk_download_dac1(
     *,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
+    offline: bool = False,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the DAC1 data from the bulk download service. The expanded file is
@@ -80,6 +81,9 @@ def bulk_download_dac1(
             caller accumulates.
         use_raw_cache: If False, the raw zip is downloaded to a temporary directory and
             deleted after extraction. Each call hits the network. Validation still runs.
+        offline: If True, make no network request and read the cached or
+            registered copy (see `register_bulk_file`) whatever its age.
+            Raises `BulkFileNotCachedError` when there is none.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -92,8 +96,12 @@ def bulk_download_dac1(
         back to the 30-day TTL.
 
     """
-    url, version = get_bulk_file_url_with_version(
-        flow_url=DAC1_FLOW_URL, label=DAC1_BULK_LABEL
+    url, version = (
+        (None, None)
+        if offline
+        else get_bulk_file_url_with_version(
+            flow_url=DAC1_FLOW_URL, label=DAC1_BULK_LABEL
+        )
     )
 
     return bulk_download_parquet(
@@ -104,4 +112,5 @@ def bulk_download_dac1(
         flow_url=DAC1_FLOW_URL,
         label=DAC1_BULK_LABEL,
         version=version,
+        offline=offline,
     )

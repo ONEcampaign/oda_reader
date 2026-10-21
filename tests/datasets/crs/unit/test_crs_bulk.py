@@ -170,6 +170,7 @@ class TestBulkDownloadCrs:
             flow_url=CRS_FLOW_URL,
             label="CRS-Parquet",
             version="v20260803",
+            offline=False,
         )
 
     def test_reduced_version_resolves_and_dispatches(self, mocker):
@@ -194,4 +195,5 @@ class TestBulkDownloadCrs:
             flow_url=CRS_FLOW_URL,
             label="CRS-reduced-parquet",
             version="v20260803",
+            offline=False,
         )

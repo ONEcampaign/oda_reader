@@ -7,6 +7,7 @@ for large, monolithic datasets (bulk CRS, Multisystem, AidData downloads).
 import json
 import logging
 import os
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -38,6 +39,10 @@ class CacheEntry:
         fetcher: Callable that downloads and writes data to a given path
         ttl_days: Time-to-live in days (default: 30)
         version: Optional version string for cache invalidation
+        url: Optional source URL, recorded in the manifest
+        flow_url: Optional dataflow URL the bulk reader resolved ``url``
+            from, recorded so ``find_entry`` can match it offline
+        label: Optional EXT_RESOURCE annotation label within ``flow_url``
     """
 
     key: str
@@ -45,6 +50,9 @@ class CacheEntry:
     fetcher: Callable[[Path], None]
     ttl_days: int = 30
     version: str | None = None
+    url: str | None = None
+    flow_url: str | None = None
+    label: str | None = None
 
 
 class CacheManager:
@@ -141,10 +149,120 @@ class CacheManager:
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
                 "version": entry.version,
+                "source": "download",
+                "url": entry.url,
+                "flow_url": entry.flow_url,
+                "label": entry.label,
             }
             self._save_manifest(manifest)
 
             return path
+
+    def register(
+        self,
+        source: Path,
+        *,
+        key: str,
+        filename: str,
+        url: str,
+        version: str | None = None,
+        flow_url: str | None = None,
+        label: str | None = None,
+    ) -> Path:
+        """Copy a local file into the cache as ``key``, replacing any entry there.
+
+        The copy is validated with ``validate_payload_or_raise`` before it
+        replaces the cached file, so a bad payload leaves both ``source`` and
+        any existing entry untouched.
+
+        A registered entry has no TTL and is exempt from LRU eviction. It is
+        replaced only by another registration, by an ``ensure`` that fetches
+        the same key (after a version change or with ``refresh``), or by
+        ``clear``.
+
+        Args:
+            source: The file to copy in. It is never modified.
+            key: The manifest key, ``sha1(url)`` for bulk files.
+            filename: The storage filename inside the cache directory.
+            url: The URL the file was downloaded from.
+            version: The cache-invalidation token to store. A later
+                ``ensure`` with a different non-``None`` version refetches.
+            flow_url: The dataflow URL the bulk reader resolves ``url`` from.
+            label: The EXT_RESOURCE annotation label within ``flow_url``.
+
+        Returns:
+            Path: Path to the cached copy.
+
+        Raises:
+            BulkPayloadCorruptError: If the copy fails integrity validation.
+        """
+        with self._lock:
+            path = self.base_dir / filename
+            tmp_path = Path(f"{path}.tmp-{_HOSTNAME}-{os.getpid()}")
+            try:
+                shutil.copyfile(source, tmp_path)
+                validate_payload_or_raise(tmp_path)
+                tmp_path.replace(path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+
+            manifest = self._load_manifest()
+            manifest[key] = {
+                "filename": filename,
+                "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
+                "ttl_days": None,
+                "version": version,
+                "source": "registered",
+                "url": url,
+                "flow_url": flow_url,
+                "label": label,
+            }
+            self._save_manifest(manifest)
+
+        logger.info(f"Registered {source} as {key}")
+        return path
+
+    def find_entry(
+        self,
+        *,
+        key: str | None = None,
+        flow_url: str | None = None,
+        label: str | None = None,
+    ) -> tuple[str, Path, str | None] | None:
+        """Find a cached file by key or by dataflow annotation, whatever its age.
+
+        Used for offline reads, which take any cached copy rather than none.
+
+        Args:
+            key: The manifest key to match.
+            flow_url: The dataflow URL to match, together with ``label``.
+            label: The annotation label to match, together with ``flow_url``.
+
+        Returns:
+            ``(key, path, url)`` of the most recently stored matching entry
+            whose file exists, else ``None``. ``url`` is ``None`` for an
+            entry stored before URLs were recorded.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+
+        matches = [
+            (datetime.strptime(record["downloaded_at"], ISO_FORMAT), entry_key, record)
+            for entry_key, record in manifest.items()
+            if (
+                entry_key == key
+                or (
+                    flow_url is not None
+                    and record.get("flow_url") == flow_url
+                    and record.get("label") == label
+                )
+            )
+            and (self.base_dir / record["filename"]).exists()
+        ]
+        if not matches:
+            return None
+        _, entry_key, record = max(matches, key=lambda m: m[0])
+        return entry_key, self.base_dir / record["filename"], record.get("url")
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
@@ -198,8 +316,11 @@ class CacheManager:
                         "age_days": age.days + age.seconds / 86400,
                         "ttl_days": record["ttl_days"],
                         "version": record.get("version"),
+                        "source": record.get("source", "download"),
+                        "url": record.get("url"),
                         "size_mb": size_mb,
-                        "is_stale": age.days > record["ttl_days"],
+                        "is_stale": not _is_registered(record)
+                        and age.days > record["ttl_days"],
                     }
                 )
 
@@ -235,10 +356,13 @@ class CacheManager:
 
         An entry is stale if:
         1. Version changed (explicit cache bust)
-        2. Age exceeds TTL
+        2. Age exceeds TTL, unless the entry was registered
         """
         if entry.version is not None and entry.version != record.get("version"):
             return True
+
+        if _is_registered(record):
+            return False
 
         downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
         age = datetime.now(UTC) - downloaded
@@ -285,17 +409,18 @@ class CacheManager:
 
         A "key prefix" is the full manifest key (e.g., ``sha1_hexdigest``).
         Since all entries in the bulk cache share the same key space and each
-        URL produces a unique sha1 key, LRU is applied across *all* entries
-        collectively: keep the ``keep_n`` most-recently-downloaded, evict the
-        rest.
+        URL produces a unique sha1 key, LRU is applied across *all* downloaded
+        entries collectively: keep the ``keep_n`` most-recently-downloaded,
+        evict the rest. Registered entries are neither counted nor evicted.
         """
         manifest = self._load_manifest()
-        if len(manifest) <= self.keep_n:
+        downloads = {k: r for k, r in manifest.items() if not _is_registered(r)}
+        if len(downloads) <= self.keep_n:
             return
 
         try:
             ordered = sorted(
-                manifest.items(),
+                downloads.items(),
                 key=lambda kv: datetime.strptime(kv[1]["downloaded_at"], ISO_FORMAT),
             )
         except (KeyError, ValueError) as e:
@@ -313,6 +438,11 @@ class CacheManager:
             del manifest[key]
 
         self._save_manifest(manifest)
+
+
+def _is_registered(record: dict) -> bool:
+    """True for a manifest record written by ``CacheManager.register``."""
+    return record.get("source") == "registered"
 
 
 _BULK_CACHE_MANAGER: CacheManager | None = None

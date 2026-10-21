@@ -6,7 +6,8 @@ import typing
 import zipfile
 import zlib
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 
 import pyarrow.parquet as pq
 
@@ -50,12 +51,22 @@ class BulkDownloadHTTPError(ConnectionError):
         status_code: The HTTP status code returned by the server.
         url: The URL that was requested.
         body: A truncated preview of the response body (max 500 chars).
+        retry_after: Seconds the server asked the client to wait, from the
+            response's ``Retry-After`` header, or ``None`` when it sent none.
     """
 
-    def __init__(self, *, status_code: int, url: str, body: str) -> None:
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        url: str,
+        body: str,
+        retry_after: float | None = None,
+    ) -> None:
         self.status_code = status_code
         self.url = url
         self.body = body[:_HTTP_BODY_PREVIEW]
+        self.retry_after = retry_after
         super().__init__(f"HTTP {status_code} from {url}: {self.body}")
 
 
@@ -65,25 +76,113 @@ class BulkDownloadChallengeError(BulkDownloadHTTPError):
     Cloudflare can attach the challenge marker to a response with any status,
     including 2xx. Inspect ``status_code`` alongside this exception type.
 
+    A browser clears the challenge. The message names the file to download
+    and prints the ``register_bulk_file`` call that puts it in the cache.
+
     Attributes:
         cf_ray: The Cloudflare Ray ID supplied by the response, when present.
             OECD support can use it to investigate the request.
+        filename: The file name a browser saves the download under, taken
+            from the last segment of ``url``.
+        dataset: The ``register_bulk_file`` dataset name for ``url``, when
+            the download came from a named bulk reader such as
+            ``bulk_download_crs``. ``None`` otherwise.
+        version: The file host's version token (ETag, else Last-Modified)
+            read just before the download, when the probe succeeded.
+            Registering with it lets later online reads keep the file until
+            OECD republishes.
     """
 
     def __init__(
-        self, *, status_code: int, url: str, body: str, cf_ray: str | None
+        self,
+        *,
+        status_code: int,
+        url: str,
+        body: str,
+        cf_ray: str | None,
+        dataset: str | None = None,
+        version: str | None = None,
     ) -> None:
         self.cf_ray = cf_ray
+        self.dataset = dataset
+        self.version = version
         super().__init__(status_code=status_code, url=url, body=body)
+
+    @property
+    def filename(self) -> str:
+        """The last path segment of ``url``, percent-decoded."""
+        return _url_filename(self.url)
+
+    def __str__(self) -> str:
         ray_hint = (
-            f" Provide Cloudflare Ray ID {cf_ray} to OECD support."
-            if cf_ray
-            else " Contact OECD support and include the response URL and timestamp."
+            f"If the browser download also fails, give Cloudflare Ray ID "
+            f"{self.cf_ray} to OECD support."
+            if self.cf_ray
+            else "If the browser download also fails, contact OECD support and "
+            "include the URL and the time of the request."
         )
-        self.args = (
-            "Cloudflare presented an interactive challenge for "
-            f"{url}. Browser execution is required to continue.{ray_hint}",
+        call = _register_call(
+            path=f"~/Downloads/{self.filename}",
+            dataset=self.dataset,
+            url=self.url,
+            version=self.version,
         )
+        return (
+            f"Cloudflare presented an interactive challenge for {self.url}. "
+            f"Open that URL in a browser to download {self.filename}, then "
+            "register the file so oda-reader reads it from the cache:\n\n"
+            f"    import oda_reader\n    {call}\n\n{ray_hint}"
+        )
+
+
+class BulkFileNotCachedError(ConnectionError):
+    """Raised when an offline bulk read finds no cached or registered file.
+
+    Subclasses ``ConnectionError``, like ``BulkDownloadHTTPError``, so a
+    caller that catches an unavailable bulk source catches this too. There
+    is no HTTP response behind it, so it carries no status code.
+
+    Attributes:
+        dataset: The ``register_bulk_file`` dataset name, when the read came
+            from a named bulk reader such as ``bulk_download_crs``.
+        url: The URL passed to the read, when one was.
+    """
+
+    def __init__(self, *, dataset: str | None, url: str | None) -> None:
+        self.dataset = dataset
+        self.url = url
+        path = (
+            f"~/Downloads/{_url_filename(url)}"
+            if url
+            else "<path to the downloaded file>"
+        )
+        call = _register_call(path=path, dataset=dataset, url=url, version=None)
+        target = f"dataset {dataset!r}" if dataset else (url or "this file")
+        super().__init__(
+            f"offline=True, but the bulk file cache holds no copy of {target}. "
+            "Read it once online, or download it in a browser and register "
+            f"it:\n\n    import oda_reader\n    {call}"
+        )
+
+
+def _url_filename(url: str) -> str:
+    """The last path segment of *url*, percent-decoded."""
+    return PurePosixPath(unquote(urlsplit(url).path)).name
+
+
+def _register_call(
+    *, path: str, dataset: str | None, url: str | None, version: str | None
+) -> str:
+    """Format the ``register_bulk_file`` call an error message prints."""
+    # repr() keeps the call valid Python when a value holds quotes, as an
+    # ETag such as "abc123" does.
+    args = [repr(path)]
+    args += [
+        f"{name}={value!r}"
+        for name, value in (("dataset", dataset), ("url", url), ("version", version))
+        if value
+    ]
+    return f"oda_reader.register_bulk_file({', '.join(args)})"
 
 
 _ZIP_MAGIC = b"PK\x03\x04"

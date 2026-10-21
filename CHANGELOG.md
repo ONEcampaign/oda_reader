@@ -1,5 +1,27 @@
 # Changelog for oda_reader
 
+## Unreleased
+
+- **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
+  copies it into the bulk file cache under the key a download would use, and returns the cached
+  path. A registered entry never expires and is exempt from LRU eviction. Online reads serve it
+  while the file host's version token matches the one recorded, or cannot be read, and download
+  a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
+  `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`.
+- **Adds `offline=True` to every bulk reader and to `bulk_download_parquet()`.** The reader makes
+  no network request and reads the cached or registered copy whatever its age. With nothing
+  cached it raises the new `BulkFileNotCachedError`, a `ConnectionError`, which prints the
+  `register_bulk_file` call.
+- **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
+  browser and the `register_bulk_file` call that registers it, including the version token the
+  reader saw. The error gains `filename`, `dataset` and `version` attributes.
+- **Bulk downloads honour `Retry-After` on 429 and 503.** A wait of up to 300 seconds is taken
+  and the request retried, up to three times. A longer wait, a missing header or a fourth
+  throttled response raises `BulkDownloadHTTPError`, which now carries `retry_after`.
+- **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
+  gains `register()` and `find_entry()`, and `list_records()` reports each entry's `source` and
+  `url`.
+
 ## 1.11.3 (2026-10-21)
 
 - **Bulk downloads identify as oda-reader.** Requests to OECD's bulk-file host send

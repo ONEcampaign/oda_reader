@@ -19,6 +19,10 @@ DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
 # Default version; actual version is discovered dynamically on fallback
 DATAFLOW_VERSION: str = "1.6"
 
+# EXT_RESOURCE annotation labels of the full and reduced bulk parquet files.
+CRS_BULK_LABEL: str = "CRS-Parquet"
+CRS_REDUCED_BULK_LABEL: str = "CRS-reduced-parquet"
+
 # CRS filter structure (dimension order):
 # donor, recipient, sector, measure, channel,
 # modality, flow_type, price_base, md_dim, md_id, unit_measure,
@@ -26,7 +30,7 @@ DATAFLOW_VERSION: str = "1.6"
 
 
 def get_full_crs_parquet_url() -> str:
-    return get_bulk_file_url(flow_url=CRS_FLOW_URL, label="CRS-Parquet")
+    return get_bulk_file_url(flow_url=CRS_FLOW_URL, label=CRS_BULK_LABEL)
 
 
 def get_full_crs_parquet_id() -> str:
@@ -46,7 +50,7 @@ def get_full_crs_parquet_id() -> str:
 
 
 def get_reduced_crs_parquet_url() -> str:
-    return get_bulk_file_url(flow_url=CRS_FLOW_URL, label="CRS-reduced-parquet")
+    return get_bulk_file_url(flow_url=CRS_FLOW_URL, label=CRS_REDUCED_BULK_LABEL)
 
 
 def get_reduced_crs_parquet_id() -> str:
@@ -121,6 +125,7 @@ def bulk_download_crs(
     *,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
+    offline: bool = False,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the CRS data from the bulk download service. The file is very large.
@@ -133,14 +138,21 @@ def bulk_download_crs(
         as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
         use_raw_cache: If False, the raw zip is downloaded to a temporary directory and
             deleted after extraction. Each call hits the network. Validation still runs.
+        offline: If True, make no network request and read the cached or
+            registered copy (see `register_bulk_file`) whatever its age.
+            Raises `BulkFileNotCachedError` when there is none.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
 
-    label = "CRS-reduced-parquet" if reduced_version else "CRS-Parquet"
-    url, version = get_bulk_file_url_with_version(flow_url=CRS_FLOW_URL, label=label)
+    label = CRS_REDUCED_BULK_LABEL if reduced_version else CRS_BULK_LABEL
+    url, version = (
+        (None, None)
+        if offline
+        else get_bulk_file_url_with_version(flow_url=CRS_FLOW_URL, label=label)
+    )
 
     return bulk_download_parquet(
         url=url,
@@ -150,6 +162,7 @@ def bulk_download_crs(
         flow_url=CRS_FLOW_URL,
         label=label,
         version=version,
+        offline=offline,
     )
 
 
