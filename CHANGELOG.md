@@ -1,5 +1,17 @@
 # Changelog for oda_reader
 
+## 1.11.3 (2026-10-21)
+
+- **Bulk downloads identify as oda-reader.** Requests to OECD's bulk-file host send
+  `oda-reader/<version>` as the User-Agent, the same one the codelist fetcher uses, and no
+  longer send a Chrome User-Agent or browser `Sec-Fetch-*` and `sec-ch-ua` headers. They keep
+  `Upgrade-Insecure-Requests: 1`, because the host's Cloudflare front end challenges a request
+  that lacks it.
+- **CRS and Multisystem bulk downloads detect a file rewritten under an unchanged label date.**
+  Every bulk file's publication-version token now comes from the file host's `ETag` (falling
+  back to `Last-Modified`). The annotation label's `-vYYYYMMDD` stamp is no longer a token. When
+  the token request fails, a cached file stays in use until the 30-day TTL.
+
 ## 1.11.2 (2026-09-15)
 
 - **DAC1, DAC2a and DAC2b bulk downloads detect republished files again on hosts that reject

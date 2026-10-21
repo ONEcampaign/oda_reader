@@ -11,13 +11,12 @@ import time
 from collections.abc import MutableMapping, Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from importlib.metadata import version as _pkg_version
 from typing import Literal
 from urllib.parse import urljoin, urlsplit
 
 import requests
 
-from oda_reader._http_primitives import API_RATE_LIMITER
+from oda_reader._http_primitives import API_RATE_LIMITER, USER_AGENT
 from oda_reader.codelists._parse import parse_codelists
 from oda_reader.codelists._types import (
     DEFAULT_URL,
@@ -35,12 +34,6 @@ from oda_reader.exceptions import (
 # `stage` Literal (src/oda_reader/exceptions.py) — not to be confused with
 # CodelistShapeError's "hidden-field" | "envelope" | "row" vocabulary.
 _Stage = Literal["page", "select", "download"]
-
-# Read the same way src/oda_reader/_cache/config.py reads the package version.
-_USER_AGENT = (
-    f"oda-reader/{_pkg_version('oda_reader')} "
-    "(+https://github.com/ONEcampaign/oda_reader)"
-)
 
 # HTTP statuses worth a fresh-handshake retry: transient server-side trouble,
 # not a verdict on the request itself.
@@ -307,7 +300,7 @@ def _fetch_codelist_once(
     # would replay a stale __VIEWSTATE, and the resulting failure would look
     # exactly like a shape change.
     session = requests.Session()
-    headers = {"User-Agent": _USER_AGENT}
+    headers = {"User-Agent": USER_AGENT}
 
     # Step 1: GET the page for the initial VIEWSTATE tokens.
     resp1 = _handshake_request(

@@ -92,9 +92,6 @@ def bulk_download_dac1(
         back to the 30-day TTL.
 
     """
-    # DAC1's label carries no -vYYYYMMDD suffix (see get_bulk_file_url_with_version),
-    # so `version` here falls back to an ETag/Last-Modified ranged-GET token.
-    # That token is enough to force a refetch on republish.
     url, version = get_bulk_file_url_with_version(
         flow_url=DAC1_FLOW_URL, label=DAC1_BULK_LABEL
     )
