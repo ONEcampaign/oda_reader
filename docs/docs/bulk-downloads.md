@@ -457,6 +457,11 @@ request. These checks require browser execution. ODA Reader raises
 `BulkDownloadChallengeError` and includes the `cf_ray` value supplied by
 OECD/Cloudflare. Include that value when reporting the failure to OECD.
 
+OECD supports downloading the bulk files in a browser. Scripted downloads,
+including the ones ODA Reader makes, are not a service OECD has committed
+to, so OECD's file server can challenge them at any time. A pipeline that
+must run unattended should be ready to handle `BulkDownloadChallengeError`.
+
 When bulk access is unavailable, choose a narrowly filtered API request
 explicitly.
 
