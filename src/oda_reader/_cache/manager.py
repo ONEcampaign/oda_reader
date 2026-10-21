@@ -36,14 +36,14 @@ class CacheEntry:
         key: Unique identifier (e.g., "crs_full", "aiddata")
         filename: Storage filename (e.g., "crs_full.parquet", "aiddata.parquet")
         fetcher: Callable that downloads and writes data to a given path
-        ttl_days: Time-to-live in days (default: 30)
+        ttl_days: Time-to-live in days (default: 90)
         version: Optional version string for cache invalidation
     """
 
     key: str
     filename: str
     fetcher: Callable[[Path], None]
-    ttl_days: int = 30
+    ttl_days: int = 90
     version: str | None = None
 
 
@@ -55,7 +55,7 @@ class CacheManager:
     - Cross-process locking (FileLock)
     - TTL-based expiration
     - Version-based invalidation
-    - LRU eviction per dataset key prefix (keep_n most-recent)
+    - Startup deletion of entries past their TTL
     - Observable cache state (list_records, stats)
     - Startup sweep of stale tmp files
 
@@ -66,16 +66,13 @@ class CacheManager:
         └── *.zip               # Cached datasets
     """
 
-    def __init__(self, base_dir: Path | None = None, *, keep_n: int = 2) -> None:
+    def __init__(self, base_dir: Path | None = None) -> None:
         """Initialize cache manager.
 
         Args:
             base_dir: Directory for cache storage. If None, uses get_bulk_cache_dir().
-            keep_n: Maximum number of entries to retain per dataset key prefix.
-                Oldest entries beyond this limit are evicted on init.
         """
         self.base_dir = base_dir or get_bulk_cache_dir()
-        self.keep_n = keep_n
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
         self.manifest_path = self.base_dir / "manifest.json"
@@ -87,7 +84,7 @@ class CacheManager:
         try:
             with self._lock.acquire(timeout=0):
                 self._sweep_stale_tmp_files()
-                self._evict_lru()
+                self._evict_expired()
         except Exception as e:
             logger.debug(f"Skipping startup cache maintenance: {e}")
 
@@ -280,36 +277,34 @@ class CacheManager:
             except OSError as e:
                 logger.warning(f"Could not inspect/remove tmp file {tmp_file}: {e}")
 
-    def _evict_lru(self) -> None:
-        """Evict oldest entries beyond keep_n per dataset key prefix.
+    def _evict_expired(self) -> None:
+        """Delete every entry older than its own TTL, along with its file.
 
-        A "key prefix" is the full manifest key (e.g., ``sha1_hexdigest``).
-        Since all entries in the bulk cache share the same key space and each
-        URL produces a unique sha1 key, LRU is applied across *all* entries
-        collectively: keep the ``keep_n`` most-recently-downloaded, evict the
-        rest.
+        Each URL has exactly one entry, and a refetch overwrites that entry's
+        file in place, so the TTL is the only bound on what the cache holds.
         """
         manifest = self._load_manifest()
-        if len(manifest) <= self.keep_n:
-            return
-
+        now = datetime.now(UTC)
         try:
-            ordered = sorted(
-                manifest.items(),
-                key=lambda kv: datetime.strptime(kv[1]["downloaded_at"], ISO_FORMAT),
-            )
-        except (KeyError, ValueError) as e:
-            logger.warning(f"LRU eviction skipped due to manifest parse error: {e}")
+            expired = [
+                key
+                for key, record in manifest.items()
+                if now - datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+                > timedelta(days=record["ttl_days"])
+            ]
+        except (KeyError, TypeError, ValueError) as e:
+            logger.warning(f"Expiry sweep skipped due to manifest parse error: {e}")
+            return
+        if not expired:
             return
 
-        to_evict = ordered[: len(ordered) - self.keep_n]
-        for key, record in to_evict:
-            file_path = self.base_dir / record["filename"]
+        for key in expired:
+            file_path = self.base_dir / manifest[key]["filename"]
             try:
                 file_path.unlink(missing_ok=True)
-                logger.info(f"LRU eviction: removed {file_path}")
+                logger.info(f"Expired cache entry removed: {file_path}")
             except OSError as e:
-                logger.warning(f"LRU eviction: could not remove {file_path}: {e}")
+                logger.warning(f"Could not remove expired cache file {file_path}: {e}")
             del manifest[key]
 
         self._save_manifest(manifest)

@@ -150,13 +150,15 @@ The bulk file cache (used by `bulk_download_crs`, `download_crs_file`,
 is governed separately
 because the files are large (up to 1.18 GB each):
 
-- **LRU eviction**: only the two most recent bulk files are kept. Older
-  entries are removed the first time a Python session makes a bulk
-  download call.
+- **Expiry**: every bulk file you download stays cached until its TTL
+  below runs out, so disk use grows with the number of distinct files you
+  fetch. Expired files are deleted the first time a Python session makes a
+  bulk download call.
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
   [Cache invalidation on republish](#cache-invalidation-on-republish).
-- **Per-entry TTL**: 30 days. This is a fallback, used when the
+- **Per-entry TTL**: 90 days. A file older than that is refetched even if
+  OECD hasn't republished it, which covers the cases where the
   publication-version check above couldn't be made (offline, server error,
   or the relevant headers absent).
 - **Integrity validation**: every freshly downloaded payload is end-to-end
@@ -180,9 +182,9 @@ because the files are large (up to 1.18 GB each):
 OECD's bulk-download URLs are stable (`CRS.parquet` is always the same
 address), so the
 URL alone can't tell ODA Reader that OECD has replaced the file behind it.
-Left unaddressed, a republish could sit unnoticed until the 30-day TTL
-expired, and a pipeline could run against month-old figures with nothing
-to indicate it.
+Left unaddressed, a republish could sit unnoticed until the 90-day TTL
+expired, and a pipeline could run against figures up to three months old
+with nothing to indicate it.
 
 The cache tracks a publication-version token alongside the URL, and a
 change in that token invalidates the entry immediately, regardless of how
@@ -195,7 +197,7 @@ recently it was fetched. The token comes from the file host:
   annotation label, such as `CRS-Parquet-v20260803`, stays the same.
 - If that request fails (offline, a server error, or a response carrying
   neither header), the cache keeps the token it stored and invalidation
-  falls back to the 30-day TTL rather than failing the call. A cached file
+  falls back to the 90-day TTL rather than failing the call. A cached file
   still works offline. A blocked request (for example a Cloudflare
   challenge) logs a warning naming the HTTP status or Cloudflare Ray ID.
 

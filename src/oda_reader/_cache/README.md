@@ -346,7 +346,7 @@ Typical cache sizes:
 
 - **HTTP cache**: 7 days (604800 seconds)
 - **DataFrame cache**: No automatic expiration (cleared manually or on size limit)
-- **Bulk files**: Configurable TTL (default: 30 days for CRS, 180 days for AidData)
+- **Bulk files**: Configurable TTL (default: 90 days). Entries past their TTL are deleted the first time a process makes a bulk download call.
 
 ### When Cache Is NOT Used
 
