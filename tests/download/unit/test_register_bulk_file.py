@@ -195,8 +195,11 @@ class TestOfflineRead:
         pd.testing.assert_frame_equal(result, _FRAME)
         _assert_no_network(no_sockets)
 
+    @pytest.mark.parametrize(
+        "newer_at", ["2026-02-01", "2026-01-01"], ids=["later", "same-second"]
+    )
     def test_url_wins_over_a_newer_copy_of_the_same_dataset(
-        self, crs_parquet, tmp_path, no_sockets
+        self, crs_parquet, tmp_path, no_sockets, newer_at
     ):
         newer = tmp_path / "CRS-newer.parquet"
         newer_frame = _FRAME.assign(usd_disbursement=0.0)
@@ -204,7 +207,7 @@ class TestOfflineRead:
         newer_url = _CRS_URL.replace("CRS.parquet", "CRS-newer.parquet")
         with freeze_time("2026-01-01"):
             register_bulk_file(crs_parquet, dataset="crs", url=_CRS_URL, version="e1")
-        with freeze_time("2026-02-01"):
+        with freeze_time(newer_at):
             register_bulk_file(newer, dataset="crs", url=newer_url, version="e2")
 
         result = bulk_download_parquet(

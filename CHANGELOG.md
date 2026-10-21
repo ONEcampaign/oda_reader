@@ -9,7 +9,8 @@
   maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
   `vintage`, `source_file`, `file_version` and `file_version_kind` added to each row.
   `file_version` is the file host's validator for the cached copy read, and `file_version_kind`
-  says whether it is an `etag` or a `last_modified` date. An unknown layout raises
+  says whether it is an `etag` or a `last_modified` date. Each workbook is read from a private
+  snapshot of the cached copy, so a concurrent refresh cannot change the rows under that label. An unknown layout raises
   `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
   not a plain file name also raises `CRDFSchemaError`.
 - **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
@@ -25,6 +26,7 @@
   cached or registered copy whatever its age. With nothing cached it raises the new
   `BulkFileNotCachedError`, which prints the `register_bulk_file` call. A CRS year file
   registers with `url=` and reads offline through `bulk_download_parquet(url=..., offline=True)`.
+  When two cached copies match a dataset, the one stored last is read, even within the same second.
 - **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
   browser and the `register_bulk_file` call that registers it, including the version token the
   reader saw. The error gains `filename`, `dataset` and `version` attributes.
@@ -32,7 +34,7 @@
   and the request retried, up to three times. A longer wait, a missing header or a fourth
   throttled response raises `BulkDownloadHTTPError`, which now carries `retry_after`.
 - **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
-  gains `register()` and `find_entry()`, and `list_records()` reports each entry's `source` and
+  gains `register()`, `find_entry()` and `snapshot()`, and `list_records()` reports each entry's `source` and
   `url`.
 - **The bulk-file cache keeps a dataset's only copy past its TTL.** In 1.11.4 the startup sweep
   deleted every downloaded file past its TTL, including a dataset's only copy, which a scripted

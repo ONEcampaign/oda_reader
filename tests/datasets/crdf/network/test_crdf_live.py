@@ -29,10 +29,10 @@ def test_every_live_header_maps():
     for name, perspective, url in zip(
         workbooks["name"], workbooks["perspective"], workbooks["url"], strict=True
     ):
-        path, version, version_kind = crdf._fetch(url)
+        with crdf._fetch(url) as (path, version, version_kind):
+            _, sheets = crdf._read_headers(path)
         assert version, name
         assert version_kind in ("etag", "last_modified"), name
-        _, sheets = crdf._read_headers(path)
         assert sheets, name
         for sheet, headers in sheets.items():
             layout, _, price_year = crdf._match_layout(

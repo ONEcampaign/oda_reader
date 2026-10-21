@@ -12,6 +12,8 @@ import functools
 import json
 import re
 import shutil
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from html import unescape
 from pathlib import Path
@@ -173,11 +175,15 @@ def list_crdf_files() -> pd.DataFrame:
     return listing
 
 
-def _fetch(url: str) -> tuple[Path, str | None, str | None]:
-    """Return a cached copy of the workbook at *url* and its recorded validator.
+@contextmanager
+def _fetch(url: str) -> Iterator[tuple[Path, str | None, str | None]]:
+    """Yield a snapshot of the cached workbook at *url* and its recorded validator.
 
-    Returns:
-        The cached path, the validator token stored with that copy, and its
+    The snapshot is private to this read, so another process refreshing the
+    cache cannot change the bytes under the validator yielded with them.
+
+    Yields:
+        The snapshot path, the validator token stored with that copy, and its
         kind (``"etag"`` or ``"last_modified"``). Both are None when the
         host gave no validator at download time.
     """
@@ -191,8 +197,8 @@ def _fetch(url: str) -> tuple[Path, str | None, str | None]:
         version_kind=kind,
         url=url,
     )
-    path, record = bulk_cache_manager().ensure_record(entry)
-    return path, record.get("version"), record.get("version_kind")
+    with bulk_cache_manager().snapshot(entry) as (path, record):
+        yield path, record.get("version"), record.get("version_kind")
 
 
 def download_crdf_file(name: str, save_to_path: Path | str) -> Path:
@@ -226,8 +232,8 @@ def download_crdf_file(name: str, save_to_path: Path | str) -> Path:
         if target.resolve().parent != folder:
             raise ValueError(f"{name!r} would be saved outside {save_to_path}.")
 
-    cached, _, _ = _fetch(match["url"].iloc[0])
-    shutil.copyfile(cached, target)
+    with _fetch(match["url"].iloc[0]) as (cached, _, _):
+        shutil.copyfile(cached, target)
     return target
 
 
@@ -473,41 +479,42 @@ def download_crdf(
             layout belongs to the other perspective, or a column fails its type.
         ValueError: If no file holds a requested year.
     """
+    year_column = "year" if pre_process else "Year"
     if file is not None:
         path = Path(file)
-        workbooks = [(path, path.name, None, None, None)]
-    else:
-        files = _files_for_years(list_crdf_files(), perspective, start_year, end_year)
-        workbooks = []
-        for name, url, years in zip(
-            files["name"], files["url"], files["years"], strict=True
-        ):
-            logger.info(f"Reading CRDF workbook {name}")
-            path, version, version_kind = _fetch(url)
-            workbooks.append((path, name, version, version_kind, years))
-
-    frames = []
-    for path, name, version, version_kind, years in workbooks:
         df = _read_workbook(
             path,
             perspective=perspective,
-            source_file=name,
-            file_version=version,
-            file_version_kind=version_kind,
+            source_file=path.name,
+            file_version=None,
+            file_version_kind=None,
             pre_process=pre_process,
         )
-        year = df["year" if pre_process else "Year"]
+        # A local file has no year assignment and keeps the requested range.
+        keep = pd.Series(True, index=df.index)
+        if start_year is not None:
+            keep &= df[year_column] >= start_year
+        if end_year is not None:
+            keep &= df[year_column] <= end_year
+        return df.loc[keep].reset_index(drop=True)
+
+    files = _files_for_years(list_crdf_files(), perspective, start_year, end_year)
+    frames = []
+    for name, url, years in zip(
+        files["name"], files["url"], files["years"], strict=True
+    ):
+        logger.info(f"Reading CRDF workbook {name}")
+        with _fetch(url) as (path, version, version_kind):
+            df = _read_workbook(
+                path,
+                perspective=perspective,
+                source_file=name,
+                file_version=version,
+                file_version_kind=version_kind,
+                pre_process=pre_process,
+            )
         # A workbook keeps only the years assigned to it, so a year held by
-        # two overlapping workbooks is read once. A local file has no
-        # assignment and keeps the requested range.
-        if years is not None:
-            keep = year.isin(years)
-        else:
-            keep = pd.Series(True, index=df.index)
-            if start_year is not None:
-                keep &= year >= start_year
-            if end_year is not None:
-                keep &= year <= end_year
-        frames.append(df.loc[keep])
+        # two overlapping workbooks is read once.
+        frames.append(df.loc[df[year_column].isin(years)])
 
     return pd.concat(frames, ignore_index=True)

@@ -18,13 +18,17 @@ def _populate(
     ages_days: dict[str, int],
     *,
     labels: dict[str, str] | None = None,
+    seqs: dict[str, int] | None = None,
     ttl_days: int = 90,
 ) -> None:
     """Write a manifest entry and a file for each key, downloaded that many days ago.
 
-    A key in ``labels`` records ``_FLOW_URL`` and that label as its dataset.
+    A key in ``labels`` records ``_FLOW_URL`` and that label as its dataset. A
+    key in ``seqs`` records that ``seq``; other keys record none, as records
+    written before ``seq`` existed.
     """
     labels = labels or {}
+    seqs = seqs or {}
     now = datetime.now(UTC)
     manifest = {}
     for key, age in ages_days.items():
@@ -38,6 +42,8 @@ def _populate(
             "flow_url": _FLOW_URL if key in labels else None,
             "label": labels.get(key),
         }
+        if key in seqs:
+            manifest[key]["seq"] = seqs[key]
     (base_dir / "manifest.json").write_text(json.dumps(manifest))
 
 
@@ -73,6 +79,40 @@ def test_removes_expired_entry_only_when_superseded(
 
     assert {p.stem for p in tmp_path.glob("*.zip")} == kept
     assert _manifest_keys(tmp_path) == kept
+
+
+@pytest.mark.parametrize(
+    ("seqs", "kept"),
+    [({"a": 1, "b": 2}, {"b"}), ({"a": 2, "b": 1}, {"a"})],
+    ids=["b-written-last", "a-written-last"],
+)
+def test_seq_decides_superseded_when_timestamps_tie(
+    tmp_path: Path, seqs: dict[str, int], kept: set[str]
+) -> None:
+    _populate(tmp_path, {"a": 91, "b": 91}, labels={"a": "CRS", "b": "CRS"}, seqs=seqs)
+
+    CacheManager(base_dir=tmp_path)
+
+    assert _manifest_keys(tmp_path) == kept
+
+
+@pytest.mark.parametrize(
+    ("ages_days", "seqs", "found"),
+    [
+        ({"old": 30, "fresh": 1}, {}, "fresh"),
+        ({"old": 1, "fresh": 30}, {"fresh": 1}, "fresh"),
+    ],
+    ids=["no-seq-by-downloaded-at", "seq-outranks-no-seq"],
+)
+def test_find_entry_picks_the_last_written_copy(
+    tmp_path: Path, ages_days: dict[str, int], seqs: dict[str, int], found: str
+) -> None:
+    _populate(tmp_path, ages_days, labels={"old": "CRS", "fresh": "CRS"}, seqs=seqs)
+
+    match = CacheManager(base_dir=tmp_path).find_entry(flow_url=_FLOW_URL, label="CRS")
+
+    assert match is not None
+    assert match[0] == found
 
 
 def test_newer_record_without_file_does_not_supersede(tmp_path: Path) -> None:

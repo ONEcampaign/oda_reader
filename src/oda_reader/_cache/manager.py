@@ -8,7 +8,9 @@ import json
 import logging
 import os
 import shutil
-from collections.abc import Callable
+import tempfile
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -27,6 +29,7 @@ logger = logging.getLogger("oda_reader")
 
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 _TMP_MAX_AGE_SECONDS = 86_400  # 24 hours
+_SNAPSHOT_PREFIX = ".snapshot-"
 
 
 @dataclass(frozen=True)
@@ -68,12 +71,13 @@ class CacheManager:
     - Version-based invalidation
     - Startup deletion of expired entries a newer copy of the dataset replaces
     - Observable cache state (list_records, stats)
-    - Startup sweep of stale tmp files
+    - Startup sweep of stale tmp files and snapshots
 
     Storage layout:
         {base_dir}/
         ├── manifest.json       # Metadata tracking
         ├── .cache.lock         # FileLock for coordination
+        ├── .snapshot-*/        # Private read snapshots, removed after each read
         └── *.zip               # Cached datasets
     """
 
@@ -171,6 +175,7 @@ class CacheManager:
 
             record = {
                 "filename": entry.filename,
+                "seq": _next_seq(manifest),
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
                 "version": entry.version,
@@ -184,6 +189,45 @@ class CacheManager:
             self._save_manifest(manifest)
 
             return path, record
+
+    @contextmanager
+    def snapshot(
+        self, entry: CacheEntry, *, refresh: bool = False
+    ) -> Iterator[tuple[Path, dict[str, Any]]]:
+        """Resolve *entry* as ``ensure_record`` does and yield a private copy of it.
+
+        Under the cache lock, the cached payload is hard-linked into a private
+        temporary directory inside the cache, or copied there where the
+        filesystem refuses the link. Another process can then replace the
+        cached file while the caller reads, and the snapshot still holds the
+        bytes the record describes. The directory is removed on exit, and the
+        startup sweep removes any a crashed process left behind.
+
+        Args:
+            entry: CacheEntry describing the dataset.
+            refresh: If True, bypass cache and fetch fresh data.
+
+        Yields:
+            ``(snapshot_path, record)``: the private copy, named like the
+            cached file, and the manifest record of the payload it holds.
+
+        Raises:
+            BulkPayloadCorruptError: As ``ensure``.
+        """
+        snapshot_dir = Path(
+            tempfile.mkdtemp(prefix=_SNAPSHOT_PREFIX, dir=self.base_dir)
+        )
+        try:
+            with self._lock:
+                path, record = self.ensure_record(entry, refresh=refresh)
+                snapshot_path = snapshot_dir / path.name
+                try:
+                    os.link(path, snapshot_path)
+                except OSError:
+                    shutil.copyfile(path, snapshot_path)
+            yield snapshot_path, record
+        finally:
+            shutil.rmtree(snapshot_dir, ignore_errors=True)
 
     def register(
         self,
@@ -230,6 +274,7 @@ class CacheManager:
             manifest = self._load_manifest()
             manifest[key] = {
                 "filename": filename,
+                "seq": _next_seq(manifest),
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": None,
                 "version": version,
@@ -262,7 +307,7 @@ class CacheManager:
 
         Returns:
             ``(key, path, url)`` of the entry stored under ``key`` when a key
-            is given, else of the most recently stored entry matching
+            is given, else of the last stored entry (see ``_recency``) matching
             ``flow_url`` and ``label``. ``None`` when no such entry's file
             exists. ``url`` is ``None`` for an entry stored before URLs were
             recorded.
@@ -280,14 +325,14 @@ class CacheManager:
             )
 
         matches = [
-            (datetime.strptime(record["downloaded_at"], ISO_FORMAT), entry_key, record)
+            (entry_key, record)
             for entry_key, record in manifest.items()
             if matches_request(entry_key, record)
             and (self.base_dir / record["filename"]).exists()
         ]
         if not matches:
             return None
-        _, entry_key, record = max(matches, key=lambda m: m[0])
+        entry_key, record = max(matches, key=lambda m: _recency(m[1]))
         return entry_key, self.base_dir / record["filename"], record.get("url")
 
     def clear(self, key: str | None = None) -> None:
@@ -424,7 +469,12 @@ class CacheManager:
             tmp_path.unlink(missing_ok=True)
 
     def _sweep_stale_tmp_files(self) -> None:
-        """Remove *.tmp-* files in base_dir that are older than 24 hours."""
+        """Remove *.tmp-* files and snapshot directories older than 24 hours.
+
+        A snapshot directory's mtime is when its payload was linked in; the
+        payload's own mtime is the cached file's, so it says nothing about the
+        snapshot's age.
+        """
         now = datetime.now(UTC).timestamp()
         for tmp_file in self.base_dir.glob("*.tmp-*"):
             try:
@@ -434,13 +484,21 @@ class CacheManager:
                     logger.info(f"Swept stale tmp file: {tmp_file}")
             except OSError as e:
                 logger.warning(f"Could not inspect/remove tmp file {tmp_file}: {e}")
+        for snapshot_dir in self.base_dir.glob(f"{_SNAPSHOT_PREFIX}*"):
+            try:
+                if now - snapshot_dir.stat().st_mtime > _TMP_MAX_AGE_SECONDS:
+                    shutil.rmtree(snapshot_dir)
+                    logger.info(f"Swept stale snapshot: {snapshot_dir}")
+            except OSError as e:
+                logger.warning(f"Could not inspect/remove snapshot {snapshot_dir}: {e}")
 
     def _evict_expired(self) -> None:
         """Delete expired downloads that a newer copy of the same dataset replaces.
 
         A downloaded entry goes, with its file, when it is past its own TTL and
         the manifest holds a later download or registration of the same
-        dataset (same ``flow_url`` and ``label``) whose file exists. A
+        dataset (same ``flow_url`` and ``label``) whose file exists, "later"
+        as ``_recency`` ranks it. A
         dataset's newest copy is never deleted: it stays stale, so an online
         read refetches it and an offline read can still use it. Entries with no
         ``flow_url`` and ``label`` are never replaced, and registered entries
@@ -449,21 +507,22 @@ class CacheManager:
         manifest = self._load_manifest()
         now = datetime.now(UTC)
         try:
-            newest: dict[tuple[str, str], datetime] = {}
+            newest: dict[tuple[str, str], tuple[int, datetime]] = {}
             for record in manifest.values():
                 dataset = _dataset(record)
                 if dataset is None or not (self.base_dir / record["filename"]).exists():
                     continue
-                downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-                newest[dataset] = max(newest.get(dataset, downloaded), downloaded)
+                recency = _recency(record)
+                newest[dataset] = max(newest.get(dataset, recency), recency)
 
             expired = []
             for key, record in manifest.items():
                 dataset = _dataset(record)
                 if _is_registered(record) or dataset is None:
                     continue
-                downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-                if newest.get(dataset, downloaded) > downloaded and (
+                recency = _recency(record)
+                _, downloaded = recency
+                if newest.get(dataset, recency) > recency and (
                     now - downloaded > timedelta(days=record["ttl_days"])
                 ):
                     expired.append(key)
@@ -493,6 +552,21 @@ def _dataset(record: dict) -> tuple[str, str] | None:
     if flow_url is None or label is None:
         return None
     return flow_url, label
+
+
+def _next_seq(manifest: dict) -> int:
+    """The ``seq`` for the next record written: one more than the largest so far."""
+    return max((record.get("seq", 0) for record in manifest.values()), default=0) + 1
+
+
+def _recency(record: dict) -> tuple[int, datetime]:
+    """Rank a record by when it was written: ``seq``, then ``downloaded_at``.
+
+    ``downloaded_at`` has one-second resolution, so two records written in the
+    same second tie on it; ``seq`` orders them. A record written before ``seq``
+    was recorded ranks as ``seq`` 0, below every record written since.
+    """
+    return record.get("seq", 0), datetime.strptime(record["downloaded_at"], ISO_FORMAT)
 
 
 def _is_registered(record: dict) -> bool:

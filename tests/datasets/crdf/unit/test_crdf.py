@@ -6,7 +6,9 @@ The folder listings are snapshots of https://webfs.oecd.org/climate/.
 """
 
 import json
+import os
 import shutil
+from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -296,7 +298,7 @@ def test_download_reads_each_resolved_file(live_folder, monkeypatch, workbook_fo
 
     def fake_fetch(url):
         fetched.append(url)
-        return path, '"etag-1"', "etag"
+        return nullcontext((path, '"etag-1"', "etag"))
 
     monkeypatch.setattr(crdf, "_fetch", fake_fetch)
 
@@ -325,7 +327,7 @@ def test_overlapping_workbooks_each_contribute_only_their_years(
     )
     path = workbook_for("recipient_2026")  # one row each for 2014 and 2015
     monkeypatch.setattr(crdf, "list_crdf_files", lambda: listing)
-    monkeypatch.setattr(crdf, "_fetch", lambda url: (path, None, None))
+    monkeypatch.setattr(crdf, "_fetch", lambda url: nullcontext((path, None, None)))
 
     df = download_crdf("recipient", start_year=2014, end_year=2015)
 
@@ -363,7 +365,7 @@ def test_listing_request_has_a_timeout(monkeypatch):
 def test_download_file_saves_into_a_directory(live_folder, monkeypatch, tmp_path):
     cached = tmp_path / "cached.xlsx"
     cached.write_bytes(b"workbook")
-    monkeypatch.setattr(crdf, "_fetch", lambda url: (cached, None, None))
+    monkeypatch.setattr(crdf, "_fetch", lambda url: nullcontext((cached, None, None)))
     target = tmp_path / "out"
     target.mkdir()
 
@@ -392,11 +394,12 @@ def test_cache_hit_reports_the_version_recorded_with_the_copy(
         crdf, "_stream_to_file", lambda u, h, target: shutil.copyfile(workbook, target)
     )
 
-    downloaded = crdf._fetch(url)
-    served = crdf._fetch(url)
+    with crdf._fetch(url) as (_, *downloaded):
+        pass
+    with crdf._fetch(url) as (_, *served):
+        pass
 
-    assert served == downloaded
-    assert served[1:] == ("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified")
+    assert served == downloaded == ["Tue, 07 Jul 2026 13:05:26 GMT", "last_modified"]
 
 
 @pytest.mark.parametrize(
@@ -432,3 +435,63 @@ def test_download_file_refuses_a_destination_outside_the_directory(
         download_crdf_file("../outside.xlsx", target)
 
     assert not (tmp_path / "outside.xlsx").exists()
+
+
+def _refuse_link(src, dst):
+    raise OSError("hard links not supported")
+
+
+@pytest.mark.parametrize("hard_links", [True, False], ids=["linked", "copied"])
+def test_rows_carry_the_version_of_the_bytes_they_came_from(
+    live_folder, monkeypatch, tmp_path, hard_links
+):
+    """Another process replacing the cached workbook mid-read changes no label."""
+    fixture = LAYOUTS["recipient_2026"]
+    v1 = write_workbook(tmp_path / "v1.xlsx", fixture)
+    v2 = write_workbook(
+        tmp_path / "v2.xlsx", {**fixture, "modified": "2027-01-01T00:00:00"}
+    )
+    url = crdf.CRDF_URL + "RecipientPerspective/CRDF-RP_2014-2015.xlsx"
+    monkeypatch.setattr(
+        crdf, "_fetch_revalidation_validator", lambda u: ('"v1"', "etag")
+    )
+    monkeypatch.setattr(
+        crdf, "_stream_to_file", lambda u, h, target: shutil.copyfile(v1, target)
+    )
+    if not hard_links:
+        monkeypatch.setattr(os, "link", _refuse_link)
+
+    def replace_cached_workbook() -> None:
+        key = crdf._bulk_cache_key(url)
+        crdf.bulk_cache_manager().ensure(
+            crdf.CacheEntry(
+                key=key,
+                filename=f"{key}.xlsx",
+                fetcher=lambda target: shutil.copyfile(v2, target),
+                version='"v2"',
+                version_kind="etag",
+                url=url,
+            )
+        )
+
+    # The read starts after the cache lock is released: the point at which
+    # another process can replace the cached file.
+    read_headers = crdf._read_headers
+
+    def replace_then_read_headers(path):
+        replace_cached_workbook()
+        return read_headers(path)
+
+    monkeypatch.setattr(crdf, "_read_headers", replace_then_read_headers)
+
+    df = download_crdf("recipient", start_year=2014, end_year=2015)
+
+    versions = {
+        datetime.fromisoformat(fixture["modified"]).date(): '"v1"',
+        datetime(2027, 1, 1).date(): '"v2"',
+    }
+    assert len(df) == 2
+    assert [versions[v] for v in df["vintage"]] == df["file_version"].tolist()
+    [record] = crdf.bulk_cache_manager().list_records()
+    assert record["version"] == '"v2"'
+    assert not list(crdf.bulk_cache_manager().base_dir.glob(".snapshot-*"))
