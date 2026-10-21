@@ -1,6 +1,6 @@
 # Changelog for oda_reader
 
-## Unreleased
+## 1.12.0 (2026-10-21)
 
 - **Adds `download_crdf()`, `download_crdf_file()` and `list_crdf_files()`** for the OECD
   Climate-Related Development Finance workbooks at `webfs.oecd.org/climate/`, read over plain
@@ -9,8 +9,7 @@
   maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
   `vintage`, `source_file`, `file_version` and `file_version_kind` added to each row.
   `file_version` is the file host's validator for the cached copy read, and `file_version_kind`
-  says whether it is an `etag` or a `last_modified` date. Each workbook is read from a private
-  snapshot of the cached copy, so a concurrent refresh cannot change the rows under that label. An unknown layout raises
+  says whether it is an `etag` or a `last_modified` date. An unknown layout raises
   `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
   not a plain file name also raises `CRDFSchemaError`.
 - **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
@@ -26,7 +25,6 @@
   cached or registered copy whatever its age. With nothing cached it raises the new
   `BulkFileNotCachedError`, which prints the `register_bulk_file` call. A CRS year file
   registers with `url=` and reads offline through `bulk_download_parquet(url=..., offline=True)`.
-  When two cached copies match a dataset, the one stored last is read, even within the same second.
 - **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
   browser and the `register_bulk_file` call that registers it, including the version token the
   reader saw. The error gains `filename`, `dataset` and `version` attributes.
@@ -34,17 +32,25 @@
   and the request retried, up to three times. A longer wait, a missing header or a fourth
   throttled response raises `BulkDownloadHTTPError`, which now carries `retry_after`.
 - **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
-  gains `register()`, `find_entry()` and `snapshot()`, and `list_records()` reports each entry's `source` and
-  `url`.
+  gains `register()`, `find_entry()` and `snapshot()`, and `list_records()` reports each entry's
+  `source` and `url`.
 - **The bulk-file cache keeps a dataset's only copy past its TTL.** In 1.11.4 the startup sweep
   deleted every downloaded file past its TTL, including a dataset's only copy, which a scripted
-  download may not be able to replace. The sweep now deletes an expired download only when a newer
-  copy of the same dataset is cached. An only copy stays: an online read refetches it and an offline read uses it.
-  A file downloaded by URL alone stays until a download replaces it or the cache is cleared.
-- **A cache hit fills in the URL and dataset a cached record lacks**, so a file downloaded before
-  they were recorded becomes readable with `offline=True`.
+  download may not be able to replace. The sweep now deletes an expired download only when a
+  newer copy of the same dataset is cached. An only copy stays: an online read refetches it and
+  an offline read uses it. A file downloaded by URL alone stays until a download replaces it or
+  the cache is cleared.
 - **A bulk URL with spaces and its `%20` form share one cache entry.** Registration, downloads
   and offline reads all key the cache on the percent-encoded URL.
+- **A cache hit fills in the URL and dataset a cached record lacks**, so a file downloaded before
+  they were recorded becomes readable with `offline=True`.
+- **A dataset with two cached copies reads the one stored last**, even when both were stored
+  within the same second.
+- **Each CRDF workbook is read from a private snapshot of the cached copy**, so a concurrent
+  refresh cannot mix two revisions in one read or label rows with another revision's version.
+- **A corrupt download no longer replaces a cached copy.** A download is validated before it
+  reaches the cache and deleted if it fails, so the copy already there stays readable, and the
+  read raises `BulkPayloadCorruptError`.
 
 ## 1.11.4 (2026-10-21)
 
