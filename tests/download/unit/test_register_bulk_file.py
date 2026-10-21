@@ -12,7 +12,12 @@ from oda_reader import (
     bulk_download_crs,
     register_bulk_file,
 )
-from oda_reader._cache.manager import CacheEntry, CacheManager, bulk_cache_manager
+from oda_reader._cache.manager import (
+    CacheEntry,
+    CacheManager,
+    _reset_bulk_cache_manager,
+    bulk_cache_manager,
+)
 from oda_reader.crs import CRS_BULK_LABEL, CRS_REDUCED_BULK_LABEL
 from oda_reader.dac1 import DAC1_BULK_LABEL
 from oda_reader.dac2a import DAC2A_BULK_LABEL
@@ -37,6 +42,7 @@ freeze_time = pytest.importorskip("freezegun").freeze_time
 
 _CRS_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
 _CRS_KEY = hashlib.sha1(_CRS_URL.encode()).hexdigest()
+_SPACED_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2022 data.parquet"
 _FRAME = pd.DataFrame({"donor_code": [1, 2, 3], "usd_disbursement": [1.5, 2.5, 3.5]})
 
 
@@ -134,10 +140,52 @@ class TestOfflineRead:
             )
 
         with freeze_time("2026-06-01"):
+            _reset_bulk_cache_manager()  # a new session runs the startup sweep
             result = bulk_download_crs(offline=True)
 
         pd.testing.assert_frame_equal(result, _FRAME)
         _assert_no_network(no_sockets)
+
+    def test_online_hit_records_dataset_for_offline_reads(self, no_sockets, stream):
+        # A record written before url, flow_url and label were recorded.
+        bulk_cache_manager().ensure(
+            CacheEntry(
+                key=_CRS_KEY, filename=f"{_CRS_KEY}.parquet", fetcher=_FRAME.to_parquet
+            )
+        )
+
+        bulk_download_parquet(url=_CRS_URL, flow_url=CRS_FLOW_URL, label=CRS_BULK_LABEL)
+        _reset_bulk_cache_manager()
+        result = bulk_download_crs(offline=True)
+
+        pd.testing.assert_frame_equal(result, _FRAME)
+        stream.assert_not_called()
+        [record] = bulk_cache_manager().list_records()
+        assert record["url"] == _CRS_URL
+
+    @pytest.mark.parametrize("stored_by", ["register", "download"])
+    @pytest.mark.parametrize(
+        "read_url",
+        [_SPACED_URL, _SPACED_URL.replace(" ", "%20")],
+        ids=["raw", "encoded"],
+    )
+    def test_spaced_url_and_encoded_form_share_one_entry(
+        self, crs_parquet, mocker, stored_by, read_url
+    ):
+        if stored_by == "register":
+            register_bulk_file(crs_parquet, url=_SPACED_URL, version="e1")
+        else:
+            mocker.patch(
+                "oda_reader.download.download_tools._stream_to_file",
+                side_effect=lambda url, headers, path: _FRAME.to_parquet(path),
+            )
+            bulk_download_parquet(url=_SPACED_URL)
+
+        result = bulk_download_parquet(url=read_url, offline=True)
+
+        pd.testing.assert_frame_equal(result, _FRAME)
+        [record] = bulk_cache_manager().list_records()
+        assert record["url"] == _SPACED_URL.replace(" ", "%20")
 
     def test_url_reads_entry_by_key(self, crs_parquet, no_sockets):
         register_bulk_file(crs_parquet, url=_CRS_URL, version="e1")
@@ -285,7 +333,13 @@ class TestRegisteredEntryLifetime:
     @staticmethod
     def _download(manager, key):
         manager.ensure(
-            CacheEntry(key=key, filename=f"{key}.parquet", fetcher=_FRAME.to_parquet)
+            CacheEntry(
+                key=key,
+                filename=f"{key}.parquet",
+                fetcher=_FRAME.to_parquet,
+                flow_url=CRS_FLOW_URL,
+                label=CRS_BULK_LABEL,
+            )
         )
 
     def test_expiry_sweep_keeps_registered_entry(self, tmp_path, crs_parquet):
@@ -293,7 +347,12 @@ class TestRegisteredEntryLifetime:
         manager = CacheManager(base_dir=base)
         with freeze_time("2026-01-01"):
             manager.register(
-                crs_parquet, key="registered", filename="r.parquet", url=_CRS_URL
+                crs_parquet,
+                key="registered",
+                filename="r.parquet",
+                url=_CRS_URL,
+                flow_url=CRS_FLOW_URL,
+                label=CRS_BULK_LABEL,
             )
             self._download(manager, "expired")
         with freeze_time("2026-06-01"):

@@ -9,7 +9,6 @@ else raises ``CRDFSchemaError``.
 
 import difflib
 import functools
-import hashlib
 import json
 import re
 import shutil
@@ -33,6 +32,7 @@ from oda_reader._http_primitives import (
 )
 from oda_reader.common import ImporterPaths, logger
 from oda_reader.download.download_tools import (
+    _bulk_cache_key,
     _fetch_revalidation_validator,
     _finalize_resolved_url,
     _stream_to_file,
@@ -182,7 +182,7 @@ def _fetch(url: str) -> tuple[Path, str | None, str | None]:
         host gave no validator at download time.
     """
     token, kind = _fetch_revalidation_validator(url) or (None, None)
-    key = hashlib.sha1(url.encode()).hexdigest()
+    key = _bulk_cache_key(url)
     entry = CacheEntry(
         key=key,
         filename=f"{key}.xlsx",

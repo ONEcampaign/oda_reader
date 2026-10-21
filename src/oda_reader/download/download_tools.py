@@ -1359,7 +1359,7 @@ def bulk_download_parquet(
             Last-Modified). Threaded straight into
             `CacheEntry.version`, so a republish forces a refetch even
             though the resolved URL itself is now permanently stable and
-            the cache key (`sha1(url)`) alone can no longer tell a
+            the cache key, derived from the URL, alone can no longer tell a
             republish apart from a genuine cache hit. `None` (the default)
             means invalidation falls back to the cache's TTL alone -- the
             same behavior as before this parameter existed.
@@ -1441,7 +1441,8 @@ def bulk_download_parquet(
         target_url: str, target_version: str | None
     ) -> tuple[typing.Any, Path, str]:
         """Resolve one URL to a validated local path, cached or not."""
-        target_key = hashlib.sha1(target_url.encode()).hexdigest()
+        target_url = _encode_url_path(target_url)
+        target_key = _bulk_cache_key(target_url)
         extension = Path(urlsplit(target_url).path).suffix or ".zip"
 
         try:
@@ -1513,7 +1514,7 @@ def _read_cached_bulk_file(
 
     manager = bulk_cache_manager()
     found = manager.find_entry(
-        key=hashlib.sha1(url.encode()).hexdigest() if url else None,
+        key=_bulk_cache_key(url) if url else None,
         flow_url=flow_url,
         label=label,
     )
@@ -1607,7 +1608,7 @@ def register_bulk_file(
     if version is None:
         version = _fetch_revalidation_token(url)
 
-    key = hashlib.sha1(url.encode()).hexdigest()
+    key = _bulk_cache_key(url)
     extension = Path(urlsplit(url).path).suffix or ".zip"
     return bulk_cache_manager().register(
         Path(path).expanduser(),
@@ -1901,13 +1902,24 @@ def _finalize_resolved_url(url: str) -> str:
         ValueError: If the URL's scheme isn't ``https`` or its host doesn't
             end in one of `_ALLOWED_URL_HOST_SUFFIXES`.
     """
-    parsed = urlsplit(url)
-    encoded_path = quote(parsed.path, safe="/%")
-    resolved = urlunsplit(
-        (parsed.scheme, parsed.netloc, encoded_path, parsed.query, parsed.fragment)
-    )
+    resolved = _encode_url_path(url)
     _validate_allowed_host(resolved)
     return resolved
+
+
+def _encode_url_path(url: str) -> str:
+    """Percent-encode *url*'s path, leaving ``%`` alone so encoding is idempotent."""
+    parsed = urlsplit(url)
+    return urlunsplit(parsed._replace(path=quote(parsed.path, safe="/%")))
+
+
+def _bulk_cache_key(url: str) -> str:
+    """Return the bulk cache key for *url*: the sha1 of its percent-encoded form.
+
+    A URL with spaces in its path and its ``%20`` form share one key, so a
+    file registered, downloaded or read under either form is the same entry.
+    """
+    return hashlib.sha1(_encode_url_path(url).encode()).hexdigest()
 
 
 def _bulk_dataset_name(flow_url: str | None, label: str | None) -> str | None:

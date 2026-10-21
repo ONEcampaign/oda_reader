@@ -155,10 +155,12 @@ browser download registered with `register_bulk_file` then fills the cache (see
 
 The cache is governed separately because the files are large (up to 1.18 GB each):
 
-- **Expiry**: every bulk file you download stays cached until its TTL
-  below runs out, so disk use grows with the number of distinct files you
-  fetch. Expired files are deleted the first time a Python session makes a
-  bulk download call. Registered files never expire (see
+- **Expiry**: a downloaded bulk file past its TTL below is deleted the first
+  time a Python session makes a bulk download call, but only once a newer
+  copy of the same dataset is cached. A dataset's only copy stays: an online
+  read refetches it and an offline read uses it. A file downloaded by URL
+  alone, with no dataset, stays until a download replaces it or you clear
+  the cache. Registered files never expire (see
   [Registered files](#registered-files)).
 - **Publication-version invalidation**: a cached file is refetched as soon
   as OECD republishes it, not just after the TTL below expires. See
@@ -447,7 +449,7 @@ from oda_reader import download_dac1
 data = download_dac1(start_year=2022, end_year=2022)  # instant
 ```
 
-Cache persists until you clear it. HTTP responses expire after 7 days and bulk files after 30.
+Cache persists until you clear it. HTTP responses expire after 7 days. Bulk files are refetched after 90 days.
 
 ### Filter aggressively to reduce API load
 

@@ -66,7 +66,7 @@ class CacheManager:
     - Cross-process locking (FileLock)
     - TTL-based expiration
     - Version-based invalidation
-    - Startup deletion of entries past their TTL
+    - Startup deletion of expired entries a newer copy of the dataset replaces
     - Observable cache state (list_records, stats)
     - Startup sweep of stale tmp files
 
@@ -134,6 +134,9 @@ class CacheManager:
 
         The record describes the payload at the returned path, so a cache hit
         reports the version stored with that payload, not ``entry.version``.
+        A hit fills in any of ``url``, ``flow_url`` and ``label`` the record
+        lacks from ``entry``, so a record written before those were recorded
+        becomes findable by ``find_entry``.
 
         Returns:
             ``(path, record)``, read under one lock acquisition.
@@ -150,6 +153,15 @@ class CacheManager:
                 and not self._is_stale(record, entry)
             ):
                 logger.info(f"Loading {entry.key} from cache")
+                missing = {
+                    field: value
+                    for field in ("url", "flow_url", "label")
+                    if record.get(field) is None
+                    and (value := getattr(entry, field)) is not None
+                }
+                if missing:
+                    record.update(missing)
+                    self._save_manifest(manifest)
                 return path, record
 
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
@@ -197,7 +209,7 @@ class CacheManager:
 
         Args:
             source: The file to copy in. It is never modified.
-            key: The manifest key, ``sha1(url)`` for bulk files.
+            key: The manifest key, ``_bulk_cache_key(url)`` for bulk files.
             filename: The storage filename inside the cache directory.
             url: The URL the file was downloaded from.
             version: The cache-invalidation token to store. A later
@@ -424,22 +436,37 @@ class CacheManager:
                 logger.warning(f"Could not inspect/remove tmp file {tmp_file}: {e}")
 
     def _evict_expired(self) -> None:
-        """Delete every entry older than its own TTL, along with its file.
+        """Delete expired downloads that a newer copy of the same dataset replaces.
 
-        Each URL has exactly one entry, and a refetch overwrites that entry's
-        file in place, so the TTL is the only bound on what the cache holds.
-        Registered entries have no TTL and are never deleted here.
+        A downloaded entry goes, with its file, when it is past its own TTL and
+        the manifest holds a later download or registration of the same
+        dataset (same ``flow_url`` and ``label``) whose file exists. A
+        dataset's newest copy is never deleted: it stays stale, so an online
+        read refetches it and an offline read can still use it. Entries with no
+        ``flow_url`` and ``label`` are never replaced, and registered entries
+        have no TTL, so neither is deleted here.
         """
         manifest = self._load_manifest()
         now = datetime.now(UTC)
         try:
-            expired = [
-                key
-                for key, record in manifest.items()
-                if not _is_registered(record)
-                and now - datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-                > timedelta(days=record["ttl_days"])
-            ]
+            newest: dict[tuple[str, str], datetime] = {}
+            for record in manifest.values():
+                dataset = _dataset(record)
+                if dataset is None or not (self.base_dir / record["filename"]).exists():
+                    continue
+                downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+                newest[dataset] = max(newest.get(dataset, downloaded), downloaded)
+
+            expired = []
+            for key, record in manifest.items():
+                dataset = _dataset(record)
+                if _is_registered(record) or dataset is None:
+                    continue
+                downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+                if newest.get(dataset, downloaded) > downloaded and (
+                    now - downloaded > timedelta(days=record["ttl_days"])
+                ):
+                    expired.append(key)
         except (KeyError, TypeError, ValueError) as e:
             logger.warning(f"Expiry sweep skipped due to manifest parse error: {e}")
             return
@@ -458,6 +485,14 @@ class CacheManager:
             del manifest[key]
 
         self._save_manifest(manifest)
+
+
+def _dataset(record: dict) -> tuple[str, str] | None:
+    """The ``(flow_url, label)`` a record was resolved from, or None if unrecorded."""
+    flow_url, label = record.get("flow_url"), record.get("label")
+    if flow_url is None or label is None:
+        return None
+    return flow_url, label
 
 
 def _is_registered(record: dict) -> bool:

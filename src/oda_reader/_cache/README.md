@@ -346,7 +346,7 @@ Typical cache sizes:
 
 - **HTTP cache**: 7 days (604800 seconds)
 - **DataFrame cache**: No automatic expiration (cleared manually or on size limit)
-- **Bulk files**: Configurable TTL (default: 90 days). Entries past their TTL are deleted the first time a process makes a bulk download call.
+- **Bulk files**: Configurable TTL (default: 90 days). An entry past its TTL is refetched on an online read. It is deleted the first time a process makes a bulk download call only when a newer copy of the same dataset is cached.
 
 ### When Cache Is NOT Used
 

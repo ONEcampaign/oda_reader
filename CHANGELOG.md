@@ -34,6 +34,15 @@
 - **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
   gains `register()` and `find_entry()`, and `list_records()` reports each entry's `source` and
   `url`.
+- **The bulk-file cache keeps a dataset's only copy past its TTL.** In 1.11.4 the startup sweep
+  deleted every downloaded file past its TTL, including a dataset's only copy, which a scripted
+  download may not be able to replace. The sweep now deletes an expired download only when a newer
+  copy of the same dataset is cached. An only copy stays: an online read refetches it and an offline read uses it.
+  A file downloaded by URL alone stays until a download replaces it or the cache is cleared.
+- **A cache hit fills in the URL and dataset a cached record lacks**, so a file downloaded before
+  they were recorded becomes readable with `offline=True`.
+- **A bulk URL with spaces and its `%20` form share one cache entry.** Registration, downloads
+  and offline reads all key the cache on the percent-encoded URL.
 
 ## 1.11.4 (2026-10-21)
 
