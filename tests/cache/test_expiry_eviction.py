@@ -48,7 +48,7 @@ def test_removes_entries_past_their_ttl(tmp_path: Path) -> None:
     assert _manifest_keys(tmp_path) == {"fresh"}
 
 
-def test_unlink_failure_logs_but_does_not_raise(tmp_path: Path) -> None:
+def test_unlink_failure_keeps_record_for_retry(tmp_path: Path) -> None:
     _populate(tmp_path, {"old": 120})
     original_unlink = Path.unlink
 
@@ -59,5 +59,8 @@ def test_unlink_failure_logs_but_does_not_raise(tmp_path: Path) -> None:
 
     with patch.object(Path, "unlink", raising_unlink):
         CacheManager(base_dir=tmp_path)
+    assert _manifest_keys(tmp_path) == {"old"}
 
+    CacheManager(base_dir=tmp_path)
     assert _manifest_keys(tmp_path) == set()
+    assert not (tmp_path / "old.zip").exists()

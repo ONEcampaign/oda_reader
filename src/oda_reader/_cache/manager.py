@@ -302,9 +302,11 @@ class CacheManager:
             file_path = self.base_dir / manifest[key]["filename"]
             try:
                 file_path.unlink(missing_ok=True)
-                logger.info(f"Expired cache entry removed: {file_path}")
             except OSError as e:
+                # Keep the record so the next sweep retries the removal.
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")
+                continue
+            logger.info(f"Expired cache entry removed: {file_path}")
             del manifest[key]
 
         self._save_manifest(manifest)
