@@ -140,7 +140,7 @@ on-disk caching is skipped. This flag is available on `bulk_download_crs`,
 `bulk_download_dac2b`, and `bulk_download_multisystem`.
 
 See [Caching & Performance](caching.md#bulk-file-cache) for how the bulk
-cache is managed (LRU eviction, TTL, integrity validation).
+cache is managed (TTL, expiry, integrity validation).
 
 ## Year-specific CRS files
 

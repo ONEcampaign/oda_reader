@@ -1,5 +1,15 @@
 # Changelog for oda_reader
 
+## 1.11.4 (2026-10-21)
+
+- **The bulk-file cache keeps every file it downloads until its TTL.** It used to keep only the
+  two most recently downloaded bulk files across all datasets, so a pipeline using three or more
+  (for example CRS, DAC1 and DAC2a) downloaded every file again on each run. Each URL has one
+  cache entry and a new version overwrites it in place, so the cache now deletes an entry only
+  once it is past its TTL. `CacheManager` no longer takes `keep_n`.
+- **Bulk files have a 90-day TTL, up from 30.** The ETag check catches a republish on any call,
+  so the TTL only matters when that check fails.
+
 ## 1.11.3 (2026-10-21)
 
 - **Bulk downloads identify as oda-reader.** Requests to OECD's bulk-file host send
