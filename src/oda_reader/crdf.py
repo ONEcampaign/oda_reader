@@ -16,15 +16,22 @@ import shutil
 from datetime import datetime
 from html import unescape
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from urllib.parse import urljoin
 
 import pandas as pd
+import requests
 from openpyxl import load_workbook
 
+from oda_reader import _http_primitives
 from oda_reader._cache.config import get_bulk_cache_dir
 from oda_reader._cache.manager import CacheEntry, CacheManager
-from oda_reader._http_primitives import DEFAULT_HEADERS, get_response_text
+from oda_reader._http_primitives import (
+    API_RATE_LIMITER,
+    DEFAULT_HEADERS,
+    _get_http_session,
+    _get_same_origin,
+)
 from oda_reader.common import ImporterPaths, logger
 from oda_reader.download.download_tools import (
     _fetch_revalidation_token,
@@ -58,17 +65,10 @@ _PRICE_YEAR_PLACEHOLDER = " - {price_year} USD "
 # cache of their own. The live folder holds about 30 workbooks.
 _CACHE_KEEP_N = 64
 
-Perspective = Literal["provider", "recipient"]
+# Connect and read timeouts for a folder listing request, in seconds.
+_LISTING_TIMEOUT = (10, 30)
 
-_LISTING_COLUMNS = [
-    "name",
-    "perspective",
-    "start_year",
-    "end_year",
-    "size_bytes",
-    "modified",
-    "url",
-]
+Perspective = Literal["provider", "recipient"]
 
 
 @functools.cache
@@ -77,11 +77,33 @@ def _schema() -> dict:
         return json.load(f)
 
 
+def _get_listing(url: str) -> tuple[int, str]:
+    """GET a folder listing past the HTTP cache, with a timeout.
+
+    Goes through the same session, rate limiter, headers and same-origin
+    redirect check as ``get_response_text``, which sets no timeout.
+    """
+    API_RATE_LIMITER.wait()
+    if _http_primitives._CACHE_ENABLED:
+        response = _get_same_origin(
+            _get_http_session().get,
+            url,
+            DEFAULT_HEADERS,
+            force_refresh=True,
+            timeout=_LISTING_TIMEOUT,
+        )
+    else:
+        response = _get_same_origin(
+            requests.get, url, DEFAULT_HEADERS, timeout=_LISTING_TIMEOUT
+        )
+    return cast(int, response.status_code), response.text
+
+
 def _list_folder(url: str) -> list[dict]:
-    status, text, _ = get_response_text(url, DEFAULT_HEADERS, force_refresh=True)
+    status, text = _get_listing(url)
     if status != 200:
         raise BulkDownloadHTTPError(status_code=status, url=url, body=text)
-    return [
+    entries = [
         {
             "name": unescape(name),
             "is_dir": size.lower() == "&lt;dir&gt;",
@@ -91,6 +113,11 @@ def _list_folder(url: str) -> list[dict]:
         }
         for stamp, size, href, name in _LISTING_ENTRY_RE.findall(text)
     ]
+    if not entries:
+        raise CRDFSchemaError(
+            source=url, detail="The folder listing matched no entries."
+        )
+    return entries
 
 
 def list_crdf_files() -> pd.DataFrame:
@@ -123,12 +150,21 @@ def list_crdf_files() -> pd.DataFrame:
         )
 
     listing = pd.DataFrame(
-        rows, columns=["name", "perspective", "size_bytes", "modified", "url"]
+        rows,
+        columns=[
+            "name",
+            "perspective",
+            "start_year",
+            "end_year",
+            "size_bytes",
+            "modified",
+            "url",
+        ],
     )
     years = listing["name"].str.extract(_FILE_YEARS_RE).apply(pd.to_numeric)
     listing["start_year"] = years[0].astype("Int32")
     listing["end_year"] = years[1].fillna(years[0]).astype("Int32")
-    return listing[_LISTING_COLUMNS]
+    return listing
 
 
 def _fetch(url: str) -> tuple[Path, str | None]:
@@ -293,7 +329,7 @@ def _read_workbook(
             )
 
         # Text columns are read as text so that numeric-looking ids keep their
-        # digits, rather than passing through float.
+        # digits.
         df = pd.read_excel(
             path,
             sheet_name=sheet,
@@ -325,8 +361,14 @@ def _files_for_years(
     perspective: Perspective,
     start_year: int | None,
     end_year: int | None,
-) -> tuple[pd.DataFrame, int, int]:
-    """Pick, for each year, the narrowest workbook that holds it."""
+) -> pd.DataFrame:
+    """Pick, for each year, the narrowest workbook that holds it.
+
+    Returns:
+        The chosen rows of *listing*, with a ``years`` column holding the
+        years each workbook is read for. A year appears under one workbook
+        only, even when two overlap on it.
+    """
     candidates = listing.loc[
         (listing["perspective"] == perspective) & listing["start_year"].notna()
     ]
@@ -356,13 +398,13 @@ def _files_for_years(
     ranked = candidates.assign(
         span=candidates["end_year"] - candidates["start_year"]
     ).sort_values(["span", "name"])
-    chosen = {
-        ranked.loc[(ranked["start_year"] <= year) & (ranked["end_year"] >= year)].index[
-            0
+    assigned: dict[int, list[int]] = {}
+    for year in range(start, end + 1):
+        holders = ranked.loc[
+            (ranked["start_year"] <= year) & (ranked["end_year"] >= year)
         ]
-        for year in range(start, end + 1)
-    }
-    return listing.loc[sorted(chosen)], start, end
+        assigned.setdefault(holders.index[0], []).append(year)
+    return listing.loc[sorted(assigned)].assign(years=pd.Series(assigned))
 
 
 def download_crdf(
@@ -377,7 +419,8 @@ def download_crdf(
 
     Resolves file names from the live folder listing and reads, for each year,
     the narrowest workbook that holds it (``CRDF-RP_2014-2015.xlsx`` for the
-    2015 recipient year, never the all-years file when a narrower one exists).
+    2015 recipient year). The all-years files are read only when no narrower
+    file holds a year.
     Every sheet except ``NOTES`` must match a layout in ``crdf_schema.json``.
 
     Args:
@@ -405,36 +448,38 @@ def download_crdf(
     """
     if file is not None:
         path = Path(file)
-        workbooks = [(path, path.name, None)]
-        start, end = start_year, end_year
+        workbooks = [(path, path.name, None, None)]
     else:
-        files, start, end = _files_for_years(
-            list_crdf_files(), perspective, start_year, end_year
-        )
+        files = _files_for_years(list_crdf_files(), perspective, start_year, end_year)
         workbooks = []
-        for name, url in zip(files["name"], files["url"], strict=True):
+        for name, url, years in zip(
+            files["name"], files["url"], files["years"], strict=True
+        ):
             logger.info(f"Reading CRDF workbook {name}")
             path, etag = _fetch(url)
-            workbooks.append((path, name, etag))
+            workbooks.append((path, name, etag, years))
 
-    df = pd.concat(
-        [
-            _read_workbook(
-                path,
-                perspective=perspective,
-                source_file=name,
-                file_etag=etag,
-                pre_process=pre_process,
-            )
-            for path, name, etag in workbooks
-        ],
-        ignore_index=True,
-    )
+    frames = []
+    for path, name, etag, years in workbooks:
+        df = _read_workbook(
+            path,
+            perspective=perspective,
+            source_file=name,
+            file_etag=etag,
+            pre_process=pre_process,
+        )
+        year = df["year" if pre_process else "Year"]
+        # A workbook keeps only the years assigned to it, so a year held by
+        # two overlapping workbooks is read once. A local file has no
+        # assignment and keeps the requested range.
+        if years is not None:
+            keep = year.isin(years)
+        else:
+            keep = pd.Series(True, index=df.index)
+            if start_year is not None:
+                keep &= year >= start_year
+            if end_year is not None:
+                keep &= year <= end_year
+        frames.append(df.loc[keep])
 
-    year = df["year" if pre_process else "Year"]
-    keep = pd.Series(True, index=df.index)
-    if start is not None:
-        keep &= year >= start
-    if end is not None:
-        keep &= year <= end
-    return df.loc[keep].reset_index(drop=True)
+    return pd.concat(frames, ignore_index=True)

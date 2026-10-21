@@ -231,7 +231,7 @@ class CacheManager:
     ) -> tuple[str, Path, str | None] | None:
         """Find a cached file by key or by dataflow annotation, whatever its age.
 
-        Used for offline reads, which take any cached copy rather than none.
+        Offline reads use it to find a cached copy of any age.
 
         Args:
             key: The manifest key to match.

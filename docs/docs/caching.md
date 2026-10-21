@@ -245,9 +245,9 @@ registered entry and `source="download"` for the rest.
 
 #### Reading offline
 
-Every bulk reader takes `offline=True`. The reader then makes no network
-request at all, neither the URL lookup nor the version-token request, and
-reads whatever copy of that dataset the cache holds, registered or
+`bulk_download_crs`, the DAC1, DAC2a, DAC2b and multisystem bulk readers, and
+`bulk_download_parquet` take `offline=True`. The reader then makes no network
+request, neither the URL lookup nor the version-token request, and reads whatever copy of that dataset the cache holds, registered or
 downloaded, however old:
 
 ```python
@@ -258,7 +258,9 @@ crs = bulk_download_crs(offline=True)
 
 With nothing cached it raises `BulkFileNotCachedError`, which prints the
 `register_bulk_file` call to run. Offline reads find a registered file by
-its `dataset`, so register with `dataset` when you plan to read offline.
+its `dataset`, so register with `dataset` when you plan to read offline. A
+CRS year file has no `dataset` name. Register it with `url=` and read it
+offline through `bulk_download_parquet(url=..., offline=True)`.
 
 Set `ODA_READER_CACHE_DIR` before registering to put the file in a cache
 other than the default one.

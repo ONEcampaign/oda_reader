@@ -26,7 +26,11 @@ from oda_reader.download.download_tools import (
     MULTI_FLOW_URL,
     bulk_download_parquet,
 )
-from oda_reader.exceptions import BulkDownloadChallengeError, BulkPayloadCorruptError
+from oda_reader.exceptions import (
+    BulkDownloadChallengeError,
+    BulkDownloadHTTPError,
+    BulkPayloadCorruptError,
+)
 from oda_reader.multisystem import MULTISYSTEM_BULK_LABEL
 
 freeze_time = pytest.importorskip("freezegun").freeze_time
@@ -95,7 +99,6 @@ class TestOfflineRead:
             bulk_download_crs(offline=True)
 
         assert exc_info.value.dataset == "crs"
-        assert isinstance(exc_info.value, ConnectionError)
         assert "register_bulk_file(" in str(exc_info.value)
         _assert_no_network(no_sockets)
 
@@ -313,6 +316,34 @@ class TestChallengeNamesRegistration:
             "register_bulk_file('~/Downloads/CRS.parquet', dataset='crs', "
             f"url='{_CRS_URL}', version='\"etag-1\"')"
         ) in str(error)
+
+    def test_challenge_after_re_resolve_names_dataset_and_new_version(self, mocker):
+        new_url = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS-v2.parquet"
+        mocker.patch(
+            "oda_reader.download.download_tools._stream_to_file",
+            side_effect=[
+                BulkDownloadHTTPError(status_code=404, url=_CRS_URL, body=""),
+                BulkDownloadChallengeError(
+                    status_code=403, url=new_url, body="", cf_ray=None
+                ),
+            ],
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
+            return_value=(new_url, '"etag-2"'),
+        )
+
+        with pytest.raises(BulkDownloadChallengeError) as exc_info:
+            bulk_download_parquet(
+                url=_CRS_URL,
+                flow_url=CRS_FLOW_URL,
+                label=CRS_BULK_LABEL,
+                version='"etag-1"',
+            )
+
+        error = exc_info.value
+        assert (error.dataset, error.version) == ("crs", '"etag-2"')
+        assert "dataset='crs'" in str(error)
 
     def test_plain_url_challenge_prints_url_only_call(self):
         error = BulkDownloadChallengeError(

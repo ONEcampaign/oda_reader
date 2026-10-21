@@ -135,12 +135,10 @@ class BulkDownloadChallengeError(BulkDownloadHTTPError):
         )
 
 
-class BulkFileNotCachedError(ConnectionError):
+class BulkFileNotCachedError(Exception):
     """Raised when an offline bulk read finds no cached or registered file.
 
-    Subclasses ``ConnectionError``, like ``BulkDownloadHTTPError``, so a
-    caller that catches an unavailable bulk source catches this too. There
-    is no HTTP response behind it, so it carries no status code.
+    No request is made, so there is no HTTP response and no status code.
 
     Attributes:
         dataset: The ``register_bulk_file`` dataset name, when the read came
@@ -616,12 +614,11 @@ class CRDFSchemaError(Exception):
     """Raised when a CRDF workbook or folder does not match a known layout.
 
     The OECD maintains the CRDF folder by hand and has renamed files and
-    columns before, so the reader refuses anything it cannot map rather
-    than guessing.
+    columns before, so the reader raises on any layout it cannot map.
 
     Attributes:
         source: The URL or path being read.
-        sheet: The worksheet name, or None when the problem is not a sheet's.
+        sheet: The worksheet name, or None when the problem concerns the whole workbook or folder.
         layout: The known layout closest to the headers found, or None.
         unmapped: Headers present in the sheet that the layout does not map.
         missing: Headers the layout expects that the sheet lacks.

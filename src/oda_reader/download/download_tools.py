@@ -1375,7 +1375,9 @@ def bulk_download_parquet(
         offline: If True, make no network request and read the cached copy
             of `url`, or of the `flow_url` and `label` annotation when `url`
             is omitted, whatever its age. A file put in the cache with
-            `register_bulk_file` counts as a cached copy.
+            `register_bulk_file` counts as a cached copy. A CRS year file
+            has no annotation. Register it with `url=` and read it with
+            `bulk_download_parquet(url=..., offline=True)`.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
@@ -1442,34 +1444,35 @@ def bulk_download_parquet(
         target_key = hashlib.sha1(target_url.encode()).hexdigest()
         extension = Path(urlsplit(target_url).path).suffix or ".zip"
 
-        if use_raw_cache:
-            entry = CacheEntry(
-                key=target_key,
-                filename=f"{target_key}{extension}",
-                fetcher=lambda p: _stream_to_file(target_url, headers, p),
-                version=target_version,
-                url=target_url,
-                flow_url=flow_url,
-                label=label,
-            )
-            fetch_manager = bulk_cache_manager()
-            fetched_path = fetch_manager.ensure(entry)
-        else:
-            fetch_manager = None
-            fetched_path = _stream_to_tempfile(target_url, headers)
-            validate_payload_or_raise(fetched_path)
+        try:
+            if use_raw_cache:
+                entry = CacheEntry(
+                    key=target_key,
+                    filename=f"{target_key}{extension}",
+                    fetcher=lambda p: _stream_to_file(target_url, headers, p),
+                    version=target_version,
+                    url=target_url,
+                    flow_url=flow_url,
+                    label=label,
+                )
+                fetch_manager = bulk_cache_manager()
+                fetched_path = fetch_manager.ensure(entry)
+            else:
+                fetch_manager = None
+                fetched_path = _stream_to_tempfile(target_url, headers)
+                validate_payload_or_raise(fetched_path)
+        except BulkDownloadChallengeError as e:
+            # Complete the register_bulk_file call the message prints: the
+            # dataset lets offline reads find the file, and the version token
+            # lets online reads keep it until OECD republishes.
+            e.dataset = _bulk_dataset_name(flow_url, label)
+            e.version = target_version
+            raise
 
         return fetch_manager, fetched_path, target_key
 
     try:
         manager, payload_path, url_key = _fetch(url, version)
-    except BulkDownloadChallengeError as e:
-        # Complete the register_bulk_file call the message prints: the
-        # dataset lets offline reads find the file, and the version token
-        # lets online reads keep it until OECD republishes.
-        e.dataset = _bulk_dataset_name(flow_url, label)
-        e.version = version
-        raise
     except BulkDownloadHTTPError as e:
         if e.status_code != 404 or flow_url is None or label is None:
             raise
@@ -1542,9 +1545,11 @@ def register_bulk_file(
     """Put a bulk file downloaded outside oda-reader into the bulk cache.
 
     Use this when OECD's Cloudflare front end challenges a bulk download
-    (`BulkDownloadChallengeError`): download the file in a browser, then
+    (`BulkDownloadChallengeError`). Download the file in a browser, then
     register it. The entry is stored under the key a download of `url`
-    would use, never expires, and is exempt from LRU eviction.
+    would use, never expires, and is exempt from LRU eviction. Register soon
+    after the browser download, or pass the `version` the challenge error
+    printed.
 
     With `dataset`, the matching bulk reader (for example `bulk_download_crs`
     for `"crs"`) reads the file with `offline=True` and no network request.

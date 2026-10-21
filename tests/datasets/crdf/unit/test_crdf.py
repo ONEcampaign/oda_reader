@@ -63,10 +63,10 @@ def workbook_for(tmp_path):
 def live_folder(monkeypatch):
     """Serve the listing snapshots and let _fetch return fixture workbooks."""
 
-    def fake_get(url, headers, *, force_refresh=False):
-        return 200, (FIXTURES / LISTINGS[url]).read_text(encoding="utf-8"), False
+    def fake_get(url):
+        return 200, (FIXTURES / LISTINGS[url]).read_text(encoding="utf-8")
 
-    monkeypatch.setattr(crdf, "get_response_text", fake_get)
+    monkeypatch.setattr(crdf, "_get_listing", fake_get)
 
 
 def test_schema_layouts_and_fixtures_cover_each_other():
@@ -249,9 +249,12 @@ def test_listing_resolves_both_perspectives(live_folder):
     ],
 )
 def test_narrowest_file_holds_each_year(live_folder, perspective, start, end, expected):
-    files, _, _ = crdf._files_for_years(list_crdf_files(), perspective, start, end)
+    files = crdf._files_for_years(list_crdf_files(), perspective, start, end)
 
     assert files["name"].tolist() == expected
+    assert sorted(y for years in files["years"] for y in years) == list(
+        range(start, end + 1)
+    )
 
 
 def test_narrower_file_wins_over_a_wider_one_that_sorts_first():
@@ -264,17 +267,17 @@ def test_narrower_file_wins_over_a_wider_one_that_sorts_first():
         }
     )
 
-    files, _, _ = crdf._files_for_years(listing, "recipient", 2015, 2015)
+    files = crdf._files_for_years(listing, "recipient", 2015, 2015)
 
     assert files["name"].tolist() == ["CRDF-RP_2015.xlsx"]
 
 
 def test_default_years_skip_the_all_years_file(live_folder):
-    files, start, end = crdf._files_for_years(
-        list_crdf_files(), "recipient", None, None
-    )
+    files = crdf._files_for_years(list_crdf_files(), "recipient", None, None)
 
-    assert (start, end) == (2000, 2024)
+    assert sorted(y for years in files["years"] for y in years) == list(
+        range(2000, 2025)
+    )
     assert "CRDF-RP_all_years_2000-2024.xlsx" not in files["name"].tolist()
 
 
@@ -302,6 +305,55 @@ def test_download_reads_each_resolved_file(live_folder, monkeypatch, workbook_fo
     assert df["year"].tolist() == [2015]
     assert df["file_etag"].tolist() == ['"etag-1"']
     assert df["source_file"].tolist() == ["CRDF-RP_2014-2015.xlsx"]
+
+
+def test_overlapping_workbooks_each_contribute_only_their_years(
+    monkeypatch, workbook_for
+):
+    listing = pd.DataFrame(
+        {
+            "name": ["CRDF-RP_2014-2015.xlsx", "CRDF-RP_2015.xlsx"],
+            "perspective": ["recipient", "recipient"],
+            "start_year": pd.array([2014, 2015], dtype="Int32"),
+            "end_year": pd.array([2015, 2015], dtype="Int32"),
+            "url": ["https://webfs.oecd.org/a.xlsx", "https://webfs.oecd.org/b.xlsx"],
+        }
+    )
+    path = workbook_for("recipient_2026")  # one row each for 2014 and 2015
+    monkeypatch.setattr(crdf, "list_crdf_files", lambda: listing)
+    monkeypatch.setattr(crdf, "_fetch", lambda url: (path, None))
+
+    df = download_crdf("recipient", start_year=2014, end_year=2015)
+
+    assert df["year"].tolist() == [2014, 2015]
+    assert df["source_file"].tolist() == [
+        "CRDF-RP_2014-2015.xlsx",
+        "CRDF-RP_2015.xlsx",
+    ]
+
+
+def test_empty_folder_listing_raises_schema_error(monkeypatch):
+    monkeypatch.setattr(crdf, "_get_listing", lambda url: (200, "<html>moved</html>"))
+
+    with pytest.raises(CRDFSchemaError) as info:
+        list_crdf_files()
+
+    assert info.value.source == crdf.CRDF_URL
+
+
+def test_listing_request_has_a_timeout(monkeypatch):
+    seen = {}
+
+    def fake_get_same_origin(getter, url, headers, **kwargs):
+        seen.update(kwargs)
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(crdf, "_get_same_origin", fake_get_same_origin)
+
+    with pytest.raises(RuntimeError):
+        crdf._get_listing(crdf.CRDF_URL)
+
+    assert seen["timeout"] == (10, 30)
 
 
 def test_download_file_saves_into_a_directory(live_folder, monkeypatch, tmp_path):

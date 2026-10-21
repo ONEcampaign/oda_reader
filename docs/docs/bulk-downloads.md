@@ -490,8 +490,10 @@ copies it into the bulk file cache and returns the cached path. You can
 delete the download afterwards. The registered copy does not expire and is
 not evicted. Online reads keep serving it until OECD publishes a new
 version of the file. `bulk_download_crs(offline=True)` reads it with no
-network request at all. See [Registered files](caching.md#registered-files)
-and [Reading offline](caching.md#reading-offline).
+network request. A CRS year file registers with `url=` and reads
+offline through `bulk_download_parquet(url=..., offline=True)`. See
+[Registered files](caching.md#registered-files) and
+[Reading offline](caching.md#reading-offline).
 
 `dataset` takes one of these names:
 

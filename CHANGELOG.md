@@ -15,10 +15,11 @@
   while the file host's version token matches the one recorded, or cannot be read, and download
   a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
   `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`.
-- **Adds `offline=True` to every bulk reader and to `bulk_download_parquet()`.** The reader makes
-  no network request and reads the cached or registered copy whatever its age. With nothing
-  cached it raises the new `BulkFileNotCachedError`, a `ConnectionError`, which prints the
-  `register_bulk_file` call.
+- **Adds `offline=True` to `bulk_download_crs()`, the DAC1, DAC2a, DAC2b and multisystem bulk
+  readers, and `bulk_download_parquet()`.** The reader makes no network request and reads the
+  cached or registered copy whatever its age. With nothing cached it raises the new
+  `BulkFileNotCachedError`, which prints the `register_bulk_file` call. A CRS year file
+  registers with `url=` and reads offline through `bulk_download_parquet(url=..., offline=True)`.
 - **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
   browser and the `register_bulk_file` call that registers it, including the version token the
   reader saw. The error gains `filename`, `dataset` and `version` attributes.
