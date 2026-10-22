@@ -120,27 +120,13 @@ def test_crs_area_mapping_spot_values() -> None:
 
 
 @pytest.mark.unit
-def test_map_area_codes_inverts_mapping() -> None:
-    """map_area_codes inverts {dac_int: iso3} to {iso3: dac_int} and maps the column."""
-    from oda_reader.schemas.dac1_translation import area_code_mapping
+def test_map_area_codes_uses_lookup() -> None:
+    """map_area_codes maps the column through an {API code: .Stat code} lookup."""
     from oda_reader.schemas.schema_tools import map_area_codes
 
-    m = area_code_mapping()
-    df = _area_frame(["AUT"])
-    result = map_area_codes(df, area_code_mapping=m)
+    df = _area_frame(["AAA"])
+    result = map_area_codes(df, area_code_lookup={"AAA": 1})
     assert int(result["donor_code"].iloc[0]) == 1
-
-
-@pytest.mark.unit
-def test_map_area_codes_australia() -> None:
-    """Australia (AUS → 801) must map correctly."""
-    from oda_reader.schemas.dac1_translation import area_code_mapping
-    from oda_reader.schemas.schema_tools import map_area_codes
-
-    m = area_code_mapping()
-    df = _area_frame(["AUS"])
-    result = map_area_codes(df, area_code_mapping=m)
-    assert int(result["donor_code"].iloc[0]) == 801
 
 
 @pytest.mark.unit
@@ -160,15 +146,13 @@ def test_map_amount_type_codes_prices() -> None:
 @pytest.mark.unit
 def test_map_area_codes_recipient_column() -> None:
     """map_area_codes with source/target=recipient_code maps recipients correctly."""
-    from oda_reader.schemas.crs_translation import area_code_mapping
     from oda_reader.schemas.schema_tools import map_area_codes
 
-    m = area_code_mapping()
-    df = _recipient_frame(["AUT"], ["AUS"])
+    df = _recipient_frame(["AAA"], ["BBB"])
     result = map_area_codes(
         df,
-        area_code_mapping=m,
+        area_code_lookup={"AAA": 1, "BBB": 2},
         source_column="recipient_code",
         target_column="recipient_code",
     )
-    assert int(result["recipient_code"].iloc[0]) == 801
+    assert int(result["recipient_code"].iloc[0]) == 2

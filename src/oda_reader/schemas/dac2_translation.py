@@ -4,7 +4,11 @@ import pandas as pd
 
 from oda_reader.common import ImporterPaths
 from oda_reader.schemas.dac1_translation import prices_mapping
-from oda_reader.schemas.schema_tools import map_amount_type_codes, map_area_codes
+from oda_reader.schemas.schema_tools import (
+    build_area_code_lookup,
+    map_amount_type_codes,
+    map_area_codes,
+)
 from oda_reader.schemas.xml_tools import read_mapping
 
 MAPPINGS = {
@@ -25,6 +29,14 @@ def area_code_mapping() -> dict:
     )
 
 
+def area_code_lookup() -> dict[str, int]:
+    """Reads the {API code: .Stat code} area code lookup."""
+    return build_area_code_lookup(
+        area_code_mapping(),
+        corrections=read_mapping(MAPPINGS["area_code_corrections"], keys_as_int=True),
+    )
+
+
 def convert_dac2_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
     """Convert the DAC2 data (DAC2A or DAC2B) to the .stat schema.
 
@@ -37,14 +49,14 @@ def convert_dac2_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         The data in the .stat schema.
     """
-    area_codes = area_code_mapping()
+    area_codes = area_code_lookup()
     prices_codes = prices_mapping()
 
-    df = map_area_codes(df, area_code_mapping=area_codes)
+    df = map_area_codes(df, area_code_lookup=area_codes)
 
     df = map_area_codes(
         df,
-        area_code_mapping=area_codes,
+        area_code_lookup=area_codes,
         source_column="recipient_code",
         target_column="recipient_code",
     )
