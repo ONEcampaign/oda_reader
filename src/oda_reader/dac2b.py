@@ -1,16 +1,18 @@
+import logging
 import typing
 from pathlib import Path
 
 import pandas as pd
 
 from oda_reader._cache import cache_info
-from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     DAC2B_FLOW_URL,
     bulk_download_parquet,
     download,
     get_bulk_file_url_with_version,
 )
+
+logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2B"
 # Default version; actual version is discovered dynamically on fallback

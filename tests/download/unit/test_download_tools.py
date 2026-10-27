@@ -14,6 +14,7 @@ import requests
 
 from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
 from oda_reader._cache.manager import CacheManager
+from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
 from oda_reader.download.download_tools import (
     _WARNED_REVALIDATION_URLS,
@@ -1270,7 +1271,7 @@ class TestFetchRevalidationToken:
         response = self._response(mocker, 200, headers={})
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1287,7 +1288,7 @@ class TestFetchRevalidationToken:
         response = self._response(mocker, status_code, headers={"ETag": '"abc123"'})
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1301,7 +1302,7 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1320,7 +1321,7 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1329,10 +1330,16 @@ class TestFetchRevalidationToken:
         response.iter_content.assert_not_called()
 
     def test_500_returns_none_and_warning_names_status(self, mocker, caplog):
+        """Captured through the deprecated `oda_importer` name, which receives
+        the package's records until 2.0."""
         response = self._response(mocker, 500, headers={})
         self._session(mocker, response)
+        _warn_once.cache_clear()
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with (
+            pytest.warns(DeprecationWarning, match="oda_reader"),
+            caplog.at_level(logging.WARNING, logger="oda_importer"),
+        ):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1347,7 +1354,7 @@ class TestFetchRevalidationToken:
         )
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1434,7 +1441,7 @@ class TestFetchRevalidationToken:
         )
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
 
-        with caplog.at_level(logging.DEBUG, logger="oda_importer"):
+        with caplog.at_level(logging.DEBUG, logger="oda_reader"):
             _fetch_revalidation_token(self._URL)
             _fetch_revalidation_token(self._URL)
 

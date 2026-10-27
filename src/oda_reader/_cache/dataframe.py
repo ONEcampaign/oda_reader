@@ -27,7 +27,7 @@ from oda_reader._cache.config import (
     register_cache_dir_change_listener,
 )
 
-logger = logging.getLogger("oda_reader")
+logger = logging.getLogger(__name__)
 
 
 def _make_cache_key(

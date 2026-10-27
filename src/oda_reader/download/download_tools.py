@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import io
+import logging
 import os
 import re
 import shutil
@@ -30,7 +31,6 @@ from oda_reader.common import (
     _get_response_content,
     _get_response_text,
     api_response_to_df,
-    logger,
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import discover_latest_version
@@ -55,6 +55,8 @@ from oda_reader.schemas.schema_tools import (
     preprocess,
     read_schema_translation,
 )
+
+logger = logging.getLogger(__name__)
 
 BASE_DATAFLOW = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD/"
 CRS_FLOW_URL = BASE_DATAFLOW + "DSD_CRS@DF_CRS/"

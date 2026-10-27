@@ -39,9 +39,7 @@ __all__ = [
     "text_to_stringio",
 ]
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
-logger = logging.getLogger("oda_importer")
+logger = logging.getLogger(__name__)
 
 # Error message patterns that indicate a dataflow/version not found error
 # These should trigger a version discovery retry

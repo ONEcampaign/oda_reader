@@ -10,6 +10,7 @@ else raises ``CRDFSchemaError``.
 import difflib
 import functools
 import json
+import logging
 import re
 import shutil
 from collections.abc import Iterator
@@ -32,7 +33,7 @@ from oda_reader._http_primitives import (
     _get_http_session,
     _get_same_origin,
 )
-from oda_reader.common import ImporterPaths, logger
+from oda_reader.common import ImporterPaths
 from oda_reader.download.download_tools import (
     _bulk_cache_key,
     _fetch_revalidation_validator,
@@ -40,6 +41,8 @@ from oda_reader.download.download_tools import (
     _stream_to_file,
 )
 from oda_reader.exceptions import BulkDownloadHTTPError, CRDFSchemaError
+
+logger = logging.getLogger(__name__)
 
 CRDF_URL = "https://webfs.oecd.org/climate/"
 
