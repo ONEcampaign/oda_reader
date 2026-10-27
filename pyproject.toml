@@ -1,6 +1,6 @@
 [project]
 name = "oda_reader"
-version = "1.14.0rc1"
+version = "1.14.0"
 description = "A simple package to import ODA data from the OECD's API and AidData's database"
 readme = "README.md"
 license = "MIT"
@@ -144,6 +144,7 @@ convention = "google"
 "src/oda_reader/_cache/*.py" = ["PLW0603"]
 "src/oda_reader/common.py" = ["PLW0603"]
 "src/oda_reader/_http_primitives.py" = ["PLW0603"]
+"src/oda_reader/download/version_discovery.py" = ["PLW0603"]
 # Allow try-except without from (external libraries may not support cause chaining)
 "src/oda_reader/download/download_tools.py" = ["B904"]
 # Allow camelcase import in tools (QueryBuilder is the standard name)

@@ -366,7 +366,7 @@ enable_http_cache()
 
 ### Clear version discovery cache
 
-ODA Reader caches discovered dataflow versions in-process. If the OECD publishes a new version mid-session:
+ODA Reader caches each resolved dataflow version and its dimension order in-process. An explicit version stays for the life of the process and the latest version for one day. To see a version the OECD published within the last two days, clear the cache:
 
 ```python
 from oda_reader import clear_version_cache
@@ -374,7 +374,7 @@ from oda_reader import clear_version_cache
 clear_version_cache()
 ```
 
-This forces a fresh metadata lookup on the next query.
+The next lookup of each dataflow after the call skips the HTTP cache and reaches the OECD, including for a dataflow the process has not looked up yet. Without the call, a latest-version lookup is refreshed after one day, and the HTTP cache keeps a lookup of an explicit version for seven.
 
 ### Clear HTTP cache only
 

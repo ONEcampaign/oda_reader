@@ -25,7 +25,7 @@ print(filter_string)
 # Output: USA._Z.1010..1140..
 ```
 
-This filter string can be used to manually construct API URLs.
+This filter string can be used to manually construct API URLs. Standalone, `QueryBuilder` orders the key by the dimension order of each table's latest data structure at release time. The `download_*` functions pass the order of the version they resolve, so the same filters give the right key for any version. To follow a specific order yourself, pass `dimensions=("DONOR", "SECTOR", ...)` to the constructor.
 
 **When to use QueryBuilder directly**:
 
@@ -44,21 +44,26 @@ Each method returns a filter string suitable for the SDMX API.
 
 ## Dataflow version handling
 
-OECD occasionally changes dataflow versions (schema updates). ODA Reader handles this automatically with version discovery.
+Without `dataflow_version`, ODA Reader reads the latest published version of the dataflow. The OECD keeps superseded versions online with their data frozen, so a pinned old version still answers with a 200 and silently lacks the newest year.
 
 ### Automatic version discovery
 
-When a dataflow version returns an error (not found), ODA Reader automatically queries the OECD's SDMX metadata endpoint to discover the latest published version and retries with it:
+The first query for a dataflow in a process looks up its metadata, with the data structure, from the OECD SDMX endpoint. The response names the latest version and lists that version's key dimensions in order. ODA Reader logs the version it reads at INFO level, for example `Reading dataflow DSD_DAC1@DF_DAC1 version 1.8.`
 
-1. Tries the configured default version
-1. If not found, queries the metadata endpoint for the authoritative latest version
-1. Retries once with the discovered version
+ODA Reader repeats the latest-version lookup after a day, and the HTTP cache keeps a latest-version response for one day. A new release therefore shows up within two days of publication, including in a notebook or server that runs for days. An explicit version is looked up once per process.
 
-If the new version changes the number of key dimensions, ODA Reader raises a `ConnectionError` and asks you to upgrade `oda_reader`. Otherwise it continues with the discovered version, and you see a log message indicating which version was discovered.
+ODA Reader builds the query key from that structure. It maps each filter to its dimension ID (`DONOR`, `SECTOR`, `MEASURE`, and so on) and places the value at the position the structure gives that ID. Versions that reorder dimensions need no code change. DSD_DAC1 1.5 and 1.8 have the same seven dimensions in a different order, and each gets a correct key.
+
+A filter and a version's dimensions can disagree in two ways:
+
+- A filter on a dimension the version lacks raises a `ValueError` naming the dimension, the dataflow and the version.
+- A dimension that ODA Reader has no filter for is read unfiltered, and a warning names it. An unfiltered dimension can carry a total code, so sums over the result may double-count.
+
+If the metadata request fails and nothing is cached, ODA Reader raises a `ConnectionError`.
 
 ### Clearing the version cache
 
-Discovered versions are cached in-process so repeated queries don't trigger extra metadata lookups. If the OECD publishes a new dataflow version mid-session, you can force re-discovery:
+Resolved versions are cached in-process so repeated queries don't trigger extra metadata lookups. To see a dataflow version the OECD published within the last two days, force a fresh lookup:
 
 ```python
 from oda_reader import clear_version_cache
@@ -66,9 +71,11 @@ from oda_reader import clear_version_cache
 clear_version_cache()
 ```
 
+The next lookup of each dataflow after the call skips the HTTP cache and reaches the OECD, including for a dataflow the process has not looked up yet. Later lookups use the caches as usual.
+
 ### Manual version override
 
-You can specify an exact dataflow version:
+Pin an exact dataflow version with `dataflow_version`:
 
 ```python
 from oda_reader import download_dac1
@@ -76,14 +83,18 @@ from oda_reader import download_dac1
 data = download_dac1(
     start_year=2022,
     end_year=2022,
-    dataflow_version="1.7"
+    dataflow_version="1.5"
 )
 ```
 
+A pinned version gets the same treatment as the latest. ODA Reader reads that version's data structure and builds the key from it.
+
 **When to override**:
 
-- You know the correct version for reproducibility
-- Debugging version-specific issues
+- You need the same version for reproducibility
+- You are debugging version-specific issues
+
+If the OECD does not publish the pinned version, a `ConnectionError` says the dataflow has no such version and that omitting `dataflow_version` reads the latest.
 
 **Available for**:
 
@@ -92,6 +103,7 @@ data = download_dac1(
 - `download_dac2b(dataflow_version=...)`
 - `download_crs(dataflow_version=...)`
 - `download_multisystem(dataflow_version=...)`
+- `download_cpa(dataflow_version=...)`
 
 ## API version differences
 

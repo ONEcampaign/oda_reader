@@ -500,6 +500,16 @@ def _mock_fetch_codelist(
     return _envelope("Test", *items.get(codelist_id, []))
 
 
+def _fake_mappings(tmp_path: Path, corrections: dict[str, str] | None = None) -> Path:
+    """A temporary mappings folder holding an area_code_corrections.json."""
+    fake_mappings = tmp_path / "mappings"
+    fake_mappings.mkdir()
+    (fake_mappings / "area_code_corrections.json").write_text(
+        json.dumps(corrections or {}), encoding="utf-8"
+    )
+    return fake_mappings
+
+
 @pytest.mark.unit
 def test_run_prints_diff_when_different(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
@@ -507,8 +517,7 @@ def test_run_prints_diff_when_different(
     """run() should print a unified diff when proposed != existing."""
     import scripts.data_maintenance.refresh_dac_codelists as mod
 
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
     # Start with a committed file that differs from what the mock fetch would produce
     (fake_mappings / "dac1_codes_area.json").write_text(
         '{"1": "OLD"}\n', encoding="utf-8"
@@ -536,8 +545,7 @@ def test_run_no_changes_when_identical(
 
     monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
 
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
 
     # Build what the tool would write for this mock:
     # committed = {"1": "AUT"} (from mock codelist 5), live also yields "1"→"AUT",
@@ -570,8 +578,7 @@ def test_run_check_returns_1_on_drift(
     """--check must exit non-zero when the live source differs from committed."""
     import scripts.data_maintenance.refresh_dac_codelists as mod
 
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
     (fake_mappings / "dac1_codes_area.json").write_text(
         '{"1": "OLD"}\n', encoding="utf-8"
     )
@@ -592,8 +599,7 @@ def test_run_check_returns_0_when_in_sync(
     import scripts.data_maintenance.refresh_dac_codelists as mod
 
     monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
 
     live5 = parse_area_codelist(_mock_fetch_codelist("5"))
     live13 = parse_area_codelist(_mock_fetch_codelist("13"))
@@ -619,8 +625,7 @@ def test_run_write_updates_file(
     monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
     monkeypatch.setattr(mod, "_PROVENANCE_PATH", tmp_path / "_provenance.json")
 
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
     (fake_mappings / "dac1_codes_area.json").write_text(
         '{"1": "OLD"}\n', encoding="utf-8"
     )
@@ -650,8 +655,7 @@ def test_run_write_no_drift_leaves_provenance_untouched(
 
     monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
 
-    fake_mappings = tmp_path / "mappings"
-    fake_mappings.mkdir()
+    fake_mappings = _fake_mappings(tmp_path)
 
     live5 = parse_area_codelist(_mock_fetch_codelist("5"))
     live13 = parse_area_codelist(_mock_fetch_codelist("13"))
@@ -683,6 +687,113 @@ def test_run_write_no_drift_leaves_provenance_untouched(
     # date.today() differs from the stale committed date, but since there was
     # no drift in the area mappings, the sidecar must be left byte-identical.
     assert provenance_path.read_bytes() == before
+
+
+# ---------------------------------------------------------------------------
+# Area-code clashes (no network)
+# ---------------------------------------------------------------------------
+
+# The mock codelists give "1" -> "AUT". A committed "20" -> "AUT" makes two
+# .Stat codes share one API code in the proposed map.
+_CLASHING_COMMITTED = '{"20": "AUT"}\n'
+
+
+@pytest.mark.unit
+def test_run_reports_clash_and_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """An undecided clash returns 1, names the API code, and writes no file."""
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
+    provenance_path = tmp_path / "_provenance.json"
+    monkeypatch.setattr(mod, "_PROVENANCE_PATH", provenance_path)
+
+    fake_mappings = _fake_mappings(tmp_path)
+    area_path = fake_mappings / "dac1_codes_area.json"
+    area_path.write_text(_CLASHING_COMMITTED, encoding="utf-8")
+    before = area_path.read_bytes()
+    monkeypatch.setattr(mod.ImporterPaths, "mappings", fake_mappings)
+
+    rc = run(settings=RefreshSettings(target="dac1", write=True))
+
+    assert rc == 1
+    assert "clash: API code AUT has .Stat codes [1, 20]" in capsys.readouterr().err
+    assert area_path.read_bytes() == before
+    assert not provenance_path.exists()
+
+
+@pytest.mark.unit
+def test_run_check_returns_1_on_clash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--check returns 1 on an undecided clash and leaves the file untouched."""
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
+
+    fake_mappings = _fake_mappings(tmp_path)
+    area_path = fake_mappings / "dac1_codes_area.json"
+    area_path.write_text(_CLASHING_COMMITTED, encoding="utf-8")
+    before = area_path.read_bytes()
+    monkeypatch.setattr(mod.ImporterPaths, "mappings", fake_mappings)
+
+    rc = run(settings=RefreshSettings(target="dac1", check=True))
+
+    assert rc == 1
+    assert area_path.read_bytes() == before
+
+
+@pytest.mark.unit
+def test_run_clash_in_one_target_blocks_every_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A clash in one target leaves every area file and the provenance untouched."""
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
+    provenance_path = tmp_path / "_provenance.json"
+    provenance_path.write_text('{"codelist_last_changed_date": "2020-01-01"}\n')
+    monkeypatch.setattr(mod, "_PROVENANCE_PATH", provenance_path)
+
+    fake_mappings = _fake_mappings(tmp_path)
+    dac1_path = fake_mappings / "dac1_codes_area.json"
+    dac2_path = fake_mappings / "dac2_codes_area.json"
+    # dac1 has drift but no clash; dac2 clashes.
+    dac1_path.write_text('{"1": "OLD"}\n', encoding="utf-8")
+    dac2_path.write_text(_CLASHING_COMMITTED, encoding="utf-8")
+    before = {
+        path: path.read_bytes() for path in (dac1_path, dac2_path, provenance_path)
+    }
+    monkeypatch.setattr(mod.ImporterPaths, "mappings", fake_mappings)
+
+    rc = run(settings=RefreshSettings(write=True))
+
+    assert rc == 1
+    assert {path: path.read_bytes() for path in before} == before
+
+
+@pytest.mark.unit
+def test_run_correction_resolves_clash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A correction picking one of the shared .Stat codes lets the write go through."""
+    import scripts.data_maintenance.refresh_dac_codelists as mod
+
+    monkeypatch.setattr(mod, "fetch_codelist_json", _mock_fetch_codelist)
+    monkeypatch.setattr(mod, "_PROVENANCE_PATH", tmp_path / "_provenance.json")
+
+    fake_mappings = _fake_mappings(tmp_path, corrections={"1": "AUT"})
+    area_path = fake_mappings / "dac1_codes_area.json"
+    area_path.write_text(_CLASHING_COMMITTED, encoding="utf-8")
+    monkeypatch.setattr(mod.ImporterPaths, "mappings", fake_mappings)
+
+    rc = run(settings=RefreshSettings(target="dac1", write=True))
+
+    assert rc == 0
+    written = json.loads(area_path.read_text())
+    assert written["1"] == "AUT"
+    assert written["20"] == "AUT"
 
 
 @pytest.mark.unit

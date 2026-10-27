@@ -1,8 +1,10 @@
-"""Dynamic dataflow version discovery via the OECD SDMX metadata endpoint.
+"""Dataflow resolution via the OECD SDMX metadata endpoint.
 
-This module queries the authoritative SDMX metadata API to determine the
-latest published version of a dataflow, replacing the blind version-decrement
-fallback strategy.
+One request per dataflow, ``{host}dataflow/OECD.DCD.FSD/{dataflow_id}/{version}
+?references=datastructure``, returns the dataflow's version and the data
+structure it references. :func:`resolve_dataflow` reads both, so a caller
+knows which version it is reading and the order of that version's key
+dimensions.
 
 HTTP calls are made through the project's shared requests-cache session and
 are subject to the global rate limiter — both sourced from _http_primitives
@@ -11,66 +13,220 @@ to avoid a circular import with common.py.
 
 import logging
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from time import monotonic
 
-from oda_reader._http_primitives import _get_http_session, get_response_text
+from oda_reader._http_primitives import get_response_text
 
 logger = logging.getLogger(__name__)
 
-METADATA_BASE_URL = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
-DSD_BASE_URL = "https://sdmx.oecd.org/public/rest/datastructure/OECD.DCD.FSD"
-
-# In-process cache: dataflow_id -> version string
-_version_cache: dict[str, str] = {}
+AGENCY_ID = "OECD.DCD.FSD"
+PUBLIC_REST_HOST = "https://sdmx.oecd.org/public/rest/"
+DCD_PUBLIC_REST_HOST = "https://sdmx.oecd.org/dcd-public/rest/"
 
 
-def _build_metadata_url(dataflow_id: str) -> str:
-    """Construct the SDMX metadata URL for a given dataflow ID.
+@dataclass(frozen=True)
+class DataflowStructure:
+    """A resolved dataflow version and its key dimensions.
 
-    Args:
+    Attributes:
         dataflow_id: The SDMX dataflow identifier, e.g. ``DSD_DAC1@DF_DAC1``.
-
-    Returns:
-        str: The full metadata URL.
+        version: The dataflow version the server resolved, e.g. ``"1.8"``.
+        dimensions: Key dimension IDs in key position order, excluding the
+            time dimension.
     """
-    return f"{METADATA_BASE_URL}/{dataflow_id}/latest"
+
+    dataflow_id: str
+    version: str
+    dimensions: tuple[str, ...]
 
 
-def _parse_version_from_xml(xml_text: str) -> str:
-    """Extract the version attribute from SDMX Dataflow XML.
+# A latest lookup is re-resolved after a day, matching its HTTP cache expiry,
+# so a long-lived process sees a new release.
+_LATEST_TTL_SECONDS = 86400
 
-    Iterates over all elements looking for the one whose local name is
-    ``Dataflow`` and returns its ``version`` attribute.  The search is
-    namespace-agnostic so it works regardless of the XML namespace prefix
-    used by the server.
+# In-process cache: (dataflow_id, requested version or None for latest) to
+# the structure and the monotonic time it was resolved.
+_structure_cache: dict[tuple[str, str | None], tuple[DataflowStructure, float]] = {}
+
+# Set by clear_version_cache. The first lookup of each key after the clear
+# bypasses the HTTP cache. A key resolved since then is in _structure_cache.
+_bypass_http_cache_until_resolved = False
+
+
+def sdmx_rest_host(dataflow_id: str) -> str:
+    """Return the SDMX REST root that serves a dataflow's data and structure.
+
+    CRS, CPA and Multisystem dataflows live on the ``dcd-public`` host. The
+    ``public`` host returns their dataflows without the data structure and
+    serves no data for them.
 
     Args:
-        xml_text: Raw XML response text from the metadata endpoint.
+        dataflow_id: The SDMX dataflow identifier, e.g. ``DSD_CRS@DF_CRS``.
 
     Returns:
-        str: The version string, e.g. ``"1.7"``.
-
-    Raises:
-        ValueError: If no Dataflow element with a version attribute is found.
+        str: The REST root, ending in ``/``.
     """
-    root = ET.fromstring(xml_text)
-    for element in root.iter():
-        local_name = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-        if local_name == "Dataflow" and "version" in element.attrib:
-            return element.attrib["version"]
-    raise ValueError(
-        "No <Dataflow version='...'> element found in SDMX metadata response."
+    if "CRS" in dataflow_id or "MULTI" in dataflow_id:
+        return DCD_PUBLIC_REST_HOST
+    return PUBLIC_REST_HOST
+
+
+def _build_metadata_url(dataflow_id: str, version: str | None) -> str:
+    """Return the dataflow URL that also returns the referenced data structure."""
+    return (
+        f"{sdmx_rest_host(dataflow_id)}dataflow/{AGENCY_ID}/{dataflow_id}"
+        f"/{version or 'latest'}?references=datastructure"
     )
 
 
+def _local_name(element: ET.Element) -> str:
+    """Return an element's tag without its XML namespace."""
+    return element.tag.rpartition("}")[2]
+
+
+def _find(parent: ET.Element, name: str, **attrib: str) -> ET.Element | None:
+    """Return the first descendant with local name *name* and attributes *attrib*."""
+    for element in parent.iter():
+        if _local_name(element) == name and all(
+            element.get(key) == value for key, value in attrib.items()
+        ):
+            return element
+    return None
+
+
+def _parse_dataflow_structure(xml_text: str, dataflow_id: str) -> DataflowStructure:
+    """Read the dataflow version and its key dimensions from a metadata response.
+
+    The dimensions come from the ``DimensionList`` of the data structure the
+    dataflow's ``Structure/Ref`` names. ``Dimension`` elements elsewhere (for
+    example inside ``AttributeRelationship``) refer to dimensions and are
+    ignored.
+
+    Args:
+        xml_text: SDMX-ML 2.1 structure message.
+        dataflow_id: The dataflow requested, used to find it and in errors.
+
+    Returns:
+        DataflowStructure: The dataflow version and ordered dimension IDs.
+
+    Raises:
+        ValueError: If the XML is malformed, or lacks the dataflow, its data
+            structure, or key dimensions with ``id`` and ``position``.
+    """
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as error:
+        raise ValueError(
+            f"Metadata response for dataflow '{dataflow_id}' is not valid XML."
+        ) from error
+
+    dataflow = _find(root, "Dataflow", id=dataflow_id)
+    if dataflow is None or "version" not in dataflow.attrib:
+        raise ValueError(
+            f"Metadata response has no versioned dataflow '{dataflow_id}'."
+        )
+    version = dataflow.attrib["version"]
+
+    structure = _find(dataflow, "Structure")
+    ref = _find(structure, "Ref") if structure is not None else None
+    if ref is None or "id" not in ref.attrib or "version" not in ref.attrib:
+        raise ValueError(f"Dataflow '{dataflow_id}' {version} names no data structure.")
+
+    dsd = _find(
+        root, "DataStructure", id=ref.attrib["id"], version=ref.attrib["version"]
+    )
+    dimension_list = _find(dsd, "DimensionList") if dsd is not None else None
+    if dimension_list is None:
+        raise ValueError(
+            f"Metadata response for dataflow '{dataflow_id}' {version} lacks the "
+            f"dimensions of data structure '{ref.attrib['id']}' "
+            f"{ref.attrib['version']}."
+        )
+
+    positioned: list[tuple[int, str]] = []
+    for element in dimension_list:
+        if _local_name(element) != "Dimension":
+            continue
+        if "id" not in element.attrib or "position" not in element.attrib:
+            raise ValueError(
+                f"Data structure '{ref.attrib['id']}' {ref.attrib['version']} of "
+                f"dataflow '{dataflow_id}' has a dimension without an id or position."
+            )
+        positioned.append((int(element.attrib["position"]), element.attrib["id"]))
+
+    if not positioned:
+        raise ValueError(
+            f"Data structure '{ref.attrib['id']}' {ref.attrib['version']} of "
+            f"dataflow '{dataflow_id}' has no key dimensions."
+        )
+
+    return DataflowStructure(
+        dataflow_id=dataflow_id,
+        version=version,
+        dimensions=tuple(dimension_id for _, dimension_id in sorted(positioned)),
+    )
+
+
+def resolve_dataflow(dataflow_id: str, version: str | None = None) -> DataflowStructure:
+    """Resolve a dataflow version and the order of its key dimensions.
+
+    Results are cached in-process by ``(dataflow_id, version)``. An explicit
+    version stays for the life of the process and the latest for one day. The HTTP
+    cache keeps a ``latest`` lookup for one day and an explicit-version lookup
+    for seven. Call :func:`clear_version_cache` to see a release published
+    within the day.
+
+    Args:
+        dataflow_id: The SDMX dataflow identifier, e.g. ``DSD_DAC1@DF_DAC1``.
+        version: The dataflow version to read, e.g. ``"1.5"``. ``None`` reads
+            the latest published version.
+
+    Returns:
+        DataflowStructure: The resolved version and its dimension IDs in key
+        position order.
+
+    Raises:
+        ConnectionError: If the metadata endpoint returns a non-2xx status,
+            including a 404 for an explicit version the OECD does not publish.
+        ValueError: If the response lacks the dataflow or its key dimensions.
+    """
+    key = (dataflow_id, version)
+    cached = _structure_cache.get(key)
+    if cached is not None:
+        structure, resolved_at = cached
+        if version is not None or monotonic() - resolved_at < _LATEST_TTL_SECONDS:
+            return structure
+
+    url = _build_metadata_url(dataflow_id, version)
+    status_code, text, _ = get_response_text(
+        url,
+        headers={},
+        force_refresh=_bypass_http_cache_until_resolved and cached is None,
+    )
+
+    if status_code == 404 and version is not None:
+        raise ConnectionError(
+            f"Dataflow '{dataflow_id}' has no version {version}. Omit "
+            "dataflow_version to read the latest version."
+        )
+    if status_code > 299:
+        raise ConnectionError(
+            f"Metadata endpoint returned HTTP {status_code} for "
+            f"dataflow '{dataflow_id}' version {version or 'latest'}: {text[:200]}"
+        )
+
+    structure = _parse_dataflow_structure(text, dataflow_id)
+    _structure_cache[key] = (structure, monotonic())
+    logger.info(
+        f"Resolved dataflow '{dataflow_id}' {version or 'latest'} to "
+        f"{structure.version}"
+    )
+    return structure
+
+
 def discover_latest_version(dataflow_id: str) -> str:
-    """Query the OECD SDMX metadata endpoint to find the latest dataflow version.
-
-    Results are cached in the module-level ``_version_cache`` dict so that
-    repeated calls for the same dataflow ID within a process session incur
-    only one network round-trip.
-
-    The HTTP call uses the shared requests-cache session (7-day filesystem
-    cache) and the global rate limiter.
+    """Return the latest published version of a dataflow.
 
     Args:
         dataflow_id: The SDMX dataflow identifier, e.g. ``DSD_DAC1@DF_DAC1``.
@@ -80,85 +236,25 @@ def discover_latest_version(dataflow_id: str) -> str:
 
     Raises:
         ConnectionError: If the metadata endpoint returns a non-2xx status.
-        ValueError: If the response XML does not contain a parseable version.
+        ValueError: If the response lacks the dataflow or its key dimensions.
     """
-    if dataflow_id in _version_cache:
-        return _version_cache[dataflow_id]
-
-    url = _build_metadata_url(dataflow_id)
-
-    status_code, text, _ = get_response_text(url, headers={})
-
-    if status_code > 299:
-        raise ConnectionError(
-            f"Metadata endpoint returned HTTP {status_code} for "
-            f"dataflow '{dataflow_id}': {text[:200]}"
-        )
-
-    version = _parse_version_from_xml(text)
-    _version_cache[dataflow_id] = version
-    logger.info(f"Discovered latest version for '{dataflow_id}': {version}")
-    return version
-
-
-def get_dimension_count(dataflow_id: str, version: str) -> int:
-    """Fetch the DSD for a specific version and count key dimensions.
-
-    This excludes the TimeDimension, counting only the dimensions that
-    form the positional filter key.
-
-    Args:
-        dataflow_id: e.g. ``"DSD_DAC1@DF_DAC1"``.
-        version: e.g. ``"1.7"``.
-
-    Returns:
-        int: Number of key dimensions.
-
-    Raises:
-        ConnectionError: If the DSD endpoint is unreachable.
-        ValueError: If no dimensions are found in the response.
-    """
-    # The DSD ID is the part before '@' in the dataflow ID
-    dsd_id = (
-        dataflow_id.split("@", maxsplit=1)[0] if "@" in dataflow_id else dataflow_id
-    )
-    url = f"{DSD_BASE_URL}/{dsd_id}/{version}"
-
-    status_code, text, _ = get_response_text(url, headers={})
-
-    if status_code > 299:
-        raise ConnectionError(
-            f"DSD endpoint returned HTTP {status_code} for "
-            f"'{dsd_id}' version {version}: {text[:200]}"
-        )
-
-    root = ET.fromstring(text)
-    count = 0
-    for element in root.iter():
-        local_name = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-        if local_name == "Dimension":
-            count += 1
-    if count == 0:
-        raise ValueError(f"No dimensions found in DSD '{dsd_id}' version {version}.")
-    return count
+    return resolve_dataflow(dataflow_id).version
 
 
 def clear_version_cache() -> None:
-    """Clear both the in-process version cache and any HTTP-cached metadata.
+    """Clear the in-process dataflow cache and bypass HTTP-cached metadata.
 
-    Call this when you need to force a fresh metadata lookup, for example
-    after a new dataflow version has been published mid-session.
+    After the call, the next lookup of each dataflow and version reaches the
+    OECD, whether or not this process resolved it before. Later lookups use
+    the caches as usual. Call this to see a new dataflow version published
+    within the day.
 
     Example:
         >>> from oda_reader import clear_version_cache
         >>> clear_version_cache()
     """
-    # Evict HTTP-cached metadata responses so the next lookup hits the network.
-    if _version_cache:
-        session = _get_http_session()
-        for dataflow_id in _version_cache:
-            url = _build_metadata_url(dataflow_id)
-            session.cache.delete(urls=[url])
+    global _bypass_http_cache_until_resolved
 
-    _version_cache.clear()
+    _structure_cache.clear()
+    _bypass_http_cache_until_resolved = True
     logger.info("Version discovery cache cleared.")

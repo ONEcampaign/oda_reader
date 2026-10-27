@@ -82,8 +82,8 @@ It accepts a few different arguments:
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
   For this to work, `pre_process` must be true.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 This basic example will get all available data (all donors, all indicators, etc) from 2018 to 2022:
 
@@ -202,8 +202,8 @@ It accepts a few different arguments:
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
   For this to work, `pre_process` must be true.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 This basic example will get all available data (all donors, all recipients, indicators, etc) from 2018 to 2022:
 
@@ -278,8 +278,8 @@ in the docs for the full list. It accepts the same arguments as `download_dac2a(
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
   For this to work, `pre_process` must be true.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 This basic example will get all available data (all donors, all recipients, indicators, etc) from 2018 to 2022:
 
@@ -377,8 +377,8 @@ It accepts a few different arguments:
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.For this to work, `pre_process` must be true.
 - `as_grant_equivalent`: A boolean to specify whether the 'flows' or 'grant equivalent' version of the CRS should be returned.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 **Note** the `download_crs` function defaults to getting 'microdata'. That means project-level data. This is different from the approach taken by the data-explorer online, which shows semi-aggregated data. In order to view semi-aggregates, you can add `microdata: False` to the filters.
 
@@ -607,8 +607,8 @@ The `download_cpa()` function accepts the following arguments:
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed.
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema.
   For this to work, `pre_process` must be true.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 **Note** `download_cpa` defaults to microdata (`microdata=True`, i.e. `MD_DIM=DD`), returning
 project-level CPA records — the same default as `download_crs`.
@@ -648,8 +648,8 @@ It accepts a few different arguments:
 - `pre_process`: A boolean to specify if light cleaning of the data should be performed.
   If true, columns will be renamed to unique, machine readable names, and empty columns will be removed
 - `dotstat_codes`: A boolean to specify if the API response should be translated to the dotstat schema. For this to work, `pre_process` must be true.
-- `dataflow_version`: The specific schema / dataflow version to be used in the API call.
-  This is an advanced parameter and should be used only if necessary to override the default.
+- `dataflow_version`: The dataflow version to read. Defaults to the latest published version.
+  Pass a version string to pin it. The query key is built from that version's data structure.
 
 This API is quite slow, and the data can quickly get quite large. It is recommended to use filters to limit the data returned, or to use the bulk download feature (`bulk_download_multisystem`) to avoid repeated, slow calls to the API.
 

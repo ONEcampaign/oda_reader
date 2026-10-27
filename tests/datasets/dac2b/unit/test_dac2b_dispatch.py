@@ -5,6 +5,7 @@ import pytest
 import oda_reader.dac2b as dac2b_module
 import oda_reader.download.download_tools as dt
 from oda_reader import get_available_filters
+from oda_reader.download.version_discovery import DataflowStructure
 from oda_reader.schemas.schema_tools import read_schema_translation
 
 
@@ -22,10 +23,9 @@ class TestDAC2bDispatch:
             "dac2a", quiet=True
         )
 
-    def test_dataflow_constants(self):
-        """DATAFLOW_ID and DATAFLOW_VERSION are set to the confirmed live values."""
+    def test_dataflow_id(self):
+        """DATAFLOW_ID is set to the confirmed live value."""
         assert dac2b_module.DATAFLOW_ID == "DSD_DAC2@DF_DAC2B"
-        assert dac2b_module.DATAFLOW_VERSION == "1.7"
 
     def test_dac2b_dispatch_uses_dac2b_converter(self, mocker):
         """The 'dac2b' dispatch in download() calls convert_dac2b_to_dotstat_codes.
@@ -39,6 +39,21 @@ class TestDAC2bDispatch:
         raw = pd.DataFrame({"x": [1]})
 
         # Prevent any network call
+        mocker.patch.object(
+            dt,
+            "resolve_dataflow",
+            return_value=DataflowStructure(
+                dataflow_id="DSD_DAC2@DF_DAC2B",
+                version="1.7",
+                dimensions=(
+                    "DONOR",
+                    "RECIPIENT",
+                    "MEASURE",
+                    "UNIT_MEASURE",
+                    "PRICE_BASE",
+                ),
+            ),
+        )
         mocker.patch.object(dt, "api_response_to_df", return_value=raw)
         # preprocess must accept (df, schema_translation) and return a DataFrame
         mocker.patch.object(
@@ -56,7 +71,6 @@ class TestDAC2bDispatch:
         dt.download(
             version="dac2b",
             dataflow_id="DSD_DAC2@DF_DAC2B",
-            dataflow_version="1.7",
             pre_process=True,
             dotstat_codes=True,
         )

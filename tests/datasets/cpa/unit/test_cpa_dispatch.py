@@ -5,6 +5,7 @@ import pytest
 import oda_reader.cpa as cpa_module
 import oda_reader.download.download_tools as dt
 from oda_reader import get_available_filters
+from oda_reader.download.version_discovery import DataflowStructure
 from oda_reader.schemas.schema_tools import read_schema_translation
 
 
@@ -22,10 +23,9 @@ class TestCPADispatch:
             "crs", quiet=True
         )
 
-    def test_dataflow_constants(self):
-        """DATAFLOW_ID and DATAFLOW_VERSION are set to the confirmed live values."""
+    def test_dataflow_id(self):
+        """DATAFLOW_ID is set to the confirmed live value."""
         assert cpa_module.DATAFLOW_ID == "DSD_CPA@DF_CRS_CPA"
-        assert cpa_module.DATAFLOW_VERSION == "1.4"
 
     def test_cpa_dispatch_uses_crs_converter(self, mocker):
         """The 'cpa' dispatch in download() calls convert_crs_to_dotstat_codes."""
@@ -34,6 +34,27 @@ class TestCPADispatch:
         raw = pd.DataFrame({"x": [1]})
 
         # Prevent any network call
+        mocker.patch.object(
+            dt,
+            "resolve_dataflow",
+            return_value=DataflowStructure(
+                dataflow_id="DSD_CPA@DF_CRS_CPA",
+                version="1.4",
+                dimensions=(
+                    "DONOR",
+                    "RECIPIENT",
+                    "SECTOR",
+                    "MEASURE",
+                    "CHANNEL",
+                    "MODALITY",
+                    "FLOW_TYPE",
+                    "PRICE_BASE",
+                    "MD_DIM",
+                    "MD_ID",
+                    "UNIT_MEASURE",
+                ),
+            ),
+        )
         mocker.patch.object(dt, "api_response_to_df", return_value=raw)
         # preprocess must accept (df, schema_translation) and return a DataFrame
         mocker.patch.object(
@@ -51,7 +72,6 @@ class TestCPADispatch:
         dt.download(
             version="cpa",
             dataflow_id="DSD_CPA@DF_CRS_CPA",
-            dataflow_version="1.4",
             pre_process=True,
             dotstat_codes=True,
         )

@@ -1,338 +1,354 @@
 """Unit tests for the version_discovery module."""
 
-from xml.etree.ElementTree import ParseError
+from pathlib import Path
 
 import pytest
+import requests
+from requests_cache.policy.expiration import get_url_expiration
 
+from oda_reader import _http_primitives
+from oda_reader.download import version_discovery
 from oda_reader.download.version_discovery import (
+    DataflowStructure,
     _build_metadata_url,
-    _parse_version_from_xml,
+    _parse_dataflow_structure,
     clear_version_cache,
     discover_latest_version,
-    get_dimension_count,
+    resolve_dataflow,
 )
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+_FIXTURES_DIR = Path(__file__).parent.parent.parent / "fixtures" / "dataflow"
 
-_VALID_XML = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<Structure xmlns="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message">
-  <Structures>
-    <Dataflows>
-      <Dataflow id="DF_DAC1" agencyID="OECD.DCD.FSD" version="1.7">
-        <Name>DAC1</Name>
-      </Dataflow>
-    </Dataflows>
-  </Structures>
-</Structure>
-"""
+DAC1 = "DSD_DAC1@DF_DAC1"
+CRS = "DSD_CRS@DF_CRS"
 
-_NAMESPACED_XML = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message"
-               xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure">
-  <mes:Structures>
-    <str:Dataflows>
-      <str:Dataflow id="DF_DAC1" agencyID="OECD.DCD.FSD" version="2.3">
-        <str:Name>DAC1</str:Name>
-      </str:Dataflow>
-    </str:Dataflows>
-  </mes:Structures>
-</mes:Structure>
-"""
 
-_MISSING_VERSION_XML = """\
+def _fixture(name: str) -> str:
+    return (_FIXTURES_DIR / name).read_text(encoding="utf-8")
+
+
+def _structure_xml(
+    *,
+    dataflow_id: str = DAC1,
+    ref: str = '<Ref id="DSD_X" version="2.0" class="DataStructure"/>',
+    data_structures: str = "",
+) -> str:
+    """A namespaced SDMX-ML structure message with one dataflow."""
+    return f"""\
 <?xml version="1.0" encoding="UTF-8"?>
-<Structure>
-  <Structures>
-    <Dataflows>
-      <Dataflow id="DF_DAC1" agencyID="OECD.DCD.FSD">
-        <Name>DAC1</Name>
-      </Dataflow>
-    </Dataflows>
-  </Structures>
-</Structure>
+<m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message"
+             xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure">
+  <m:Structures>
+    <s:Dataflows>
+      <s:Dataflow id="{dataflow_id}" agencyID="OECD.DCD.FSD" version="1.9">
+        <s:Structure>{ref}</s:Structure>
+      </s:Dataflow>
+    </s:Dataflows>
+    <s:DataStructures>{data_structures}</s:DataStructures>
+  </m:Structures>
+</m:Structure>
 """
 
 
+def _dsd(version: str, dimensions: str) -> str:
+    return f"""
+      <s:DataStructure id="DSD_X" version="{version}">
+        <s:DataStructureComponents>
+          <s:DimensionList>{dimensions}</s:DimensionList>
+        </s:DataStructureComponents>
+      </s:DataStructure>"""
+
+
 # ---------------------------------------------------------------------------
-# TestBuildMetadataUrl
+# Parsing
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestBuildMetadataUrl:
-    """Verify URL construction for various dataflow IDs."""
+class TestParseDataflowStructure:
+    """Read the dataflow version and its DSD's key dimensions."""
 
-    def test_basic_dataflow_id(self):
-        url = _build_metadata_url("DSD_DAC1@DF_DAC1")
-        assert url == (
-            "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
-            "/DSD_DAC1@DF_DAC1/latest"
+    @pytest.mark.parametrize(
+        ("fixture", "dataflow_id", "version", "dimensions"),
+        [
+            (
+                "structure_dac1_latest.xml",
+                DAC1,
+                "1.8",
+                (
+                    "DONOR",
+                    "SECTOR",
+                    "MEASURE",
+                    "TYING_STATUS",
+                    "FLOW_TYPE",
+                    "UNIT_MEASURE",
+                    "PRICE_BASE",
+                ),
+            ),
+            (
+                "structure_dac1_1.5.xml",
+                DAC1,
+                "1.5",
+                (
+                    "DONOR",
+                    "MEASURE",
+                    "TYING_STATUS",
+                    "FLOW_TYPE",
+                    "UNIT_MEASURE",
+                    "PRICE_BASE",
+                    "SECTOR",
+                ),
+            ),
+            (
+                "structure_crs_latest.xml",
+                CRS,
+                "1.7",
+                (
+                    "DONOR",
+                    "RECIPIENT",
+                    "SECTOR",
+                    "MEASURE",
+                    "CHANNEL",
+                    "MODALITY",
+                    "FLOW_TYPE",
+                    "PRICE_BASE",
+                    "MD_DIM",
+                    "MD_ID",
+                    "UNIT_MEASURE",
+                ),
+            ),
+        ],
+    )
+    def test_real_responses(self, fixture, dataflow_id, version, dimensions):
+        """The fixtures also hold AttributeRelationship Dimension refs, which
+        the key dimensions exclude."""
+        structure = _parse_dataflow_structure(_fixture(fixture), dataflow_id)
+
+        assert structure == DataflowStructure(dataflow_id, version, dimensions)
+
+    def test_orders_by_position_from_referenced_dsd(self):
+        """Dimensions follow `position`, from the DSD version the dataflow names."""
+        xml = _structure_xml(
+            data_structures=_dsd("1.0", '<s:Dimension id="STALE" position="1"/>')
+            + _dsd(
+                "2.0",
+                '<s:Dimension id="B" position="2"/>'
+                '<s:TimeDimension id="TIME_PERIOD" position="3"/>'
+                '<s:Dimension id="A" position="1"/>',
+            ),
         )
 
-    def test_crs_dataflow_id(self):
-        url = _build_metadata_url("DSD_CRS@DF_CRS")
-        assert url == (
-            "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
-            "/DSD_CRS@DF_CRS/latest"
-        )
+        structure = _parse_dataflow_structure(xml, DAC1)
 
-    def test_multisystem_dataflow_id(self):
-        url = _build_metadata_url("DSD_MULTI@DF_MULTI")
-        assert url == (
-            "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
-            "/DSD_MULTI@DF_MULTI/latest"
-        )
+        assert structure.version == "1.9"
+        assert structure.dimensions == ("A", "B")
 
-    def test_dac2a_dataflow_id(self):
-        url = _build_metadata_url("DSD_DAC2@DF_DAC2A")
-        assert url == (
-            "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
-            "/DSD_DAC2@DF_DAC2A/latest"
-        )
+    @pytest.mark.parametrize(
+        "xml",
+        [
+            pytest.param("<not valid xml >>>", id="malformed"),
+            pytest.param(_structure_xml(dataflow_id="OTHER"), id="no-dataflow"),
+            pytest.param(_structure_xml(ref=""), id="no-structure-ref"),
+            # The public host returns this for CRS, the dataflow without its DSD.
+            pytest.param(_structure_xml(), id="dsd-missing"),
+            pytest.param(_structure_xml(data_structures=_dsd("2.0", "")), id="no-dims"),
+            pytest.param(
+                _structure_xml(
+                    data_structures=_dsd("2.0", '<s:Dimension id="A"/>'),
+                ),
+                id="no-position",
+            ),
+        ],
+    )
+    def test_incomplete_response_raises(self, xml):
+        with pytest.raises(ValueError, match=DAC1):
+            _parse_dataflow_structure(xml, DAC1)
 
 
 # ---------------------------------------------------------------------------
-# TestParseVersionFromXml
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestParseVersionFromXml:
-    """Verify XML parsing handles valid, namespaced, and invalid inputs."""
-
-    def test_valid_xml(self):
-        version = _parse_version_from_xml(_VALID_XML)
-        assert version == "1.7"
-
-    def test_namespaced_xml(self):
-        version = _parse_version_from_xml(_NAMESPACED_XML)
-        assert version == "2.3"
-
-    def test_missing_version_raises(self):
-        with pytest.raises(ValueError, match="No <Dataflow version"):
-            _parse_version_from_xml(_MISSING_VERSION_XML)
-
-    def test_malformed_xml_raises(self):
-        with pytest.raises(ParseError):
-            _parse_version_from_xml("<not valid xml >>>")
-
-
-# ---------------------------------------------------------------------------
-# TestDiscoverLatestVersion
+# resolve_dataflow
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
-def _mock_http(mocker):
-    """Patch get_response_text in version_discovery and clear the cache."""
-    clear_version_cache()
-    # Also mock _get_http_session so clear_version_cache() doesn't create a
-    # real SQLite-backed session during tests (causes conflicts in parallel).
-    mocker.patch(
-        "oda_reader.download.version_discovery._get_http_session",
-        return_value=mocker.MagicMock(),
-    )
+def mock_http(mocker, monkeypatch):
+    """Patch the HTTP layer of version_discovery and start from a fresh process."""
+    monkeypatch.setattr(version_discovery, "_structure_cache", {})
+    monkeypatch.setattr(version_discovery, "_bypass_http_cache_until_resolved", False)
+    get = mocker.patch("oda_reader.download.version_discovery.get_response_text")
+    get.return_value = (200, _fixture("structure_dac1_latest.xml"), False)
+    return get
+
+
+@pytest.fixture()
+def clock(mocker):
+    """Patch the monotonic clock version_discovery reads. Set `.return_value`."""
     return mocker.patch(
-        "oda_reader.download.version_discovery.get_response_text",
+        "oda_reader.download.version_discovery.monotonic", return_value=0.0
     )
+
+
+def _force_refresh_flags(get) -> list[bool]:
+    return [call.kwargs["force_refresh"] for call in get.call_args_list]
 
 
 @pytest.mark.unit
-class TestDiscoverLatestVersion:
-    """Verify HTTP calls, caching behaviour, and error propagation."""
+class TestResolveDataflow:
+    """URL choice, caching, and error propagation."""
 
-    def test_returns_parsed_version(self, _mock_http):
-        _mock_http.return_value = (200, _VALID_XML, False)
+    @pytest.mark.parametrize(
+        ("dataflow_id", "version", "url"),
+        [
+            (
+                DAC1,
+                None,
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
+                "/DSD_DAC1@DF_DAC1/latest?references=datastructure",
+            ),
+            (
+                DAC1,
+                "1.5",
+                "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
+                "/DSD_DAC1@DF_DAC1/1.5?references=datastructure",
+            ),
+            (
+                CRS,
+                None,
+                "https://sdmx.oecd.org/dcd-public/rest/dataflow/OECD.DCD.FSD"
+                "/DSD_CRS@DF_CRS/latest?references=datastructure",
+            ),
+            (
+                "DSD_MULTI@DF_MULTI",
+                None,
+                "https://sdmx.oecd.org/dcd-public/rest/dataflow/OECD.DCD.FSD"
+                "/DSD_MULTI@DF_MULTI/latest?references=datastructure",
+            ),
+            (
+                "DSD_CPA@DF_CRS_CPA",
+                None,
+                "https://sdmx.oecd.org/dcd-public/rest/dataflow/OECD.DCD.FSD"
+                "/DSD_CPA@DF_CRS_CPA/latest?references=datastructure",
+            ),
+        ],
+    )
+    def test_metadata_url(self, dataflow_id, version, url):
+        assert _build_metadata_url(dataflow_id, version) == url
 
-        version = discover_latest_version("DSD_DAC1@DF_DAC1")
-        assert version == "1.7"
-
-    def test_result_is_cached(self, _mock_http):
-        """A second call for the same dataflow ID must not make another HTTP request."""
-        _mock_http.return_value = (200, _VALID_XML, False)
-
-        v1 = discover_latest_version("DSD_DAC1@DF_DAC1")
-        v2 = discover_latest_version("DSD_DAC1@DF_DAC1")
-
-        assert v1 == v2 == "1.7"
-        _mock_http.assert_called_once()
-
-    def test_http_error_raises_connection_error(self, _mock_http):
-        """Non-2xx status code raises ConnectionError."""
-        _mock_http.return_value = (404, "Not found", False)
-
-        with pytest.raises(ConnectionError, match="HTTP 404"):
-            discover_latest_version("DSD_DAC1@DF_DAC1")
-
-    def test_different_dataflows_cached_separately(self, _mock_http):
-        """Each dataflow ID is cached independently."""
-        _mock_http.side_effect = [
-            (200, _VALID_XML, False),
-            (200, _NAMESPACED_XML, False),
+    def test_latest_and_explicit_version_cached_separately(self, mock_http):
+        mock_http.side_effect = [
+            (200, _fixture("structure_dac1_latest.xml"), False),
+            (200, _fixture("structure_dac1_1.5.xml"), False),
         ]
 
-        v_dac1 = discover_latest_version("DSD_DAC1@DF_DAC1")
-        v_crs = discover_latest_version("DSD_CRS@DF_CRS")
+        latest = resolve_dataflow(DAC1)
+        pinned = resolve_dataflow(DAC1, "1.5")
 
-        assert v_dac1 == "1.7"
-        assert v_crs == "2.3"
+        assert (latest.version, pinned.version) == ("1.8", "1.5")
+        assert resolve_dataflow(DAC1) is latest
+        assert resolve_dataflow(DAC1, "1.5") is pinned
+        assert mock_http.call_count == 2
+
+    def test_latest_re_resolved_after_a_day_explicit_kept(self, mock_http, clock):
+        """A long-lived process sees a release, and a pinned version stays fixed."""
+        resolve_dataflow(DAC1)
+        resolve_dataflow(DAC1, "1.8")
+
+        clock.return_value = 86399.0
+        resolve_dataflow(DAC1)
+        assert mock_http.call_count == 2
+
+        clock.return_value = 86400.0
+        resolve_dataflow(DAC1)
+        resolve_dataflow(DAC1, "1.8")
+        assert mock_http.call_count == 3
+        assert mock_http.call_args.args[0] == _build_metadata_url(DAC1, None)
+
+    @pytest.mark.parametrize(
+        ("version", "match"),
+        [
+            (None, "HTTP 404"),
+            ("9.9", "no version 9.9. Omit dataflow_version to read the latest"),
+        ],
+    )
+    def test_http_404_raises_connection_error(self, mock_http, version, match):
+        mock_http.return_value = (404, "Not found", False)
+
+        with pytest.raises(ConnectionError, match=match):
+            resolve_dataflow(DAC1, version)
+
+    def test_discover_latest_version(self, mock_http):
+        assert discover_latest_version(DAC1) == "1.8"
+
+    def test_discover_latest_version_raises_value_error_on_bad_xml(self, mock_http):
+        """The bulk path catches ConnectionError and ValueError only."""
+        mock_http.return_value = (200, "<not><valid><xml", False)
+
+        with pytest.raises(ValueError, match=DAC1):
+            discover_latest_version(DAC1)
 
 
 # ---------------------------------------------------------------------------
-# TestClearVersionCache
+# clear_version_cache
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestClearVersionCache:
-    """Verify that clear_version_cache empties the in-process cache."""
+    """The next lookup of each key after a clear bypasses the HTTP cache."""
 
-    def test_clear_forces_refetch(self, _mock_http):
-        """After clearing, the next call re-fetches from the network."""
-        _mock_http.return_value = (200, _VALID_XML, False)
+    def test_fresh_process_uses_http_cache(self, mock_http):
+        resolve_dataflow(DAC1)
 
-        discover_latest_version("DSD_DAC1@DF_DAC1")
-        assert _mock_http.call_count == 1
+        assert _force_refresh_flags(mock_http) == [False]
+
+    def test_bypasses_http_cache_once_per_key_in_fresh_process(self, mock_http, clock):
+        """A restart empties the in-process cache but not the HTTP cache."""
+        mock_http.side_effect = lambda url, **_: (
+            200,
+            _fixture(
+                "structure_crs_latest.xml"
+                if CRS in url
+                else "structure_dac1_latest.xml"
+            ),
+            False,
+        )
+        clear_version_cache()
+        resolve_dataflow(DAC1)
+        resolve_dataflow(CRS)
+        resolve_dataflow(DAC1, "1.5")
+
+        clock.return_value = 86400.0
+        resolve_dataflow(DAC1)
+
+        assert _force_refresh_flags(mock_http) == [True, True, True, False]
+
+    def test_refetches_resolved_key_past_http_cache(self, mock_http):
+        resolve_dataflow(DAC1)
 
         clear_version_cache()
+        resolve_dataflow(DAC1)
+        resolve_dataflow(DAC1)
 
-        discover_latest_version("DSD_DAC1@DF_DAC1")
-        assert _mock_http.call_count == 2
-
-    def test_clear_evicts_http_cache(self, _mock_http, mocker):
-        """clear_version_cache should also evict HTTP-cached metadata URLs."""
-        _mock_http.return_value = (200, _VALID_XML, False)
-
-        mock_session = mocker.MagicMock()
-        mocker.patch(
-            "oda_reader.download.version_discovery._get_http_session",
-            return_value=mock_session,
-        )
-
-        discover_latest_version("DSD_DAC1@DF_DAC1")
-        clear_version_cache()
-
-        mock_session.cache.delete.assert_called_once()
-        # Verify the URL passed matches the metadata URL pattern
-        call_kwargs = mock_session.cache.delete.call_args
-        urls = call_kwargs[1]["urls"] if "urls" in call_kwargs[1] else call_kwargs[0][0]
-        assert any("DSD_DAC1@DF_DAC1" in u for u in urls)
-
-    def test_clear_on_empty_cache_is_noop(self, mocker):
-        """Clearing an empty cache should not error."""
-        clear_version_cache()  # should not raise
+        assert _force_refresh_flags(mock_http) == [False, True]
 
 
 # ---------------------------------------------------------------------------
-# TestGetDimensionCount
-# ---------------------------------------------------------------------------
-
-_DSD_XML_7_DIMS = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<Structure xmlns="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message"
-           xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure">
-  <Structures>
-    <DataStructures>
-      <str:DataStructure id="DSD_DAC1" version="1.7">
-        <str:DataStructureComponents>
-          <str:DimensionList>
-            <str:Dimension id="DONOR" position="1"/>
-            <str:Dimension id="SECTOR" position="2"/>
-            <str:Dimension id="MEASURE" position="3"/>
-            <str:Dimension id="TYING_STATUS" position="4"/>
-            <str:Dimension id="FLOW_TYPE" position="5"/>
-            <str:Dimension id="UNIT_MEASURE" position="6"/>
-            <str:Dimension id="PRICE_BASE" position="7"/>
-            <str:TimeDimension id="TIME_PERIOD" position="8"/>
-          </str:DimensionList>
-        </str:DataStructureComponents>
-      </str:DataStructure>
-    </DataStructures>
-  </Structures>
-</Structure>
-"""
-
-_DSD_XML_NO_DIMS = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<Structure xmlns="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message"
-           xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure">
-  <Structures>
-    <DataStructures>
-      <str:DataStructure id="DSD_DAC1" version="1.0">
-        <str:DataStructureComponents>
-          <str:DimensionList/>
-        </str:DataStructureComponents>
-      </str:DataStructure>
-    </DataStructures>
-  </Structures>
-</Structure>
-"""
-
-
-@pytest.mark.unit
-class TestGetDimensionCount:
-    """Verify DSD dimension counting."""
-
-    def test_counts_dimensions_excluding_time(self, mocker):
-        """TimeDimension should not be counted, only Dimension elements."""
-        mocker.patch(
-            "oda_reader.download.version_discovery.get_response_text",
-            return_value=(200, _DSD_XML_7_DIMS, False),
-        )
-
-        count = get_dimension_count("DSD_DAC1@DF_DAC1", "1.7")
-        assert count == 7
-
-    def test_empty_dsd_raises(self, mocker):
-        """DSD with no Dimension elements should raise ValueError."""
-        mocker.patch(
-            "oda_reader.download.version_discovery.get_response_text",
-            return_value=(200, _DSD_XML_NO_DIMS, False),
-        )
-
-        with pytest.raises(ValueError, match="No dimensions found"):
-            get_dimension_count("DSD_DAC1@DF_DAC1", "1.0")
-
-    def test_http_error_raises(self, mocker):
-        """Non-2xx from DSD endpoint should raise ConnectionError."""
-        mocker.patch(
-            "oda_reader.download.version_discovery.get_response_text",
-            return_value=(404, "Not found", False),
-        )
-
-        with pytest.raises(ConnectionError, match="HTTP 404"):
-            get_dimension_count("DSD_DAC1@DF_DAC1", "9.9")
-
-    def test_splits_dataflow_id_on_at_sign(self, mocker):
-        """DSD ID should be derived from the part before '@'."""
-        mock = mocker.patch(
-            "oda_reader.download.version_discovery.get_response_text",
-            return_value=(200, _DSD_XML_7_DIMS, False),
-        )
-
-        get_dimension_count("DSD_DAC1@DF_DAC1", "1.7")
-
-        called_url = mock.call_args[0][0]
-        assert "/DSD_DAC1/1.7" in called_url
-        assert "@" not in called_url
-
-
-# ---------------------------------------------------------------------------
-# TestDiscoverLatestVersionEdgeCases
+# HTTP cache freshness
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestDiscoverLatestVersionEdgeCases:
-    """Edge cases for discover_latest_version."""
+@pytest.mark.parametrize(
+    ("dataflow_id", "version", "expire_after"),
+    [(DAC1, None, 86400), (CRS, None, 86400), (DAC1, "1.5", None)],
+)
+def test_latest_lookup_expires_after_one_day(
+    temp_cache_dir, dataflow_id, version, expire_after
+):
+    """`None` falls back to the session's 7-day default."""
+    session = _http_primitives._get_http_session()
+    url = requests.Request("GET", _build_metadata_url(dataflow_id, version)).prepare()
 
-    def test_bad_xml_in_200_raises_valueerror(self, _mock_http):
-        """200 with unparsable XML should raise ValueError."""
-        _mock_http.return_value = (200, "<not><valid><xml", False)
-
-        with pytest.raises(ParseError):
-            discover_latest_version("DSD_DAC1@DF_DAC1")
+    assert get_url_expiration(url.url, session.settings.urls_expire_after) == (
+        expire_after
+    )

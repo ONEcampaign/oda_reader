@@ -16,6 +16,7 @@ from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallenge
 from oda_reader._cache.manager import CacheManager
 from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
+from oda_reader.download import download_tools as dt
 from oda_reader.download.download_tools import (
     _WARNED_REVALIDATION_URLS,
     _atomic_write,
@@ -36,6 +37,7 @@ from oda_reader.download.download_tools import (
     get_bulk_file_url,
     get_bulk_file_url_with_version,
 )
+from oda_reader.download.version_discovery import DataflowStructure
 from oda_reader.exceptions import (
     BulkDownloadChallengeError,
     BulkDownloadHTTPError,
@@ -63,141 +65,52 @@ class TestDownloadWithMocks:
         assert result == sample_csv_response
         assert "DONOR,RECIPIENT" in result
 
-    def test_get_data_from_api_404_triggers_version_discovery(self, mocker):
-        """Test that a 'Dataflow not found' response triggers version discovery retry."""
+    @pytest.mark.parametrize(
+        ("body", "message"),
+        [
+            ("NoRecordsFound", "No data matches the filters"),
+            (
+                "Could not find Dataflow and/or DSD related with this data request",
+                "clear_version_cache",
+            ),
+        ],
+    )
+    def test_get_data_from_api_404_raises_without_retry(self, mocker, body, message):
+        """A 404 raises at once, and only a missing dataflow suggests the cache."""
+        mock_get_response = mocker.patch(
+            "oda_reader.common._get_response_text",
+            return_value=(404, body, False),
+        )
+
+        url = "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.8/all"
+        with pytest.raises(ConnectionError, match=message) as error:
+            get_data_from_api(url)
+
+        assert mock_get_response.call_count == 1
+        assert url in str(error.value)
+        if body == "NoRecordsFound":
+            assert "clear_version_cache" not in str(error.value)
+
+    def test_get_data_from_api_not_set_retries_on_dcd_public(
+        self, mocker, sample_csv_response
+    ):
+        """A 500 naming an unset dataflow retries once on the dcd-public host."""
         mock_get_response = mocker.patch(
             "oda_reader.common._get_response_text",
             side_effect=[
-                (404, "Dataflow not found", False),
-                (200, "DONOR,VALUE\n1,100", False),
+                (500, "Dataflow DF_CRS is not set to public", False),
+                (200, sample_csv_response, False),
             ],
         )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="1.9",
-        )
-        mocker.patch(
-            "oda_reader.common.get_dimension_count",
-            return_value=7,
+
+        result = get_data_from_api(
+            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_CRS@DF_CRS,1.6/all"
         )
 
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
+        assert result == sample_csv_response
+        assert mock_get_response.call_args_list[1].args[0] == (
+            "https://sdmx.oecd.org/dcd-public/rest/data/OECD.DCD.FSD,DSD_CRS@DF_CRS,1.6/all"
         )
-        result = get_data_from_api(url)
-
-        assert mock_get_response.call_count == 2
-        assert result == "DONOR,VALUE\n1,100"
-
-    def test_get_data_from_api_discovered_version_matches_raises(self, mocker):
-        """Test that matching discovered version raises immediately without retry."""
-        mocker.patch(
-            "oda_reader.common._get_response_text",
-            return_value=(404, "Dataflow not found", False),
-        )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="2.0",  # same as URL version
-        )
-
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
-        )
-        with pytest.raises(ConnectionError, match="matches the attempted version"):
-            get_data_from_api(url)
-
-    def test_get_data_from_api_incompatible_dsd_raises(self, mocker):
-        """Test that a discovered version with different dimension count raises."""
-        mocker.patch(
-            "oda_reader.common._get_response_text",
-            side_effect=[
-                (404, "Dataflow not found", False),
-                (200, "DONOR,VALUE\n1,100", False),
-            ],
-        )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="3.0",
-        )
-        mocker.patch(
-            "oda_reader.common.get_dimension_count",
-            side_effect=[7, 8],  # old has 7, new has 8 — breaking change
-        )
-
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
-        )
-        with pytest.raises(ConnectionError, match="breaking schema change"):
-            get_data_from_api(url)
-
-    def test_get_data_from_api_compatible_upgrade_succeeds(self, mocker):
-        """Test that auto-upgrade works when dimension count matches."""
-        mocker.patch(
-            "oda_reader.common._get_response_text",
-            side_effect=[
-                (404, "Dataflow not found", False),
-                (200, "DONOR,VALUE\n1,100", False),
-            ],
-        )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="3.0",
-        )
-        mocker.patch(
-            "oda_reader.common.get_dimension_count",
-            return_value=7,  # same count — compatible
-        )
-
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
-        )
-        result = get_data_from_api(url)
-        assert result == "DONOR,VALUE\n1,100"
-
-    def test_get_data_from_api_dsd_check_fails_gracefully(self, mocker):
-        """Test that DSD check failure doesn't block the retry."""
-        mocker.patch(
-            "oda_reader.common._get_response_text",
-            side_effect=[
-                (404, "Dataflow not found", False),
-                (200, "DONOR,VALUE\n1,100", False),
-            ],
-        )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="1.9",
-        )
-        mocker.patch(
-            "oda_reader.common.get_dimension_count",
-            side_effect=ConnectionError("DSD endpoint down"),
-        )
-
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
-        )
-        result = get_data_from_api(url)
-        assert result == "DONOR,VALUE\n1,100"
-
-    def test_get_data_from_api_retry_also_fails_raises(self, mocker):
-        """Test that failed retry after discovery raises clearly."""
-        mocker.patch(
-            "oda_reader.common._get_response_text",
-            return_value=(404, "Dataflow not found", False),
-        )
-        mocker.patch(
-            "oda_reader.common.discover_latest_version",
-            return_value="1.9",
-        )
-        mocker.patch(
-            "oda_reader.common.get_dimension_count",
-            return_value=7,
-        )
-
-        url = (
-            "https://sdmx.oecd.org/public/rest/data/OECD.DCD.FSD,DSD_DAC1@DF_DAC1,2.0/"
-        )
-        with pytest.raises(ConnectionError, match="even after version discovery"):
-            get_data_from_api(url)
 
     def test_get_data_from_api_non_404_error_raises(self, mocker):
         """Test that non-404 errors raise ConnectionError."""
@@ -209,6 +122,101 @@ class TestDownloadWithMocks:
 
         with pytest.raises(ConnectionError, match="Error 500"):
             get_data_from_api("https://example.com/data")
+
+
+DAC1_1_8 = DataflowStructure(
+    dataflow_id="DSD_DAC1@DF_DAC1",
+    version="1.8",
+    dimensions=(
+        "DONOR",
+        "SECTOR",
+        "MEASURE",
+        "TYING_STATUS",
+        "FLOW_TYPE",
+        "UNIT_MEASURE",
+        "PRICE_BASE",
+    ),
+)
+DAC1_1_5 = DataflowStructure(
+    dataflow_id="DSD_DAC1@DF_DAC1",
+    version="1.5",
+    dimensions=(
+        "DONOR",
+        "MEASURE",
+        "TYING_STATUS",
+        "FLOW_TYPE",
+        "UNIT_MEASURE",
+        "PRICE_BASE",
+        "SECTOR",
+    ),
+)
+
+
+@pytest.mark.unit
+class TestDownload:
+    """`download` reads the resolved dataflow version with its key order."""
+
+    @pytest.mark.parametrize(
+        ("dataflow_version", "structure", "key"),
+        [
+            (None, DAC1_1_8, "OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.8/..1010..1140.."),
+            ("1.5", DAC1_1_5, "OECD.DCD.FSD,DSD_DAC1@DF_DAC1,1.5/.1010..1140..."),
+        ],
+    )
+    def test_download_reads_resolved_version(
+        self, mocker, caplog, dataflow_version, structure, key
+    ):
+        resolve = mocker.patch.object(dt, "resolve_dataflow", return_value=structure)
+        fetch = mocker.patch.object(
+            dt, "api_response_to_df", return_value=pd.DataFrame({"x": [1]})
+        )
+        cache = dt.dataframe_cache()
+        mocker.patch.object(cache, "get", return_value=None)
+        cache_set = mocker.patch.object(cache, "set", return_value=None)
+
+        with caplog.at_level(logging.INFO, logger=dt.logger.name):
+            dt.download(
+                version="dac1",
+                dataflow_id="DSD_DAC1@DF_DAC1",
+                dataflow_version=dataflow_version,
+                filters={"measure": "1010", "flow_type": "1140"},
+                pre_process=False,
+                dotstat_codes=False,
+            )
+
+        resolve.assert_called_once_with("DSD_DAC1@DF_DAC1", dataflow_version)
+        assert fetch.call_args.kwargs["url"].startswith(
+            f"https://sdmx.oecd.org/public/rest/data/{key}?"
+        )
+        assert cache_set.call_args.kwargs["dataflow_version"] == structure.version
+        assert (
+            f"Reading dataflow DSD_DAC1@DF_DAC1 version {structure.version}."
+            in caplog.messages
+        )
+
+    def test_download_missing_dimension_raises(self, mocker):
+        """A filter on a dimension the resolved structure lacks raises."""
+        mocker.patch.object(
+            dt,
+            "resolve_dataflow",
+            return_value=DataflowStructure(
+                dataflow_id="DSD_DAC1@DF_DAC1",
+                version="9.9",
+                dimensions=("DONOR", "MEASURE"),
+            ),
+        )
+        fetch = mocker.patch.object(dt, "api_response_to_df")
+
+        with pytest.raises(ValueError, match="SECTOR"):
+            dt.download(
+                version="dac1",
+                dataflow_id="DSD_DAC1@DF_DAC1",
+                filters={"sector": "1820"},
+                pre_process=False,
+                dotstat_codes=False,
+            )
+
+        fetch.assert_not_called()
 
 
 @pytest.mark.unit
@@ -1785,7 +1793,7 @@ class TestStreamToFileRetry:
             ({"Retry-After": "soon"}, None),
             ({}, None),
         ],
-        ids=["over-cap", "unparseable", "absent"],
+        ids=["over-cap", "unparsable", "absent"],
     )
     def test_throttle_without_usable_retry_after_raises_at_once(
         self, mocker, tmp_path, headers, retry_after

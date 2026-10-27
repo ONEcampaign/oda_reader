@@ -9,6 +9,7 @@ circular imports.
 """
 
 import logging
+import re
 import time
 from collections import deque
 from collections.abc import Callable
@@ -161,11 +162,18 @@ def _get_bulk_stream_session() -> requests.Session:
 _HTTP_SESSION: requests_cache.CachedSession | None = None
 _CACHE_ENABLED: bool = True
 
+# A latest-version lookup must see a new dataflow release within a day. An
+# explicit-version lookup never changes, so it keeps the 7-day default.
+_LATEST_DATAFLOW_URL = re.compile(
+    r"/rest/dataflow/OECD\.DCD\.FSD/[^/?]+/latest\?references=datastructure$"
+)
+
 
 def _get_http_session() -> requests_cache.CachedSession:
     """Get or create the global HTTP cache session.
 
-    All responses are cached for 7 days (604800 seconds).
+    Responses are cached for 7 days (604800 seconds), except latest-version
+    dataflow lookups, which expire after 1 day.
     Uses filesystem backend to handle large responses (>2GB).
 
     Returns:
@@ -180,7 +188,8 @@ def _get_http_session() -> requests_cache.CachedSession:
             cache_name=cache_path,
             backend="filesystem",
             expire_after=604800,  # 7 days
-            allowable_codes=(200, 404),  # Cache 404s for version fallback
+            urls_expire_after={_LATEST_DATAFLOW_URL: 86400},  # 1 day
+            allowable_codes=(200, 404),  # SDMX answers a query with no data with 404
             stale_if_error=True,  # Use stale cache if API errors
         )
 

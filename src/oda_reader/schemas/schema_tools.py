@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 
 import pandas as pd
 
@@ -126,31 +127,133 @@ def get_bool_columns(schema: dict) -> list[str]:
     return [col for col, settings in schema.items() if settings.get("bool") is True]
 
 
+def find_area_code_clashes(
+    area_code_mapping: dict[int, str], corrections: dict[int, str]
+) -> dict[str, list[int]]:
+    """
+    Find the API area codes that don't resolve to exactly one .Stat code.
+
+    An API code clashes when several .Stat codes map to it and no correction
+    picks one of them, or when more than one correction names it.
+
+    Args:
+        area_code_mapping: The {.Stat code: API code} mapping, with the
+            corrections already merged in.
+        corrections: The {.Stat code: API code} corrections. Each one picks the
+            .Stat code its API code converts to.
+
+    Returns:
+        dict[str, list[int]]: Each clashing API code with its .Stat codes,
+            sorted. Empty when nothing clashes.
+
+    """
+    candidates: dict[str, set[int]] = defaultdict(set)
+    for dotstat_code, api_code in area_code_mapping.items():
+        candidates[api_code].add(dotstat_code)
+
+    picked: dict[str, set[int]] = defaultdict(set)
+    for dotstat_code, api_code in corrections.items():
+        picked[api_code].add(dotstat_code)
+
+    clashes = {}
+    for api_code in candidates.keys() | picked.keys():
+        codes = candidates[api_code] | picked[api_code]
+        if len(picked[api_code]) > 1 or (not picked[api_code] and len(codes) > 1):
+            clashes[api_code] = sorted(codes)
+
+    return clashes
+
+
+def build_area_code_lookup(
+    area_code_mapping: dict[int, str], corrections: dict[int, str]
+) -> dict[str, int]:
+    """
+    Build the lookup from API area code to .Stat code.
+
+    When several .Stat codes map to the same API code, the correction for that
+    API code decides which one it converts to. The order of entries in the
+    mapping never matters.
+
+    Args:
+        area_code_mapping: The {.Stat code: API code} mapping, with the
+            corrections already merged in.
+        corrections: The {.Stat code: API code} corrections.
+
+    Returns:
+        dict[str, int]: The {API code: .Stat code} lookup.
+
+    Raises:
+        ValueError: If an API code has several .Stat codes and no single
+            correction picking one.
+
+    """
+    clashes = find_area_code_clashes(area_code_mapping, corrections)
+    if clashes:
+        details = "; ".join(
+            f"{api_code} -> {codes}" for api_code, codes in sorted(clashes.items())
+        )
+        raise ValueError(
+            "These API area codes have more than one .Stat code and no correction "
+            f"picking one: {details}. Add an entry to area_code_corrections.json."
+        )
+
+    picked = {api_code: dotstat_code for dotstat_code, api_code in corrections.items()}
+
+    # With no clashes, an API code with several .Stat codes has exactly one
+    # correction, so all its entries resolve to the picked code in any order.
+    return {
+        api_code: picked.get(api_code, dotstat_code)
+        for dotstat_code, api_code in area_code_mapping.items()
+    } | picked
+
+
 def map_area_codes(
     df: pd.DataFrame,
-    area_code_mapping: dict,
+    area_code_lookup: dict[str, int],
     source_column: str = "donor_code",
     target_column: str = "donor_code",
 ) -> pd.DataFrame:
     """
-    Map the new are codes to the old donor codes.
+    Map API area codes to .Stat area codes.
+
+    API codes with no .Stat code are left empty, and a warning names them.
 
     Args:
-        df: A DataFrame containing the new codes.
-        area_code_mapping: The mapping between the new and old codes.
-        source_column: The column containing the new codes.
-        target_column: The column to map the old codes to.
+        df: A DataFrame containing API area codes.
+        area_code_lookup: The {API code: .Stat code} lookup, as built by
+            `build_area_code_lookup`.
+        source_column: The column containing the API codes.
+        target_column: The column to write the .Stat codes to.
 
     Returns:
-        pd.DataFrame: The DataFrame with the old codes.
+        pd.DataFrame: The DataFrame with the .Stat codes.
+
+    Raises:
+        TypeError: If the lookup isn't keyed by API code (str) with .Stat codes
+            (int) as values, for example an old {.Stat code: API code} mapping.
 
     """
+    if not all(
+        isinstance(api_code, str) and type(dotstat_code) is int
+        for api_code, dotstat_code in area_code_lookup.items()
+    ):
+        raise TypeError(
+            "area_code_lookup must map API codes (str) to .Stat codes (int). "
+            "Build it with build_area_code_lookup()."
+        )
 
-    # Swap the keys and values in the dictionary
-    donor_codes = {v: k for k, v in area_code_mapping.items()}
+    # Read the source before writing the target: they're usually the same column.
+    source = df[source_column]
+    dotstat_codes = source.map(area_code_lookup)
 
-    # Map the new codes to the old codes
-    df[target_column] = df[source_column].map(donor_codes).astype("int32[pyarrow]")
+    unmapped = source.notna() & dotstat_codes.isna()
+    if unmapped.any():
+        logger.warning(
+            f"{int(unmapped.sum())} rows in '{source_column}' have area codes with "
+            f"no .Stat code and were left empty: {sorted(source[unmapped].unique())}"
+        )
+
+    df[target_column] = dotstat_codes.astype("int32[pyarrow]")
 
     return df
 

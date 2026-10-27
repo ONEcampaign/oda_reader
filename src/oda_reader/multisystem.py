@@ -17,8 +17,6 @@ from oda_reader.download.download_tools import (
 logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_MULTI@DF_MULTI"
-# Default version; actual version is discovered dynamically on fallback
-DATAFLOW_VERSION: str = "1.6"
 
 MULTISYSTEM_BULK_LABEL = "Entire dataset (dotStat format)"
 
@@ -107,7 +105,7 @@ def download_multisystem(
         filters (dict): Optional filters to pass to the download.
         pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        dataflow_version (str): The version of the dataflow. Optional
+        dataflow_version (str | None): The dataflow version to read. Defaults to the latest published version.
 
     Returns:
         pd.DataFrame: The multisystem data.
@@ -116,11 +114,6 @@ def download_multisystem(
 
     # Inform download is about to start
     logger.info("Downloading Multisystem data. This may take a while...")
-
-    # Inform of the dataflow being downloaded
-    if dataflow_version is None:
-        dataflow_version = DATAFLOW_VERSION
-    logger.info(f"Downloading dataflow version {dataflow_version}")
 
     if not filters:
         filters = {}

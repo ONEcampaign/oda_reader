@@ -2,12 +2,60 @@
 
 import logging
 import warnings
+from collections.abc import Mapping, Sequence
+
+from oda_reader.download.version_discovery import sdmx_rest_host
 
 logger = logging.getLogger(__name__)
 
-V1_BASE_URL: str = "https://sdmx.oecd.org/public/rest/data/"
-V2_BASE_URL: str = "https://sdmx.oecd.org/public/rest/v2/data/dataflow/"
-CRS_BASE_URL: str = "https://sdmx.oecd.org/dcd-public/rest/data/"
+type FilterValue = str | int | list[str] | list[int] | None
+
+# Dimension order of each table's latest data structure, used when the caller
+# does not pass the live order.
+DAC1_DIMENSIONS: tuple[str, ...] = (
+    "DONOR",
+    "SECTOR",
+    "MEASURE",
+    "TYING_STATUS",
+    "FLOW_TYPE",
+    "UNIT_MEASURE",
+    "PRICE_BASE",
+)
+DAC2_DIMENSIONS: tuple[str, ...] = (
+    "DONOR",
+    "RECIPIENT",
+    "MEASURE",
+    "UNIT_MEASURE",
+    "PRICE_BASE",
+)
+CRS_DIMENSIONS: tuple[str, ...] = (
+    "DONOR",
+    "RECIPIENT",
+    "SECTOR",
+    "MEASURE",
+    "CHANNEL",
+    "MODALITY",
+    "FLOW_TYPE",
+    "PRICE_BASE",
+    "MD_DIM",
+    "MD_ID",
+    "UNIT_MEASURE",
+)
+MULTISYSTEM_DIMENSIONS: tuple[str, ...] = (
+    "DONOR",
+    "RECIPIENT",
+    "SECTOR",
+    "MEASURE",
+    "CHANNEL",
+    "FLOW_TYPE",
+    "PRICE_BASE",
+    "MD_DIM",
+    "MD_ID",
+    "UNIT_MEASURE",
+)
+
+V1_DATA_PATH: str = "data/"
+V2_DATA_PATH: str = "v2/data/dataflow/"
 AGENCY_ID: str = "OECD.DCD.FSD"
 SHAPE: str = "dimensionAtObservation=AllDimensions"
 FORMAT: str = "csvfilewithlabels"
@@ -17,11 +65,20 @@ class QueryBuilder:
     """
     A builder class for constructing SDMX API queries for the OECD data.
 
+    The `build_*_filter` methods place each filter value by dimension ID. They
+    follow `dimensions` when given, and `download` passes the order of the
+    resolved dataflow version's data structure. Without it they follow the
+    order of each table's latest data structure at release time
+    (`DAC1_DIMENSIONS`, `DAC2_DIMENSIONS`, `CRS_DIMENSIONS`,
+    `MULTISYSTEM_DIMENSIONS`).
+
     Attributes:
         agency_id (str): The agency ID used in the query.
         base_url (str): The base URL for the query, dynamically determined by the API version.
         params (dict): A dictionary of query parameters, initialized with default format.
         api_version (int): The version of the API to use.
+        dimensions (tuple[str, ...] | None): The dimension IDs of the data
+            structure in key order, or None to use each builder's default order.
     """
 
     def __init__(
@@ -29,6 +86,7 @@ class QueryBuilder:
         dataflow_id: str,
         dataflow_version: str | None = None,
         api_version: int = 1,
+        dimensions: Sequence[str] | None = None,
     ) -> None:
         """
         Initialize the QueryBuilder with specific settings for the API and data flow.
@@ -37,20 +95,22 @@ class QueryBuilder:
             dataflow_id (str): The identifier for the dataflow.
             dataflow_version (str): The version of the dataflow
             api_version (int): The version of the API to use, default is 2.
-            crs (bool): Whether the dataflow is the CRS dataflow.
+            dimensions (Sequence[str] | None): The dimension IDs of the
+                dataflow version's data structure, in key order. When None,
+                each filter builder uses the order of the table's latest data
+                structure at release time.
         """
+        self.dataflow_id = dataflow_id
+        self.dataflow_version = dataflow_version
+        self.dimensions = tuple(dimensions) if dimensions is not None else None
 
         # If dataflow_version is not provided, use the latest version
         if dataflow_version is None:
             dataflow_version = "+" if api_version == 2 and not dataflow_version else ""
 
-        # Set the base URL and separator based on the API version
-        if "CRS" in dataflow_id or "MULTI" in dataflow_id:
-            base_url = CRS_BASE_URL
-        elif api_version == 2:
-            base_url = V2_BASE_URL
-        else:
-            base_url = V1_BASE_URL
+        # Set the base URL and separator based on the dataflow and API version
+        data_path = V2_DATA_PATH if api_version == 2 else V1_DATA_PATH
+        base_url = f"{sdmx_rest_host(dataflow_id)}{data_path}"
 
         self._separator = "/" if api_version == 2 else ","
 
@@ -101,6 +161,45 @@ class QueryBuilder:
 
         return "+".join(str_param)
 
+    def _build_key(
+        self, values: Mapping[str, FilterValue], default_order: tuple[str, ...]
+    ) -> str:
+        """Join filter values in the data structure's dimension order.
+
+        Args:
+            values: Filter value per dimension ID the builder maps. None leaves
+                the dimension unfiltered.
+            default_order: The dimension order used when `dimensions` is None.
+
+        Returns:
+            str: The key, one segment per dimension.
+
+        Raises:
+            ValueError: If a value is set on a dimension the structure lacks.
+        """
+        order = default_order if self.dimensions is None else self.dimensions
+
+        missing = [d for d, v in values.items() if v is not None and d not in order]
+        if missing:
+            raise ValueError(
+                f"Dataflow {self.dataflow_id} version "
+                f"{self.dataflow_version or 'latest'} has no dimension "
+                f"{', '.join(missing)}, so the filter on it cannot be applied."
+            )
+
+        # An unmapped dimension stays a wildcard, which also returns any total
+        # code it carries, so sums over the result may double-count.
+        unmapped = [d for d in order if d not in values]
+        if unmapped:
+            logger.warning(
+                f"Dataflow {self.dataflow_id} version "
+                f"{self.dataflow_version or 'latest'} has dimensions oda-reader "
+                f"does not filter: {', '.join(unmapped)}. The query returns "
+                "every code on them."
+            )
+
+        return ".".join(self._to_filter_str(values.get(d)) for d in order)
+
     def set_time_period(
         self, start: int | str | None, end: int | str | None
     ) -> "QueryBuilder":
@@ -141,8 +240,8 @@ class QueryBuilder:
     ) -> str:
         """Build the filter string for the DAC1 dataflow.
 
-        The allowed filter follows the pattern:
-        {donor}.{sector}.{measure}.{tying_status}.{flow_type}.{unit_measure}.{price_base}
+        Values are placed by dimension ID. The default order is
+        DONOR.SECTOR.MEASURE.TYING_STATUS.FLOW_TYPE.UNIT_MEASURE.PRICE_BASE.
 
         Args:
             donor (str | list[str] | None): The donor country code(s).
@@ -154,18 +253,21 @@ class QueryBuilder:
 
         Returns:
             str: The filter string for the query.
+
+        Raises:
+            ValueError: If a value is set on a dimension the structure lacks.
         """
-
-        donor = self._to_filter_str(donor)
-        sector = self._to_filter_str(sector)
-        measure = self._to_filter_str(measure)
-        tying_status = self._to_filter_str(None)
-        flow_type = self._to_filter_str(flow_type)
-        unit_measure = self._to_filter_str(unit_measure)
-        price_base = self._to_filter_str(price_base)
-
-        return ".".join(
-            [donor, sector, measure, tying_status, flow_type, unit_measure, price_base]
+        return self._build_key(
+            {
+                "DONOR": donor,
+                "SECTOR": sector,
+                "MEASURE": measure,
+                "TYING_STATUS": None,
+                "FLOW_TYPE": flow_type,
+                "UNIT_MEASURE": unit_measure,
+                "PRICE_BASE": price_base,
+            },
+            DAC1_DIMENSIONS,
         )
 
     def build_dac2_filter(
@@ -178,11 +280,10 @@ class QueryBuilder:
     ) -> str:
         """Build the filter string for the DAC2 dataflow (DAC2A and DAC2B).
 
-        Both tables live under `DSD_DAC2` and share the same five dimensions,
-        in the same order, so one filter builder serves both.
+        Both tables live under `DSD_DAC2`, so one filter builder serves both.
 
-        The allowed filter follows the pattern:
-        {donor}.{recipient}.{measure}.{unit_measure}.{price_base}
+        Values are placed by dimension ID. The default order is
+        DONOR.RECIPIENT.MEASURE.UNIT_MEASURE.PRICE_BASE.
 
         Args:
             donor (str | list[str] | None): The donor country code(s).
@@ -194,15 +295,19 @@ class QueryBuilder:
         Returns:
             str: The filter string for the query.
 
+        Raises:
+            ValueError: If a value is set on a dimension the structure lacks.
         """
-        # if any of the parameters are None, set them to the default value
-        donor = self._to_filter_str(donor)
-        recipient = self._to_filter_str(recipient)
-        measure = self._to_filter_str(measure)
-        unit_measure = self._to_filter_str(unit_measure)
-        price_base = self._to_filter_str(price_base)
-
-        return ".".join([donor, recipient, measure, unit_measure, price_base])
+        return self._build_key(
+            {
+                "DONOR": donor,
+                "RECIPIENT": recipient,
+                "MEASURE": measure,
+                "UNIT_MEASURE": unit_measure,
+                "PRICE_BASE": price_base,
+            },
+            DAC2_DIMENSIONS,
+        )
 
     def build_dac2a_filter(
         self,
@@ -245,9 +350,12 @@ class QueryBuilder:
         microdata: bool = True,
     ) -> str:
         """Build the filter string for the CRS dataflow.
-        The allowed filter follows the pattern:
-        {donor}.{recipient}.{sector}.{measure}.{channel}.
-        {modality}.{flow_type}.{price_base}.{md_dim}.{md_id}
+
+        Values are placed by dimension ID. The default order is
+        DONOR.RECIPIENT.SECTOR.MEASURE.CHANNEL.MODALITY.FLOW_TYPE.PRICE_BASE
+        .MD_DIM.MD_ID.UNIT_MEASURE. `microdata` sets MD_DIM to "DD" (True) or
+        "_T" (False).
+
         Args:
             donor (str | list[str] | None): The donor country code(s).
             recipient (str | list[str] | None): The recipient country code(s).
@@ -259,35 +367,29 @@ class QueryBuilder:
             unit_measure (str | list[str] | None): The unit of measure code(s).
             price_base (str | list[str] | None): The price base code(s).
             microdata (bool): Whether to get microdata or summary data.
+
         Returns:
             str: The filter string for the query.
+
+        Raises:
+            ValueError: If a value is set on a dimension the structure lacks,
+                including MD_DIM, which `microdata` always sets.
         """
-        # if any of the parameters are None, set them to the default value
-        donor = self._to_filter_str(donor)
-        recipient = self._to_filter_str(recipient)
-        sector = self._to_filter_str(sector)
-        measure = self._to_filter_str(measure)
-        channel = self._to_filter_str(channel)
-        modality = self._to_filter_str(modality)
-        flow_type = self._to_filter_str(flow_type)
-        price_base = self._to_filter_str(price_base)
-        unit_measure = self._to_filter_str(unit_measure)
-        md_id = self._to_filter_str(None)
-        md_dim = "DD" if microdata else "_T"
-        return ".".join(
-            [
-                donor,
-                recipient,
-                sector,
-                measure,
-                channel,
-                modality,
-                flow_type,
-                price_base,
-                md_dim,
-                md_id,
-                unit_measure,
-            ]
+        return self._build_key(
+            {
+                "DONOR": donor,
+                "RECIPIENT": recipient,
+                "SECTOR": sector,
+                "MEASURE": measure,
+                "CHANNEL": channel,
+                "MODALITY": modality,
+                "FLOW_TYPE": flow_type,
+                "PRICE_BASE": price_base,
+                "MD_DIM": "DD" if microdata else "_T",
+                "MD_ID": None,
+                "UNIT_MEASURE": unit_measure,
+            },
+            CRS_DIMENSIONS,
         )
 
     def build_multisystem_filter(
@@ -302,9 +404,9 @@ class QueryBuilder:
     ) -> str:
         """Build the filter string for the Multisystem dataflow.
 
-        The allowed filter follows the pattern:
-        {donor}.{recipient}.{sector}.{measure}.{channel}.{flow_type}.{price_base}.{MD_DIM}
-        .{MD_ID}.{UNIT_MEASURE}
+        Values are placed by dimension ID. The default order is
+        DONOR.RECIPIENT.SECTOR.MEASURE.CHANNEL.FLOW_TYPE.PRICE_BASE.MD_DIM
+        .MD_ID.UNIT_MEASURE. MD_DIM is always "_T".
 
         Args:
             donor (str | list[str] | None): The donor country code(s).
@@ -317,33 +419,25 @@ class QueryBuilder:
 
         Returns:
             str: The filter string for the query.
+
+        Raises:
+            ValueError: If a value is set on a dimension the structure lacks,
+                including MD_DIM.
         """
-
-        # if any of the parameters are None, set them to the default value
-        donor = self._to_filter_str(donor)
-        recipient = self._to_filter_str(recipient)
-        sector = self._to_filter_str(sector)
-        measure = self._to_filter_str(measure)
-        channel = self._to_filter_str(channel)
-        flow_type = self._to_filter_str(flow_type)
-        price_base = self._to_filter_str(price_base)
-        md_dim = self._to_filter_str("_T")
-        md_id = self._to_filter_str(None)
-        unit_measure = self._to_filter_str(None)
-
-        return ".".join(
-            [
-                donor,
-                recipient,
-                sector,
-                measure,
-                channel,
-                flow_type,
-                price_base,
-                md_dim,
-                md_id,
-                unit_measure,
-            ]
+        return self._build_key(
+            {
+                "DONOR": donor,
+                "RECIPIENT": recipient,
+                "SECTOR": sector,
+                "MEASURE": measure,
+                "CHANNEL": channel,
+                "FLOW_TYPE": flow_type,
+                "PRICE_BASE": price_base,
+                "MD_DIM": "_T",
+                "MD_ID": None,
+                "UNIT_MEASURE": None,
+            },
+            MULTISYSTEM_DIMENSIONS,
         )
 
     def set_filter(self, filter_string: str) -> "QueryBuilder":
