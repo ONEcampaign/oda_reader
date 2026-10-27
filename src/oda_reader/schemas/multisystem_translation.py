@@ -1,7 +1,7 @@
 import pandas as pd
 
 from oda_reader.schemas.dac1_translation import prices_mapping
-from oda_reader.schemas.dac2_translation import area_code_mapping
+from oda_reader.schemas.dac2_translation import area_code_lookup
 from oda_reader.schemas.schema_tools import map_amount_type_codes, map_area_codes
 
 
@@ -16,18 +16,18 @@ def convert_multisystem_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: The multisystem data in the .stat schema.
     """
     # Get the area codes
-    area_codes = area_code_mapping()
+    area_codes = area_code_lookup()
 
     # Prices mapping
     prices_codes = prices_mapping()
 
     # Map the donor codes
-    df = map_area_codes(df, area_code_mapping=area_codes)
+    df = map_area_codes(df, area_code_lookup=area_codes)
 
     # Map region codes
     df = map_area_codes(
         df,
-        area_code_mapping=area_codes,
+        area_code_lookup=area_codes,
         source_column="recipient_code",
         target_column="recipient_code",
     )

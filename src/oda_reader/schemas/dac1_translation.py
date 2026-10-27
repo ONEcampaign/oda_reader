@@ -2,6 +2,7 @@ import pandas as pd
 
 from oda_reader.common import ImporterPaths
 from oda_reader.schemas.schema_tools import (
+    build_area_code_lookup,
     convert_unit_measure_to_amount_type,
     map_amount_type_codes,
     map_area_codes,
@@ -28,6 +29,14 @@ def area_code_mapping() -> dict:
     )
 
 
+def area_code_lookup() -> dict[str, int]:
+    """Reads the {API code: .Stat code} area code lookup."""
+    return build_area_code_lookup(
+        area_code_mapping(),
+        corrections=read_mapping(MAPPINGS["area_code_corrections"], keys_as_int=True),
+    )
+
+
 def prices_mapping() -> dict:
     """Reads the prices mapping."""
     return read_mapping(
@@ -48,10 +57,10 @@ def flow_types_mapping() -> dict:
 
 
 def convert_dac1_to_dotstat_codes(df: pd.DataFrame) -> pd.DataFrame:
-    area_codes = area_code_mapping()
+    area_codes = area_code_lookup()
     prices_codes = prices_mapping()
 
-    df = map_area_codes(df, area_code_mapping=area_codes)
+    df = map_area_codes(df, area_code_lookup=area_codes)
 
     df = convert_unit_measure_to_amount_type(df)
     df = map_amount_type_codes(df, prices_mapping=prices_codes)
