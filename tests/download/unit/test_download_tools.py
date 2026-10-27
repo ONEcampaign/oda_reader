@@ -764,7 +764,7 @@ class TestDeprecationWarnings:
         """Stub the cache manager + content extractor to avoid real downloads.
 
         The fake path must exist and start with the zip magic bytes, since
-        ``bulk_cache_manager().ensure()``'s return value gets its magic bytes
+        ``bulk_cache_manager().ensure_record()``'s path gets its magic bytes
         inspected by ``_consume_bulk_zip`` before any extraction is
         attempted. ``_save_or_return_parquet_files_from_content`` is the
         patch point for the extraction itself.
@@ -772,7 +772,7 @@ class TestDeprecationWarnings:
         fake_path = tmp_path / "fake.zip"
         fake_path.write_bytes(b"PK\x03\x04" + b"\x00" * 16)
         fake_manager = mocker.Mock()
-        fake_manager.ensure.return_value = fake_path
+        fake_manager.ensure_record.return_value = (fake_path, {})
         mocker.patch(
             "oda_reader.download.download_tools.bulk_cache_manager",
             return_value=fake_manager,
@@ -1854,19 +1854,35 @@ class TestStreamToFileRetry:
     def test_challenge_error_is_publicly_importable(self):
         assert PublicBulkDownloadChallengeError is BulkDownloadChallengeError
 
-    def test_truncated_download_retries_and_succeeds(self, mocker, tmp_path):
-        """Bytes written short of Content-Length is retried, not a hard failure."""
+    @pytest.mark.parametrize(
+        ("validator", "expected"),
+        [
+            ({"ETag": '"B"', "Last-Modified": "Tue, 07 Jul 2026"}, ('"B"', "etag")),
+            (
+                {"Last-Modified": "Tue, 07 Jul 2026"},
+                ("Tue, 07 Jul 2026", "last_modified"),
+            ),
+            ({}, None),
+        ],
+        ids=["etag", "last-modified", "none"],
+    )
+    def test_truncated_download_retries_and_succeeds(
+        self, mocker, tmp_path, validator, expected
+    ):
+        """A truncated transfer is retried, and the validator of the kept attempt is returned."""
         mocker.patch("oda_reader.download.download_tools.time.sleep")
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
         session = mocker.Mock()
         session.get.side_effect = [
             self._fake_response(
-                200, chunks=[b"chunk1"], headers={"Content-Length": "12"}
+                200,
+                chunks=[b"chunk1"],
+                headers={"Content-Length": "12", "ETag": '"A"'},
             ),
             self._fake_response(
                 200,
                 chunks=[b"chunk1", b"chunk2"],
-                headers={"Content-Length": "12"},
+                headers={"Content-Length": "12", **validator},
             ),
         ]
         mocker.patch(
@@ -1875,10 +1891,11 @@ class TestStreamToFileRetry:
         )
         target = tmp_path / "out.bin"
 
-        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
+        delivered = _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
 
         assert target.read_bytes() == b"chunk1chunk2"
         assert session.get.call_count == 2
+        assert delivered == expected
 
     def test_truncated_download_exhausts_retries_then_raises(self, mocker, tmp_path):
         mocker.patch("oda_reader.download.download_tools.time.sleep")
@@ -2298,10 +2315,12 @@ class TestVersionThreadedInvalidation:
         )
 
         fetch_count = {"n": 0}
+        served = {"version": "v20260803"}
 
         def fake_stream(url_, headers, path):
             fetch_count["n"] += 1
             _write_tiny_parquet(path)
+            return served["version"], "etag"
 
         mocker.patch(
             "oda_reader.download.download_tools._stream_to_file",
@@ -2323,6 +2342,7 @@ class TestVersionThreadedInvalidation:
         # (exactly what a real OECD republish produces via
         # get_bulk_file_url_with_version). This must force a real refetch,
         # not silently reuse the stale cached payload.
+        served["version"] = "v20260804"
         bulk_download_parquet(url=url, version="v20260804", use_raw_cache=True)
         assert fetch_count["n"] == 2
 
@@ -2383,6 +2403,7 @@ class TestVersionThreadedInvalidation:
             if fetch_count["n"] > 1:
                 raise ConnectionError("host offline")
             _write_tiny_parquet(path)
+            return "0x8DF2533665E7CB7", "etag"
 
         mocker.patch(
             "oda_reader.download.download_tools._stream_to_file",

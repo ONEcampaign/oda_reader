@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from oda_reader import _http_primitives, disable_http_cache, enable_http_cache
-from oda_reader._cache.manager import _reset_bulk_cache_manager
+from oda_reader._cache.config import reset_cache_dir
 from oda_reader.common import RateLimiter
 
 
@@ -26,12 +26,15 @@ def isolated_bulk_cache(tmp_path_factory, monkeypatch):
 
     Bulk readers consult the bulk cache for registered files before they
     resolve a URL, so a test that reached the user's real cache could pick up
-    a real registration.
+    a real registration. The `set_cache_dir` override outranks the env var,
+    so it is cleared too: a test that sets it would otherwise share its cache
+    with every later test in the same worker. Clearing it also resets the
+    bulk cache manager.
     """
     monkeypatch.setenv("ODA_READER_CACHE_DIR", str(tmp_path_factory.mktemp("cache")))
-    _reset_bulk_cache_manager()
+    reset_cache_dir()
     yield
-    _reset_bulk_cache_manager()
+    reset_cache_dir()
 
 
 @pytest.fixture

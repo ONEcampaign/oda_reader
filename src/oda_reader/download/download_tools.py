@@ -24,7 +24,7 @@ import requests
 import oda_reader.download._deflate64  # noqa: F401  # adds Deflate64 support
 from oda_reader._cache.config import _HOSTNAME
 from oda_reader._cache.dataframe import dataframe_cache
-from oda_reader._cache.manager import CacheEntry, bulk_cache_manager
+from oda_reader._cache.manager import CacheEntry, CacheManager, bulk_cache_manager
 from oda_reader._http_primitives import DEFAULT_HEADERS, _get_bulk_stream_session
 from oda_reader.common import (
     API_RATE_LIMITER,
@@ -96,8 +96,9 @@ _ANNOTATION_TEXT_RE = re.compile(
     r'<(?:\w+:)?AnnotationText[^>]*xml:lang="en"[^>]*>([^<]*)</(?:\w+:)?AnnotationText>'
 )
 # Strips the `-vYYYYMMDD` republish-date suffix OECD appends to labels, plus
-# the optional `-N` tail a same-day republish adds.
-_LABEL_VERSION_SUFFIX_RE = re.compile(r"-v\d{8}(?:-\d+)?$")
+# the optional `-N` tail a same-day republish adds. The group holds the
+# suffix without its leading hyphen, the readable release id.
+_LABEL_VERSION_SUFFIX_RE = re.compile(r"-(v\d{8}(?:-\d+)?)$")
 
 # The dataflow XML is a trusted OECD source, but it's remote input that
 # becomes a request target once resolved -- this allowlist is what keeps a
@@ -123,6 +124,9 @@ _PARQUET_MAGIC = b"PAR1"
 # into a handful of chunks rather than one, matching as_iterator's whole
 # point of bounding memory.
 _CSV_ITERATOR_CHUNK_SIZE = 100_000
+
+# The header a file host's version token came from: ETag, else Last-Modified.
+type ValidatorKind = typing.Literal["etag", "last_modified"]
 
 # _stream_to_file retries transient transport failures and truncated transfers
 # up to three times with this backoff. HTTP errors and Cloudflare challenges
@@ -989,8 +993,10 @@ def _throttle_wait(error: BulkDownloadHTTPError) -> float | None:
     return error.retry_after
 
 
-def _stream_to_file(url: str, headers: dict, path: Path) -> None:
-    """Stream a URL to the given file path.
+def _stream_to_file(
+    url: str, headers: dict, path: Path
+) -> tuple[str, ValidatorKind] | None:
+    """Stream a URL to the given file path and return the response's validator.
 
     Uses the shared bulk-stream session, browser-like compatibility headers,
     and a 10-second connect / 60-second read timeout. An interactive Cloudflare
@@ -1014,6 +1020,10 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
     untouched. Permanent request-format errors, such as ``MissingSchema``,
     also propagate on the first attempt. Each attempt reopens ``path`` with
     ``wb`` and calls ``API_RATE_LIMITER.wait()``.
+
+    Returns:
+        The ``_response_validator`` of the response whose bytes were kept,
+        so a cache records the version of the bytes it holds.
     """
     request_headers = {**DEFAULT_HEADERS, **headers}
     session = _get_bulk_stream_session()
@@ -1050,7 +1060,7 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
 
                     truncation = _check_truncated(r.headers, bytes_written)
                     if truncation is None:
-                        return
+                        return _response_validator(r.headers)
                     if is_last_attempt:
                         raise BulkDownloadHTTPError(
                             status_code=r.status_code,
@@ -1457,34 +1467,25 @@ def bulk_download_parquet(
         """Resolve one URL to a validated local path, cached or not."""
         target_url = _encode_url_path(target_url)
         target_key = _bulk_cache_key(target_url)
-        extension = Path(urlsplit(target_url).path).suffix or ".zip"
+
+        if use_raw_cache:
+            fetch_manager = bulk_cache_manager()
+            fetched_path, _record = _ensure_cached_bulk_file(
+                target_url,
+                target_version,
+                flow_url=flow_url,
+                label=label,
+                manager=fetch_manager,
+            )
+            return fetch_manager, fetched_path, target_key
 
         try:
-            if use_raw_cache:
-                entry = CacheEntry(
-                    key=target_key,
-                    filename=f"{target_key}{extension}",
-                    fetcher=lambda p: _stream_to_file(target_url, headers, p),
-                    version=target_version,
-                    url=target_url,
-                    flow_url=flow_url,
-                    label=label,
-                )
-                fetch_manager = bulk_cache_manager()
-                fetched_path = fetch_manager.ensure(entry)
-            else:
-                fetch_manager = None
-                fetched_path = _stream_to_tempfile(target_url, headers)
-                validate_payload_or_raise(fetched_path)
+            fetched_path = _stream_to_tempfile(target_url, headers)
         except BulkDownloadChallengeError as e:
-            # Complete the register_bulk_file call the message prints: the
-            # dataset lets offline reads find the file, and the version token
-            # lets online reads keep it until OECD republishes.
-            e.dataset = _bulk_dataset_name(flow_url, label)
-            e.version = target_version
+            _complete_challenge_error(e, flow_url, label, target_version)
             raise
-
-        return fetch_manager, fetched_path, target_key
+        validate_payload_or_raise(fetched_path)
+        return None, fetched_path, target_key
 
     try:
         manager, payload_path, url_key = _fetch(url, version)
@@ -1509,6 +1510,70 @@ def bulk_download_parquet(
         manager=manager,
         url_key=url_key,
     )
+
+
+def _complete_challenge_error(
+    error: BulkDownloadChallengeError,
+    flow_url: str | None,
+    label: str | None,
+    version: str | None,
+) -> None:
+    """Complete the `register_bulk_file` call a challenge error prints.
+
+    The dataset lets offline reads find the file, and the version token lets
+    online reads keep it until OECD republishes.
+    """
+    error.dataset = _bulk_dataset_name(flow_url, label)
+    error.version = version
+
+
+def _ensure_cached_bulk_file(
+    url: str,
+    version: str | None,
+    *,
+    flow_url: str | None,
+    label: str | None,
+    manager: CacheManager,
+    release: str | None = None,
+    refresh: bool = False,
+) -> tuple[Path, dict[str, typing.Any]]:
+    """Serve *url* from *manager*'s cache, downloading it when missing or stale.
+
+    Args:
+        url: The resolved bulk-file URL.
+        version: The file host's version token, or ``None`` if unknown.
+        flow_url: The dataflow URL *url* was resolved from.
+        label: The annotation label *url* was resolved from.
+        manager: The bulk cache to use.
+        release: The annotation label's readable release id, if recorded.
+        refresh: If True, download even when a current copy is cached.
+
+    Returns:
+        ``(path, record)`` of the cached payload.
+
+    Raises:
+        BulkDownloadChallengeError: With ``dataset`` and ``version`` filled in.
+        BulkPayloadCorruptError: If the downloaded payload fails validation.
+    """
+    url = _encode_url_path(url)
+    key = _bulk_cache_key(url)
+    extension = Path(urlsplit(url).path).suffix or ".zip"
+    headers = {"Accept-Encoding": "gzip"}
+    entry = CacheEntry(
+        key=key,
+        filename=f"{key}{extension}",
+        fetcher=lambda p: _stream_to_file(url, headers, p),
+        version=version,
+        url=url,
+        flow_url=flow_url,
+        label=label,
+        release=release,
+    )
+    try:
+        return manager.ensure_record(entry, refresh=refresh)
+    except BulkDownloadChallengeError as e:
+        _complete_challenge_error(e, flow_url, label, version)
+        raise
 
 
 def _read_cached_bulk_file(
@@ -1758,14 +1823,30 @@ def _parse_ext_resources(xml: str) -> dict[str, str]:
     Returns:
         dict[str, str]: Suffix-stripped label -> URL.
     """
-    resources: dict[str, str] = {}
+    return {
+        label: url
+        for label, (url, _release) in _parse_ext_resource_entries(xml).items()
+    }
+
+
+def _parse_ext_resource_entries(xml: str) -> dict[str, tuple[str, str | None]]:
+    """Like `_parse_ext_resources`, and keep each label's release id.
+
+    Returns:
+        dict[str, tuple[str, str | None]]: Suffix-stripped label -> (URL,
+            the stripped ``vYYYYMMDD`` or ``vYYYYMMDD-N`` suffix, or ``None``
+            for a label without one).
+    """
+    resources: dict[str, tuple[str, str | None]] = {}
     for match in _ANNOTATION_TEXT_RE.finditer(xml):
         text = unescape(match.group(1))
         label, sep, url = text.partition("|")
         if not sep:
             continue
-        stripped_label = _LABEL_VERSION_SUFFIX_RE.sub("", label.strip())
-        resources[stripped_label] = url.strip()
+        label = label.strip()
+        suffix = _LABEL_VERSION_SUFFIX_RE.search(label)
+        stripped_label = label[: suffix.start()] if suffix else label
+        resources[stripped_label] = (url.strip(), suffix.group(1) if suffix else None)
     return resources
 
 
@@ -1806,9 +1887,20 @@ def _fetch_revalidation_token(url: str) -> str | None:
     return None if validator is None else validator[0]
 
 
+def _response_validator(
+    headers: typing.Mapping[str, str],
+) -> tuple[str, ValidatorKind] | None:
+    """The file host's version token in *headers*, the ETag else Last-Modified."""
+    if etag := headers.get("ETag"):
+        return etag, "etag"
+    if last_modified := headers.get("Last-Modified"):
+        return last_modified, "last_modified"
+    return None
+
+
 def _fetch_revalidation_validator(
     url: str,
-) -> tuple[str, typing.Literal["etag", "last_modified"]] | None:
+) -> tuple[str, ValidatorKind] | None:
     """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
     Every resolved bulk URL is probed, because the file host is the only
@@ -1870,10 +1962,8 @@ def _fetch_revalidation_validator(
                     f"Revalidation ranged GET for {url} got 200; "
                     "server ignored the Range header."
                 )
-            if etag := response.headers.get("ETag"):
-                return etag, "etag"
-            if last_modified := response.headers.get("Last-Modified"):
-                return last_modified, "last_modified"
+            if validator := _response_validator(response.headers):
+                return validator
             _warn_revalidation_failure(
                 url,
                 f"HTTP {response.status_code} carried neither ETag nor Last-Modified",
@@ -2075,11 +2165,32 @@ def _resolve_bulk_file_url(
             discovery and scan.
         ValueError: If the resolved URL fails the host allowlist check.
     """
+    url, _release = _resolve_bulk_file(
+        flow_url, label, latest_flow, bypass_annotation_cache=bypass_annotation_cache
+    )
+    return url
+
+
+def _resolve_bulk_file(
+    flow_url: str,
+    label: str,
+    latest_flow: float | None = None,
+    *,
+    bypass_annotation_cache: bool = False,
+) -> tuple[str, str | None]:
+    """Resolve an annotation label to its finalized URL and its label's release id.
+
+    As `_resolve_bulk_file_url`, which wraps it.
+
+    Returns:
+        tuple[str, str | None]: The URL, and the ``vYYYYMMDD`` suffix the
+            annotation label carried (``None`` when it carried none).
+    """
     headers = {"Accept-Encoding": "gzip"}
 
     dataflow_id = _extract_dataflow_id_from_flow_url(flow_url)
 
-    def _try_version(version: float | int | str) -> str | None:
+    def _try_version(version: float | int | str) -> tuple[str, str | None] | None:
         """Attempt to resolve *label* to a URL for a given dataflow version."""
         status, response, _ = _get_response_text(
             f"{flow_url}{version}",
@@ -2088,13 +2199,17 @@ def _resolve_bulk_file_url(
         )
         if status > 299:
             return None
-        return _parse_ext_resources(response).get(label)
+        return _parse_ext_resource_entries(response).get(label)
+
+    def _finalize(result: tuple[str, str | None]) -> tuple[str, str | None]:
+        url, release = result
+        return _finalize_resolved_url(url), release
 
     # --- Step 1: try an explicit version if provided ---
     if latest_flow is not None:
         result = _try_version(latest_flow)
         if result is not None:
-            return _finalize_resolved_url(result)
+            return _finalize(result)
 
     # --- Step 2 (or Step 1 when latest_flow is None): use version discovery ---
     if dataflow_id is not None:
@@ -2102,7 +2217,7 @@ def _resolve_bulk_file_url(
             discovered_version = discover_latest_version(dataflow_id)
             result = _try_version(discovered_version)
             if result is not None:
-                return _finalize_resolved_url(result)
+                return _finalize(result)
         except (ConnectionError, ValueError):
             logger.info("Version discovery failed; falling back to version scan.")
 
@@ -2114,7 +2229,7 @@ def _resolve_bulk_file_url(
             break
         result = _try_version(scan_version)
         if result is not None:
-            return _finalize_resolved_url(result)
+            return _finalize(result)
 
     raise RuntimeError(
         f"Bulk download URL for label '{label}' could not be found "

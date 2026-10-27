@@ -62,6 +62,16 @@ def workbook_for(tmp_path):
     return build
 
 
+def _host_serving(workbook: Path, validator: tuple[str, str] | None):
+    """A `_stream_to_file` fake that writes *workbook* and delivers *validator*."""
+
+    def stream(url, headers, target):
+        shutil.copyfile(workbook, target)
+        return validator
+
+    return stream
+
+
 @pytest.fixture
 def live_folder(monkeypatch):
     """Serve the listing snapshots and let _fetch return fixture workbooks."""
@@ -386,13 +396,12 @@ def test_cache_hit_reports_the_version_recorded_with_the_copy(
     """A failed probe still serves the cached copy and reports its validator."""
     workbook = workbook_for("recipient_2026")
     url = crdf.CRDF_URL + "RecipientPerspective/CRDF-RP_2016.xlsx"
-    validators = iter([("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified"), None])
+    validator = ("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified")
+    validators = iter([validator, None])
     monkeypatch.setattr(
         crdf, "_fetch_revalidation_validator", lambda u: next(validators)
     )
-    monkeypatch.setattr(
-        crdf, "_stream_to_file", lambda u, h, target: shutil.copyfile(workbook, target)
-    )
+    monkeypatch.setattr(crdf, "_stream_to_file", _host_serving(workbook, validator))
 
     with crdf._fetch(url) as (_, *downloaded):
         pass
@@ -455,9 +464,7 @@ def test_rows_carry_the_version_of_the_bytes_they_came_from(
     monkeypatch.setattr(
         crdf, "_fetch_revalidation_validator", lambda u: ('"v1"', "etag")
     )
-    monkeypatch.setattr(
-        crdf, "_stream_to_file", lambda u, h, target: shutil.copyfile(v1, target)
-    )
+    monkeypatch.setattr(crdf, "_stream_to_file", _host_serving(v1, ('"v1"', "etag")))
     if not hard_links:
         monkeypatch.setattr(os, "link", _refuse_link)
 
@@ -467,7 +474,9 @@ def test_rows_carry_the_version_of_the_bytes_they_came_from(
             crdf.CacheEntry(
                 key=key,
                 filename=f"{key}.xlsx",
-                fetcher=lambda target: shutil.copyfile(v2, target),
+                fetcher=lambda target: _host_serving(v2, ('"v2"', "etag"))(
+                    url, {}, target
+                ),
                 version='"v2"',
                 version_kind="etag",
                 url=url,

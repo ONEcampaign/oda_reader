@@ -11,6 +11,7 @@ against a previous table with never-delete lineage semantics.
 import sys
 import warnings
 from collections.abc import Callable
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from oda_reader._cache import (
@@ -26,6 +27,7 @@ from oda_reader._cache.legacy import clear_cache as _impl_clear_cache
 from oda_reader._cache.legacy import disable_cache as _impl_disable_cache
 from oda_reader._cache.legacy import enable_cache as _impl_enable_cache
 from oda_reader._logging import install_legacy_logger_name
+from oda_reader._tables import BulkFileInfo, ScannedTable, cache_info, release, scan
 from oda_reader.aiddata import download_aiddata
 from oda_reader.common import (
     API_RATE_LIMITER,
@@ -65,14 +67,30 @@ from oda_reader.tools import get_available_filters
 
 install_legacy_logger_name()
 
-# Each shim emits a one-time-per-session DeprecationWarning when oda_data is
-# also imported (umbrella users should migrate to oda_data.cache.*); standalone
-# oda_reader users see no warning.
+# Each shim emits a one-time-per-session DeprecationWarning when oda_data 2.x
+# or earlier is also imported (umbrella users should migrate to
+# oda_data.cache.*). Standalone oda_reader users and oda_data 3 users see no
+# warning.
 _WARNED_SHIMS: set[str] = set()
 
 
+def _oda_data_before_3_imported() -> bool:
+    """True when oda_data is imported and its installed version is below 3.
+
+    An imported oda_data with no installed distribution counts as below 3.
+    """
+    if "oda_data" not in sys.modules:
+        return False
+    try:
+        installed = version("oda_data")
+    except PackageNotFoundError:
+        return True
+    major = installed.split(".", 1)[0]
+    return not (major.isdigit() and int(major) >= 3)
+
+
 def _warn_once_if_oda_data_imported(name: str, replacement: str) -> None:
-    if name in _WARNED_SHIMS or "oda_data" not in sys.modules:
+    if name in _WARNED_SHIMS or not _oda_data_before_3_imported():
         return
     warnings.warn(
         f"oda_reader.{name} is deprecated for users who also import oda_data; "
@@ -156,6 +174,10 @@ __all__ = [
     "download_crdf_file",
     "list_crdf_files",
     "get_available_filters",
+    # Local Parquet tables
+    "scan",
+    "release",
+    "ScannedTable",
     # Cache configuration
     "get_cache_dir",
     "set_cache_dir",
@@ -168,6 +190,8 @@ __all__ = [
     # Version discovery cache
     "clear_version_cache",
     # DataFrame and bulk cache managers
+    "cache_info",
+    "BulkFileInfo",
     "dataframe_cache",
     "bulk_cache_manager",
     "register_bulk_file",

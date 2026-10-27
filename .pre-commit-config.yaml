@@ -103,9 +103,10 @@ repos:
       # The captured-fixture directories carry OECD's own French annotation
       # text ("mesure", "ressources", "correspondance"), which codespell reads
       # as misspelled English and rewrites. Correcting a captured response is
-      # exactly what a fixture must never allow.
+      # exactly what a fixture must never allow. "Pupose" is OECD's spelling of a
+      # CRDF workbook header, which the schema and its tests must match.
       - id: codespell
-        args: [--write-changes]
+        args: [--write-changes, --ignore-words-list=pupose]
         exclude: |
           (?x)^(
             .*\.lock|

@@ -93,3 +93,27 @@ def test_shims_forward_correctly(tmp_path) -> None:
     # override rather than equalling it byte-for-byte: readerkit.resolve_cache_dir
     # appends its own schema/slug/version segments beneath whichever root wins.
     assert get_cache_dir().is_relative_to(tmp_path.resolve())
+
+
+@pytest.mark.parametrize(
+    ("installed", "warns"),
+    [("2.8.1", True), ("3.0.0", False), ("10.1", False), (None, True)],
+)
+def test_shims_warn_only_below_oda_data_3(mocker, installed, warns) -> None:
+    """oda_data 3 replaces the shims' umbrella API, so its users see no warning.
+
+    ``None`` stands for an imported oda_data with no installed distribution.
+    """
+    from importlib.metadata import PackageNotFoundError
+
+    mocker.patch(
+        "oda_reader.version",
+        side_effect=PackageNotFoundError("oda_data") if installed is None else None,
+        return_value=installed,
+    )
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        oda_reader.enable_cache()
+
+    deprecations = [x for x in w if issubclass(x.category, DeprecationWarning)]
+    assert len(deprecations) == (1 if warns else 0)

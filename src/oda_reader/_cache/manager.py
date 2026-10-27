@@ -9,7 +9,8 @@ import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Callable, Iterator
+import uuid
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -39,26 +40,36 @@ class CacheEntry:
     Attributes:
         key: Unique identifier (e.g., "crs_full", "aiddata")
         filename: Storage filename (e.g., "crs_full.parquet", "aiddata.parquet")
-        fetcher: Callable that downloads and writes data to a given path
+        fetcher: Callable that downloads and writes data to a given path and
+            returns the ``(token, kind)`` validator the download delivered,
+            or ``None`` when the response carried none. The record stores
+            this validator, so its version names the bytes it describes.
         ttl_days: Time-to-live in days (default: 90)
-        version: Optional version string for cache invalidation
+        version: Optional version token read before the download, such as a
+            revalidation probe's. It decides whether a cached copy is stale;
+            the record stores the validator the fetcher delivered.
         version_kind: Optional name of the validator ``version`` holds, such
-            as ``"etag"`` or ``"last_modified"``, recorded in the manifest
+            as ``"etag"`` or ``"last_modified"``
         url: Optional source URL, recorded in the manifest
         flow_url: Optional dataflow URL the bulk reader resolved ``url``
             from, recorded so ``find_entry`` can match it offline
         label: Optional EXT_RESOURCE annotation label within ``flow_url``
+        release: Optional readable release id for the payload, such as the
+            ``v20260803`` date OECD appends to a CRS annotation label.
+            Recorded only when the stored version equals ``version``, so it
+            never describes a payload the version check could not confirm.
     """
 
     key: str
     filename: str
-    fetcher: Callable[[Path], None]
+    fetcher: Callable[[Path], tuple[str, str] | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
     url: str | None = None
     flow_url: str | None = None
     label: str | None = None
+    release: str | None = None
 
 
 class CacheManager:
@@ -78,7 +89,8 @@ class CacheManager:
         ├── manifest.json       # Metadata tracking
         ├── .cache.lock         # FileLock for coordination
         ├── .snapshot-*/        # Private read snapshots, removed after each read
-        └── *.zip               # Cached datasets
+        ├── {key}.zip           # Cached datasets
+        └── {key}-*.parquet     # Files derived from a cached dataset, removed with it
     """
 
     def __init__(self, base_dir: Path | None = None) -> None:
@@ -137,7 +149,10 @@ class CacheManager:
         """Like ``ensure``, and also return the manifest record of the file served.
 
         The record describes the payload at the returned path, so a cache hit
-        reports the version stored with that payload, not ``entry.version``.
+        reports the version stored with that payload, not ``entry.version``,
+        and a fetch records the version the fetcher returned for the bytes it
+        wrote. A fetch that delivers a version other than ``entry.version``
+        logs a warning.
         A hit fills in any of ``url``, ``flow_url`` and ``label`` the record
         lacks from ``entry``, so a record written before those were recorded
         becomes findable by ``find_entry``.
@@ -163,6 +178,9 @@ class CacheManager:
                     if record.get(field) is None
                     and (value := getattr(entry, field)) is not None
                 }
+                release = _confirmed_release(entry, record.get("version"))
+                if release not in (None, record.get("release")):
+                    missing["release"] = entry.release
                 if missing:
                     record.update(missing)
                     self._save_manifest(manifest)
@@ -171,19 +189,28 @@ class CacheManager:
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            self._install(path, entry.fetcher)
+            delivered = self._install(path, entry.fetcher)
+            version, version_kind = delivered or (None, None)
+            if entry.version is not None and version != entry.version:
+                logger.warning(
+                    f"{entry.key}: the download carried version {version!r}, not "
+                    f"the {entry.version!r} the host announced before it. "
+                    "Recording the downloaded version."
+                )
 
             record = {
                 "filename": entry.filename,
                 "seq": _next_seq(manifest),
+                "payload_id": uuid.uuid4().hex,
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
-                "version": entry.version,
-                "version_kind": entry.version_kind,
+                "version": version,
+                "version_kind": version_kind,
                 "source": "download",
                 "url": entry.url,
                 "flow_url": entry.flow_url,
                 "label": entry.label,
+                "release": _confirmed_release(entry, version),
             }
             manifest[entry.key] = record
             self._save_manifest(manifest)
@@ -275,6 +302,7 @@ class CacheManager:
             manifest[key] = {
                 "filename": filename,
                 "seq": _next_seq(manifest),
+                "payload_id": uuid.uuid4().hex,
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": None,
                 "version": version,
@@ -306,11 +334,36 @@ class CacheManager:
             label: The annotation label to match, together with ``flow_url``.
 
         Returns:
-            ``(key, path, url)`` of the entry stored under ``key`` when a key
-            is given, else of the last stored entry (see ``_recency``) matching
-            ``flow_url`` and ``label``. ``None`` when no such entry's file
-            exists. ``url`` is ``None`` for an entry stored before URLs were
-            recorded.
+            ``(key, path, url)`` of the entry ``find_record`` finds, or
+            ``None``. ``url`` is ``None`` for an entry stored before URLs
+            were recorded.
+        """
+        found = self.find_record(key=key, flow_url=flow_url, label=label)
+        if found is None:
+            return None
+        entry_key, path, record = found
+        return entry_key, path, record.get("url")
+
+    def find_record(
+        self,
+        *,
+        key: str | None = None,
+        flow_url: str | None = None,
+        label: str | None = None,
+    ) -> tuple[str, Path, dict[str, Any]] | None:
+        """Like ``find_entry``, and return the entry's manifest record.
+
+        Args:
+            key: The manifest key to match. When given, it alone decides
+                the match and ``flow_url`` and ``label`` are ignored.
+            flow_url: The dataflow URL to match, together with ``label``.
+            label: The annotation label to match, together with ``flow_url``.
+
+        Returns:
+            ``(key, path, record)`` of the entry stored under ``key`` when a
+            key is given, else of the last stored entry (see ``_recency``)
+            matching ``flow_url`` and ``label``. ``None`` when no such
+            entry's file exists.
         """
         with self._lock:
             manifest = self._load_manifest()
@@ -333,10 +386,103 @@ class CacheManager:
         if not matches:
             return None
         entry_key, record = max(matches, key=lambda m: _recency(m[1]))
-        return entry_key, self.base_dir / record["filename"], record.get("url")
+        return entry_key, self.base_dir / record["filename"], record
+
+    def set_content_hash(self, key: str, content_hash: str, *, payload_id: str) -> bool:
+        """Record *content_hash* on the entry ``key``, if it still holds ``payload_id``.
+
+        Args:
+            key: The manifest key.
+            content_hash: The ``sha256:<hex>`` digest of the payload.
+            payload_id: The ``_payload_id`` of the record the caller hashed
+                the payload of. A different id means the payload was
+                replaced in the meantime, and nothing is written.
+
+        Returns:
+            True if the hash was recorded.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+            record = manifest.get(key)
+            if record is None or _payload_id(record) != payload_id:
+                return False
+            record["content_hash"] = content_hash
+            self._save_manifest(manifest)
+            return True
+
+    def link_payload(self, key: str, dest: Path, *, payload_id: str) -> bool:
+        """Hard-link the payload of entry ``key`` to *dest*, if it still holds ``payload_id``.
+
+        The check and the link run under the cache lock, so *dest* holds the
+        bytes of the record with ``payload_id``. A later refetch replaces the cached
+        file with a new inode and leaves *dest* as it was. Where the
+        filesystem refuses the link, the payload is copied. *dest* appears
+        complete or not at all.
+
+        Args:
+            key: The manifest key.
+            dest: The new name for the payload, inside the cache directory.
+            payload_id: The ``_payload_id`` of the record the caller expects
+                the payload of.
+
+        Returns:
+            True if *dest* was written; False if the entry is gone or holds
+            another payload.
+        """
+        tmp_path = Path(f"{dest}.tmp-{_HOSTNAME}-{os.getpid()}")
+        with self._lock:
+            record = self._load_manifest().get(key)
+            if record is None or _payload_id(record) != payload_id:
+                return False
+            path = self.base_dir / record["filename"]
+            try:
+                try:
+                    os.link(path, tmp_path)
+                except OSError:
+                    shutil.copyfile(path, tmp_path)
+                tmp_path.replace(dest)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+            return True
+
+    def remove_older_releases(self, key: str, keep: Path) -> None:
+        """Delete the dataset's derived files except *keep* and the newest other one.
+
+        A dataset's releases are the ``{key}-*.parquet`` files derived from
+        every record of the same ``flow_url`` and ``label``, whatever URL
+        each was downloaded from. The newest other file, by modification
+        time, is the previous release's, which a reader that scanned before
+        *keep* was made may still hold open. A record without a dataset
+        counts only its own derived files.
+
+        Args:
+            key: The manifest key of the payload *keep* was derived from.
+            keep: The derived file just written.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+            record = manifest.get(key)
+            if record is None:
+                return
+            others = [
+                path for path in self._release_files(manifest, record) if path != keep
+            ]
+            for old in others[1:]:
+                # A file that cannot be deleted now, such as one another
+                # process holds open on Windows, stays until next time.
+                try:
+                    old.unlink(missing_ok=True)
+                except OSError as e:
+                    logger.warning(f"Could not delete older release {old}: {e}")
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
+
+        A file another process holds open on Windows cannot be deleted. It
+        stays on disk, with a warning, and its record goes all the same, so a
+        scan converting it raises. The next download of the same URL replaces
+        the payload, and the next conversion of its dataset removes the
+        derived files ``remove_older_releases`` does not keep.
 
         Args:
             key: If provided, clear only this entry. If None, clear all.
@@ -346,13 +492,11 @@ class CacheManager:
 
             if key is None:
                 for record in manifest.values():
-                    file_path = self.base_dir / record["filename"]
-                    file_path.unlink(missing_ok=True)
+                    _warn_held_open(self._remove_payload(record["filename"]))
                 manifest.clear()
                 logger.info("Cleared all bulk cache entries")
             elif key in manifest:
-                file_path = self.base_dir / manifest[key]["filename"]
-                file_path.unlink(missing_ok=True)
+                _warn_held_open(self._remove_payload(manifest[key]["filename"]))
                 del manifest[key]
                 logger.info(f"Cleared cache entry: {key}")
             else:
@@ -389,9 +533,13 @@ class CacheManager:
                         "version": record.get("version"),
                         "source": record.get("source", "download"),
                         "url": record.get("url"),
+                        "flow_url": record.get("flow_url"),
+                        "label": record.get("label"),
+                        "release": record.get("release"),
+                        "content_hash": record.get("content_hash"),
                         "size_mb": size_mb,
                         "is_stale": not _is_registered(record)
-                        and age.days > record["ttl_days"],
+                        and _past_ttl(downloaded, record["ttl_days"]),
                     }
                 )
 
@@ -413,19 +561,60 @@ class CacheManager:
             "stale_entries": stale_count,
         }
 
-    def _install(self, path: Path, write: Callable[[Path], object]) -> None:
+    def _remove_payload(self, filename: str) -> list[Path]:
+        """Delete a cached payload and the ``{key}-*.parquet`` files derived from it.
+
+        Returns:
+            The files left on disk because another process on Windows holds
+            them open.
+        """
+        path = self.base_dir / filename
+        held_open = []
+        for file in [*derived_files(path), path]:
+            try:
+                file.unlink(missing_ok=True)
+            except OSError as e:
+                if not _held_open(e):
+                    raise
+                held_open.append(file)
+        return held_open
+
+    def _release_files(self, manifest: dict, record: dict) -> list[Path]:
+        """The derived files of *record*'s dataset, newest first.
+
+        The dataset is every record with *record*'s ``flow_url`` and
+        ``label``, or *record* alone when it has none.
+        """
+        dataset = _dataset(record)
+        records = (
+            [record]
+            if dataset is None
+            else [other for other in manifest.values() if _dataset(other) == dataset]
+        )
+        files = [
+            derived
+            for other in records
+            for derived in derived_files(self.base_dir / other["filename"])
+        ]
+        return sorted(files, key=_mtime_ns, reverse=True)
+
+    def _install[T](self, path: Path, write: Callable[[Path], T]) -> T:
         """Write a payload to a host+pid tmp file, validate it, then move it to *path*.
 
         A payload that fails validation never reaches *path*, so the file
         already there survives a failed download or registration.
+
+        Returns:
+            What *write* returned.
         """
         tmp_path = Path(f"{path}.tmp-{_HOSTNAME}-{os.getpid()}")
         try:
-            write(tmp_path)
+            written = write(tmp_path)
             validate_payload_or_raise(tmp_path)
             tmp_path.replace(path)
         finally:
             tmp_path.unlink(missing_ok=True)
+        return written
 
     def _is_stale(self, record: dict, entry: CacheEntry) -> bool:
         """Check if cached entry is stale.
@@ -441,10 +630,7 @@ class CacheManager:
             return False
 
         downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-        age = datetime.now(UTC) - downloaded
-        ttl = timedelta(days=entry.ttl_days)
-
-        return age > ttl
+        return _past_ttl(downloaded, entry.ttl_days)
 
     def _load_manifest(self) -> dict:
         """Load manifest from disk."""
@@ -502,10 +688,12 @@ class CacheManager:
         dataset's newest copy is never deleted: it stays stale, so an online
         read refetches it and an offline read can still use it. Entries with no
         ``flow_url`` and ``label`` are never replaced, and registered entries
-        have no TTL, so neither is deleted here.
+        have no TTL, so neither is deleted here. Nor is an entry holding one
+        of its dataset's two newest derived files (see
+        ``remove_older_releases``), so a release a reader may still hold
+        survives a URL change.
         """
         manifest = self._load_manifest()
-        now = datetime.now(UTC)
         try:
             newest: dict[tuple[str, str], tuple[int, datetime]] = {}
             for record in manifest.values():
@@ -522,10 +710,22 @@ class CacheManager:
                     continue
                 recency = _recency(record)
                 _, downloaded = recency
-                if newest.get(dataset, recency) > recency and (
-                    now - downloaded > timedelta(days=record["ttl_days"])
+                if newest.get(dataset, recency) > recency and _past_ttl(
+                    downloaded, record["ttl_days"]
                 ):
                     expired.append(key)
+            kept = {
+                path
+                for key in expired
+                for path in self._release_files(manifest, manifest[key])[:2]
+            }
+            expired = [
+                key
+                for key in expired
+                if kept.isdisjoint(
+                    derived_files(self.base_dir / manifest[key]["filename"])
+                )
+            ]
         except (KeyError, TypeError, ValueError) as e:
             logger.warning(f"Expiry sweep skipped due to manifest parse error: {e}")
             return
@@ -534,16 +734,59 @@ class CacheManager:
 
         for key in expired:
             file_path = self.base_dir / manifest[key]["filename"]
+            # Keep the record of a file not removed so the next sweep retries.
             try:
-                file_path.unlink(missing_ok=True)
+                held_open = self._remove_payload(manifest[key]["filename"])
             except OSError as e:
-                # Keep the record so the next sweep retries the removal.
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")
+                continue
+            if held_open:
+                _warn_held_open(held_open)
                 continue
             logger.info(f"Expired cache entry removed: {file_path}")
             del manifest[key]
 
         self._save_manifest(manifest)
+
+
+def derived_files(payload: Path) -> list[Path]:
+    """The ``{key}-*.parquet`` files derived from the cached *payload*."""
+    return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def _held_open(error: OSError) -> bool:
+    """Whether *error* is Windows refusing to delete a file another process holds open."""
+    # 32 is ERROR_SHARING_VIOLATION.
+    return isinstance(error, PermissionError) and getattr(error, "winerror", None) == 32
+
+
+def _past_ttl(downloaded: datetime, ttl_days: int) -> bool:
+    """Whether a download made at *downloaded* is older than *ttl_days*."""
+    return datetime.now(UTC) - downloaded > timedelta(days=ttl_days)
+
+
+def _warn_held_open(files: list[Path]) -> None:
+    for file in files:
+        logger.warning(f"Could not delete {file}: another process holds it open.")
+
+
+def _mtime_ns(path: Path) -> int:
+    """*path*'s modification time, or 0 for a file another process removed."""
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+def _confirmed_release(entry: CacheEntry, version: str | None) -> str | None:
+    """``entry.release`` when the payload's *version* is ``entry.version``.
+
+    The label release was resolved alongside ``entry.version``, so it names
+    a payload only when that payload carries the same version.
+    """
+    if version is None or version != entry.version:
+        return None
+    return entry.release
 
 
 def _dataset(record: dict) -> tuple[str, str] | None:
@@ -554,8 +797,25 @@ def _dataset(record: dict) -> tuple[str, str] | None:
     return flow_url, label
 
 
+def _payload_id(record: Mapping[str, Any]) -> str:
+    """The id of the payload *record* describes, unique to each download or registration.
+
+    ``seq`` orders records but repeats after a ``clear``, so it cannot tell a
+    replaced payload from the one a caller read. A record written before
+    ``payload_id`` was recorded is identified by its ``seq`` and
+    ``downloaded_at``. Any replacement writes a new id.
+    """
+    if payload_id := record.get("payload_id"):
+        return payload_id
+    return f"legacy:{record.get('seq')}:{record.get('downloaded_at')}"
+
+
 def _next_seq(manifest: dict) -> int:
-    """The ``seq`` for the next record written: one more than the largest so far."""
+    """The ``seq`` for the next record written: one more than the largest so far.
+
+    It orders records (see ``_recency``) and can repeat after a ``clear``.
+    ``_payload_id`` identifies a payload.
+    """
     return max((record.get("seq", 0) for record in manifest.values()), default=0) + 1
 
 
