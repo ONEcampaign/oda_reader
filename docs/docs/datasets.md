@@ -123,6 +123,7 @@ gross, and the rows come back with `aidtype_code` `292`.
 | `2217`   | `217`      | OOF equity investment                                     |
 | `2250`   | `250`      | Export credits, total net                                 |
 | `2255`   | `255`      | Net OOF                                                   |
+| `2260`   | `260`      | Private sector instruments, net (reported from 2023)      |
 | `2292`   | `292`      | Export credits, gross                                     |
 | `2293`   | `293`      | Export credits, repayments                                |
 | `2295`   | `295`      | Offsetting entries for debt relief (export credit claims) |
