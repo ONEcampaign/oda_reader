@@ -1,8 +1,10 @@
 """Tests for `scan`, `release` and `cache_info` on recorded bulk zip fixtures."""
 
 import hashlib
+import json
 import shutil
 import socket
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -19,7 +21,12 @@ from oda_reader import (
     scan,
 )
 from oda_reader._cache.config import get_cache_dir
-from oda_reader._cache.manager import bulk_cache_manager
+from oda_reader._cache.manager import (
+    ISO_FORMAT,
+    CacheManager,
+    _payload_id,
+    bulk_cache_manager,
+)
 from oda_reader.download.download_tools import _parse_ext_resource_entries
 from oda_reader.schemas.bulk_columns import (
     MULTISYSTEM_COLUMNS,
@@ -182,7 +189,10 @@ class FakeHost:
 
     def __init__(self, mocker, crs_parquet: Path) -> None:
         self.tokens = {dataset: f"etag-{dataset}-1" for dataset in _URLS}
+        # The token a download delivers, when it differs from the probe's.
+        self.delivered: dict[str, str | None] = {}
         self.label_release = "v20260803"
+        self.urls = dict(_URLS)
         self.payloads = {**_ZIPS, "crs": crs_parquet}
         self.resolve = mocker.patch(
             "oda_reader._tables._resolve_bulk_file", side_effect=self._resolve
@@ -196,7 +206,7 @@ class FakeHost:
         )
 
     def _dataset(self, url: str) -> str:
-        return next(name for name, known in _URLS.items() if known == url)
+        return next(name for name, known in self.urls.items() if known == url)
 
     def _resolve(self, flow_url, label, latest_flow=None, **_kwargs):
         dataset = next(
@@ -204,13 +214,16 @@ class FakeHost:
             for name, annotation in oda_reader.download.download_tools.BULK_DATASETS.items()
             if annotation == (flow_url, label)
         )
-        return _URLS[dataset], (self.label_release if dataset == "crs" else None)
+        return self.urls[dataset], (self.label_release if dataset == "crs" else None)
 
     def _token(self, url):
         return self.tokens[self._dataset(url)]
 
     def _download(self, url, headers, path):
-        shutil.copyfile(self.payloads[self._dataset(url)], path)
+        dataset = self._dataset(url)
+        shutil.copyfile(self.payloads[dataset], path)
+        token = self.delivered.get(dataset, self.tokens[dataset])
+        return None if token is None else (token, "etag")
 
 
 @pytest.fixture
@@ -232,6 +245,18 @@ def no_sockets(mocker):
         "getaddrinfo": mocker.patch("socket.getaddrinfo", side_effect=refuse),
         "connect": mocker.patch.object(socket.socket, "connect", side_effect=refuse),
     }
+
+
+def _age_records(*, days: int) -> None:
+    """Move every bulk cache record's download time *days* into the past."""
+    manifest_path = bulk_cache_manager().manifest_path
+    manifest = json.loads(manifest_path.read_text())
+    for record in manifest.values():
+        downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+        record["downloaded_at"] = (downloaded - timedelta(days=days)).strftime(
+            ISO_FORMAT
+        )
+    manifest_path.write_text(json.dumps(manifest))
 
 
 def _assert_no_network(no_sockets):
@@ -349,6 +374,28 @@ class TestScan:
         assert spy.call_count == 1
         assert host.download.call_count == 1
 
+    @pytest.mark.parametrize("delivered", ["etag-dac1-B", None])
+    def test_release_is_the_token_the_download_delivered(self, host, caplog, delivered):
+        """A file republished between the probe and the download is labelled B."""
+        host.tokens["dac1"] = "etag-dac1-A"
+        host.delivered["dac1"] = delivered
+        host.payloads = {**host.payloads, "dac1": _ZIPS["dac2a"]}
+
+        table = scan("dac1")
+
+        digest = hashlib.sha256(_ZIPS["dac2a"].read_bytes()).hexdigest()
+        assert table.release == (delivered or f"sha256:{digest}")
+        assert release("dac1", offline=True) == table.release
+        assert "etag-dac1-A" in caplog.text
+
+    def test_crs_label_release_needs_the_delivered_token_to_match_the_probe(self, host):
+        host.delivered["crs"] = "etag-crs-B"
+
+        table = scan("crs")
+
+        assert table.release == "etag-crs-B"
+        assert table.label_release is None
+
     def test_new_token_downloads_and_reconverts(self, host, mocker):
         spy = mocker.spy(oda_reader._tables, "_write_parquet")
         first = scan("dac2a")
@@ -386,6 +433,38 @@ class TestScan:
 
         assert [path.exists() for path in paths] == [False, True, True]
 
+    @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+    def test_the_previous_release_survives_expiry_after_a_url_change(
+        self, host, dataset
+    ):
+        first = scan(dataset)
+        _age_records(days=91)
+        host.urls[dataset] = host.urls[dataset].replace("/files/", "/files/v2/")
+        host.tokens[dataset] = f"etag-{dataset}-2"
+        second = scan(dataset)
+
+        CacheManager(bulk_cache_manager().base_dir)
+
+        assert first.path.exists()
+        assert second.path.exists()
+
+    @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+    def test_releases_before_the_previous_one_go_whatever_their_url(
+        self, host, dataset
+    ):
+        first = scan(dataset)
+        _age_records(days=91)
+        host.urls[dataset] = host.urls[dataset].replace("/files/", "/files/v2/")
+        paths = [first.path]
+        for n in (2, 3):
+            host.tokens[dataset] = f"etag-{dataset}-{n}"
+            paths.append(scan(dataset).path)
+
+        assert [path.exists() for path in paths] == [False, True, True]
+        CacheManager(bulk_cache_manager().base_dir)
+        # The first URL's record holds no kept release, so expiry removes it.
+        assert [info.release for info in cache_info()] == [f"etag-{dataset}-3"]
+
     def test_failed_conversion_leaves_no_file(self, host, mocker):
         def write_then_fail(z, dest, columns):
             dest.write_bytes(b"PAR1 half-written")
@@ -406,20 +485,55 @@ class TestScan:
     @pytest.mark.parametrize(
         ("dataset", "columns"), [("dac1", MULTISYSTEM_COLUMNS), ("crs", None)]
     )
+    @pytest.mark.parametrize("clear", [None, "all", "key"])
     def test_refuses_a_payload_replaced_after_its_record_was_read(
-        self, host, dataset, columns
+        self, host, dataset, columns, clear
     ):
+        """A refetch replaces the payload, also after a clear restarts ``seq``."""
         scan(dataset)
         manager = bulk_cache_manager()
         key = cache_info()[0].path.stem
         found = manager.find_record(key=key)
         assert found is not None
-        stale = {**found[2], "seq": found[2]["seq"] - 1}
+        held = found[2]
+
+        if clear is not None:
+            manager.clear(None if clear == "all" else key)
+        host.tokens[dataset] = f"etag-{dataset}-2"
+        scan(dataset)
 
         with pytest.raises(RuntimeError, match="replaced"):
-            oda_reader._tables._table_file(
-                manager, key, stale, "another-token", columns
-            )
+            oda_reader._tables._table_file(manager, key, held, "another-token", columns)
+
+    def test_content_hash_is_not_recorded_on_a_replaced_payload(self, host):
+        scan("dac1")
+        manager = bulk_cache_manager()
+        key = cache_info()[0].path.stem
+        found = manager.find_record(key=key)
+        assert found is not None
+        held = found[2]
+
+        manager.clear()
+        scan("dac1")
+
+        assert not manager.set_content_hash(
+            key, "sha256:held", payload_id=_payload_id(held)
+        )
+
+    def test_records_written_before_payload_ids_are_still_served(self, host):
+        """A legacy record without ``payload_id`` is identified by seq and time."""
+        scan("dac1")
+        manager = bulk_cache_manager()
+        manifest = json.loads(manager.manifest_path.read_text())
+        [record] = manifest.values()
+        del record["payload_id"]
+        manager.manifest_path.write_text(json.dumps(manifest))
+        for derived in manager.base_dir.glob("*.parquet"):
+            derived.unlink()
+
+        table = scan("dac1", offline=True)
+
+        assert pq.read_table(table.path).num_rows == 5
 
     def test_conversion_cleared_midway_leaves_no_file(self, host, mocker):
         write = oda_reader._tables._write_parquet

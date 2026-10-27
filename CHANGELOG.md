@@ -6,7 +6,8 @@
   DuckDB, Polars or PyArrow query in place. It returns a frozen `ScannedTable` with `path`,
   `release`, `label_release`, `downloaded` and `columns`. The path is named for its release, so
   its bytes stay the same after a newer release is downloaded; the files of the current and the
-  previous release are kept and older ones deleted. CRS is served as a hard link to the cached
+  previous release are kept until the cache is cleared, also after OECD moves a dataset to a new
+  URL, and older ones are deleted. CRS is served as a hard link to the cached
   Parquet. DAC1, DAC2A and Multisystem are streamed from their zipped CSV into Parquet beside the
   cached zip, once per release token, with an atomic write and row groups of 122,880 rows.
   Converted columns
@@ -18,8 +19,10 @@
 
 - **Adds `release()`, which returns a bulk dataset's release token**: the file host's ETag, else
   Last-Modified, for every dataset. A cached file with neither is named by the SHA-256 of its
-  bytes. The download time is kept apart from the token, so two copies of one file share a token,
-  and `scan()` reports the same token for the same file. CRS's readable release id from the
+  bytes. A download records the token its own response carried, so the token names the cached
+  bytes even when OECD republishes during the download. The download time is kept apart from the
+  token, so two copies of one file share a token, and `scan()` reports the same token for the
+  same file. CRS's readable release id from the
   dataflow annotation, such as `v20260803`, is `label_release` on `ScannedTable` and
   `BulkFileInfo`.
 
@@ -36,7 +39,9 @@
   `disable_cache` fire only alongside oda-data 2.x or earlier.** oda-data 3 users see none. The
   functions are unchanged.
 
-- `CacheManager` gains `find_record()`, `set_content_hash()` and `link_payload()`. `CacheEntry`
+- `CacheManager` gains `find_record()`, `set_content_hash()`, `link_payload()` and
+  `remove_older_releases()`. A `CacheEntry.fetcher` returns the `(token, kind)` validator of the
+  response that delivered the file, or `None`. `CacheEntry`
   gains `release`, and `list_records()` reports each entry's `flow_url`, `label`, `release` and
   `content_hash`. Clearing or expiring a bulk file also deletes the Parquet files `scan()` made
   from it. `download_*` and `bulk_download_*` return what they returned in 1.13.0.

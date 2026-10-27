@@ -4,12 +4,14 @@ Inspired by pydeflate's cache design, this module provides a robust caching syst
 for large, monolithic datasets (bulk CRS, Multisystem, AidData downloads).
 """
 
+import contextlib
 import json
 import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Callable, Iterator
+import uuid
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -39,24 +41,29 @@ class CacheEntry:
     Attributes:
         key: Unique identifier (e.g., "crs_full", "aiddata")
         filename: Storage filename (e.g., "crs_full.parquet", "aiddata.parquet")
-        fetcher: Callable that downloads and writes data to a given path
+        fetcher: Callable that downloads and writes data to a given path and
+            returns the ``(token, kind)`` validator the download delivered,
+            or ``None`` when the response carried none. The record stores
+            this validator, so its version names the bytes it describes.
         ttl_days: Time-to-live in days (default: 90)
-        version: Optional version string for cache invalidation
+        version: Optional version token read before the download, such as a
+            revalidation probe's. It decides whether a cached copy is stale;
+            the record stores the validator the fetcher delivered.
         version_kind: Optional name of the validator ``version`` holds, such
-            as ``"etag"`` or ``"last_modified"``, recorded in the manifest
+            as ``"etag"`` or ``"last_modified"``
         url: Optional source URL, recorded in the manifest
         flow_url: Optional dataflow URL the bulk reader resolved ``url``
             from, recorded so ``find_entry`` can match it offline
         label: Optional EXT_RESOURCE annotation label within ``flow_url``
         release: Optional readable release id for the payload, such as the
             ``v20260803`` date OECD appends to a CRS annotation label.
-            Recorded only when ``version`` is known, so it never describes a
-            payload the version check could not confirm.
+            Recorded only when the stored version equals ``version``, so it
+            never describes a payload the version check could not confirm.
     """
 
     key: str
     filename: str
-    fetcher: Callable[[Path], None]
+    fetcher: Callable[[Path], tuple[str, str] | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
@@ -143,7 +150,10 @@ class CacheManager:
         """Like ``ensure``, and also return the manifest record of the file served.
 
         The record describes the payload at the returned path, so a cache hit
-        reports the version stored with that payload, not ``entry.version``.
+        reports the version stored with that payload, not ``entry.version``,
+        and a fetch records the version the fetcher returned for the bytes it
+        wrote. A fetch that delivers a version other than ``entry.version``
+        logs a warning.
         A hit fills in any of ``url``, ``flow_url`` and ``label`` the record
         lacks from ``entry``, so a record written before those were recorded
         becomes findable by ``find_entry``.
@@ -169,7 +179,8 @@ class CacheManager:
                     if record.get(field) is None
                     and (value := getattr(entry, field)) is not None
                 }
-                if _confirmed_release(entry) not in (None, record.get("release")):
+                release = _confirmed_release(entry, record.get("version"))
+                if release not in (None, record.get("release")):
                     missing["release"] = entry.release
                 if missing:
                     record.update(missing)
@@ -179,20 +190,28 @@ class CacheManager:
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            self._install(path, entry.fetcher)
+            delivered = self._install(path, entry.fetcher)
+            version, version_kind = delivered or (None, None)
+            if entry.version is not None and version != entry.version:
+                logger.warning(
+                    f"{entry.key}: the download carried version {version!r}, not "
+                    f"the {entry.version!r} the host announced before it. "
+                    "Recording the downloaded version."
+                )
 
             record = {
                 "filename": entry.filename,
                 "seq": _next_seq(manifest),
+                "payload_id": uuid.uuid4().hex,
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
-                "version": entry.version,
-                "version_kind": entry.version_kind,
+                "version": version,
+                "version_kind": version_kind,
                 "source": "download",
                 "url": entry.url,
                 "flow_url": entry.flow_url,
                 "label": entry.label,
-                "release": _confirmed_release(entry),
+                "release": _confirmed_release(entry, version),
             }
             manifest[entry.key] = record
             self._save_manifest(manifest)
@@ -284,6 +303,7 @@ class CacheManager:
             manifest[key] = {
                 "filename": filename,
                 "seq": _next_seq(manifest),
+                "payload_id": uuid.uuid4().hex,
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": None,
                 "version": version,
@@ -369,15 +389,15 @@ class CacheManager:
         entry_key, record = max(matches, key=lambda m: _recency(m[1]))
         return entry_key, self.base_dir / record["filename"], record
 
-    def set_content_hash(self, key: str, content_hash: str, *, seq: int | None) -> bool:
-        """Record *content_hash* on the entry ``key``, if it still holds payload ``seq``.
+    def set_content_hash(self, key: str, content_hash: str, *, payload_id: str) -> bool:
+        """Record *content_hash* on the entry ``key``, if it still holds ``payload_id``.
 
         Args:
             key: The manifest key.
             content_hash: The ``sha256:<hex>`` digest of the payload.
-            seq: The ``seq`` of the record the caller hashed the payload of.
-                A different ``seq`` means the payload was replaced in the
-                meantime, and nothing is written.
+            payload_id: The ``_payload_id`` of the record the caller hashed
+                the payload of. A different id means the payload was
+                replaced in the meantime, and nothing is written.
 
         Returns:
             True if the hash was recorded.
@@ -385,17 +405,17 @@ class CacheManager:
         with self._lock:
             manifest = self._load_manifest()
             record = manifest.get(key)
-            if record is None or record.get("seq") != seq:
+            if record is None or _payload_id(record) != payload_id:
                 return False
             record["content_hash"] = content_hash
             self._save_manifest(manifest)
             return True
 
-    def link_payload(self, key: str, dest: Path, *, seq: int | None) -> bool:
-        """Hard-link the payload of entry ``key`` to *dest*, if it still holds ``seq``.
+    def link_payload(self, key: str, dest: Path, *, payload_id: str) -> bool:
+        """Hard-link the payload of entry ``key`` to *dest*, if it still holds ``payload_id``.
 
         The check and the link run under the cache lock, so *dest* holds the
-        bytes of the record with ``seq``. A later refetch replaces the cached
+        bytes of the record with ``payload_id``. A later refetch replaces the cached
         file with a new inode and leaves *dest* as it was. Where the
         filesystem refuses the link, the payload is copied. *dest* appears
         complete or not at all.
@@ -403,7 +423,8 @@ class CacheManager:
         Args:
             key: The manifest key.
             dest: The new name for the payload, inside the cache directory.
-            seq: The ``seq`` of the record the caller expects the payload of.
+            payload_id: The ``_payload_id`` of the record the caller expects
+                the payload of.
 
         Returns:
             True if *dest* was written; False if the entry is gone or holds
@@ -412,7 +433,7 @@ class CacheManager:
         tmp_path = Path(f"{dest}.tmp-{_HOSTNAME}-{os.getpid()}")
         with self._lock:
             record = self._load_manifest().get(key)
-            if record is None or record.get("seq") != seq:
+            if record is None or _payload_id(record) != payload_id:
                 return False
             path = self.base_dir / record["filename"]
             try:
@@ -424,6 +445,34 @@ class CacheManager:
             finally:
                 tmp_path.unlink(missing_ok=True)
             return True
+
+    def remove_older_releases(self, key: str, keep: Path) -> None:
+        """Delete the dataset's derived files except *keep* and the newest other one.
+
+        A dataset's releases are the ``{key}-*.parquet`` files derived from
+        every record of the same ``flow_url`` and ``label``, whatever URL
+        each was downloaded from. The newest other file, by modification
+        time, is the previous release's, which a reader that scanned before
+        *keep* was made may still hold open. A record without a dataset
+        counts only its own derived files.
+
+        Args:
+            key: The manifest key of the payload *keep* was derived from.
+            keep: The derived file just written.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+            record = manifest.get(key)
+            if record is None:
+                return
+            others = [
+                path for path in self._release_files(manifest, record) if path != keep
+            ]
+            for old in others[1:]:
+                # A file another process holds open on Windows stays until
+                # next time.
+                with contextlib.suppress(OSError):
+                    old.unlink()
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
@@ -508,23 +557,46 @@ class CacheManager:
     def _remove_payload(self, filename: str) -> None:
         """Delete a cached payload and the ``{key}-*.parquet`` files derived from it."""
         path = self.base_dir / filename
-        for derived in self.base_dir.glob(f"{path.stem}-*.parquet"):
+        for derived in derived_files(path):
             derived.unlink(missing_ok=True)
         path.unlink(missing_ok=True)
 
-    def _install(self, path: Path, write: Callable[[Path], object]) -> None:
+    def _release_files(self, manifest: dict, record: dict) -> list[Path]:
+        """The derived files of *record*'s dataset, newest first.
+
+        The dataset is every record with *record*'s ``flow_url`` and
+        ``label``, or *record* alone when it has none.
+        """
+        dataset = _dataset(record)
+        records = (
+            [record]
+            if dataset is None
+            else [other for other in manifest.values() if _dataset(other) == dataset]
+        )
+        files = [
+            derived
+            for other in records
+            for derived in derived_files(self.base_dir / other["filename"])
+        ]
+        return sorted(files, key=_mtime_ns, reverse=True)
+
+    def _install[T](self, path: Path, write: Callable[[Path], T]) -> T:
         """Write a payload to a host+pid tmp file, validate it, then move it to *path*.
 
         A payload that fails validation never reaches *path*, so the file
         already there survives a failed download or registration.
+
+        Returns:
+            What *write* returned.
         """
         tmp_path = Path(f"{path}.tmp-{_HOSTNAME}-{os.getpid()}")
         try:
-            write(tmp_path)
+            written = write(tmp_path)
             validate_payload_or_raise(tmp_path)
             tmp_path.replace(path)
         finally:
             tmp_path.unlink(missing_ok=True)
+        return written
 
     def _is_stale(self, record: dict, entry: CacheEntry) -> bool:
         """Check if cached entry is stale.
@@ -601,7 +673,10 @@ class CacheManager:
         dataset's newest copy is never deleted: it stays stale, so an online
         read refetches it and an offline read can still use it. Entries with no
         ``flow_url`` and ``label`` are never replaced, and registered entries
-        have no TTL, so neither is deleted here.
+        have no TTL, so neither is deleted here. Nor is an entry holding one
+        of its dataset's two newest derived files (see
+        ``remove_older_releases``), so a release a reader may still hold
+        survives a URL change.
         """
         manifest = self._load_manifest()
         now = datetime.now(UTC)
@@ -625,6 +700,18 @@ class CacheManager:
                     now - downloaded > timedelta(days=record["ttl_days"])
                 ):
                     expired.append(key)
+            kept = {
+                path
+                for key in expired
+                for path in self._release_files(manifest, manifest[key])[:2]
+            }
+            expired = [
+                key
+                for key in expired
+                if kept.isdisjoint(
+                    derived_files(self.base_dir / manifest[key]["filename"])
+                )
+            ]
         except (KeyError, TypeError, ValueError) as e:
             logger.warning(f"Expiry sweep skipped due to manifest parse error: {e}")
             return
@@ -645,9 +732,28 @@ class CacheManager:
         self._save_manifest(manifest)
 
 
-def _confirmed_release(entry: CacheEntry) -> str | None:
-    """``entry.release`` when ``entry.version`` confirms which payload it names."""
-    return entry.release if entry.version is not None else None
+def derived_files(payload: Path) -> list[Path]:
+    """The ``{key}-*.parquet`` files derived from the cached *payload*."""
+    return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def _mtime_ns(path: Path) -> int:
+    """*path*'s modification time, or 0 for a file another process removed."""
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+def _confirmed_release(entry: CacheEntry, version: str | None) -> str | None:
+    """``entry.release`` when the payload's *version* is ``entry.version``.
+
+    The label release was resolved alongside ``entry.version``, so it names
+    a payload only when that payload carries the same version.
+    """
+    if version is None or version != entry.version:
+        return None
+    return entry.release
 
 
 def _dataset(record: dict) -> tuple[str, str] | None:
@@ -658,8 +764,25 @@ def _dataset(record: dict) -> tuple[str, str] | None:
     return flow_url, label
 
 
+def _payload_id(record: Mapping[str, Any]) -> str:
+    """The id of the payload *record* describes, unique to each download or registration.
+
+    ``seq`` orders records but repeats after a ``clear``, so it cannot tell a
+    replaced payload from the one a caller read. A record written before
+    ``payload_id`` was recorded is identified by its ``seq`` and
+    ``downloaded_at``. Any replacement writes a new id.
+    """
+    if payload_id := record.get("payload_id"):
+        return payload_id
+    return f"legacy:{record.get('seq')}:{record.get('downloaded_at')}"
+
+
 def _next_seq(manifest: dict) -> int:
-    """The ``seq`` for the next record written: one more than the largest so far."""
+    """The ``seq`` for the next record written: one more than the largest so far.
+
+    It orders records (see ``_recency``) and can repeat after a ``clear``.
+    ``_payload_id`` identifies a payload.
+    """
     return max((record.get("seq", 0) for record in manifest.values()), default=0) + 1
 
 

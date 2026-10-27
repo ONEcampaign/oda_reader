@@ -125,6 +125,9 @@ _PARQUET_MAGIC = b"PAR1"
 # point of bounding memory.
 _CSV_ITERATOR_CHUNK_SIZE = 100_000
 
+# The header a file host's version token came from: ETag, else Last-Modified.
+type ValidatorKind = typing.Literal["etag", "last_modified"]
+
 # _stream_to_file retries transient transport failures and truncated transfers
 # up to three times with this backoff. HTTP errors and Cloudflare challenges
 # raise after the first response, except a throttling response below.
@@ -990,8 +993,10 @@ def _throttle_wait(error: BulkDownloadHTTPError) -> float | None:
     return error.retry_after
 
 
-def _stream_to_file(url: str, headers: dict, path: Path) -> None:
-    """Stream a URL to the given file path.
+def _stream_to_file(
+    url: str, headers: dict, path: Path
+) -> tuple[str, ValidatorKind] | None:
+    """Stream a URL to the given file path and return the response's validator.
 
     Uses the shared bulk-stream session, browser-like compatibility headers,
     and a 10-second connect / 60-second read timeout. An interactive Cloudflare
@@ -1015,6 +1020,10 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
     untouched. Permanent request-format errors, such as ``MissingSchema``,
     also propagate on the first attempt. Each attempt reopens ``path`` with
     ``wb`` and calls ``API_RATE_LIMITER.wait()``.
+
+    Returns:
+        The ``_response_validator`` of the response whose bytes were kept,
+        so a cache records the version of the bytes it holds.
     """
     request_headers = {**DEFAULT_HEADERS, **headers}
     session = _get_bulk_stream_session()
@@ -1051,7 +1060,7 @@ def _stream_to_file(url: str, headers: dict, path: Path) -> None:
 
                     truncation = _check_truncated(r.headers, bytes_written)
                     if truncation is None:
-                        return
+                        return _response_validator(r.headers)
                     if is_last_attempt:
                         raise BulkDownloadHTTPError(
                             status_code=r.status_code,
@@ -1878,9 +1887,20 @@ def _fetch_revalidation_token(url: str) -> str | None:
     return None if validator is None else validator[0]
 
 
+def _response_validator(
+    headers: typing.Mapping[str, str],
+) -> tuple[str, ValidatorKind] | None:
+    """The file host's version token in *headers*, the ETag else Last-Modified."""
+    if etag := headers.get("ETag"):
+        return etag, "etag"
+    if last_modified := headers.get("Last-Modified"):
+        return last_modified, "last_modified"
+    return None
+
+
 def _fetch_revalidation_validator(
     url: str,
-) -> tuple[str, typing.Literal["etag", "last_modified"]] | None:
+) -> tuple[str, ValidatorKind] | None:
     """Ranged-GET *url* for a lightweight cache-invalidation token (ETag, else Last-Modified).
 
     Every resolved bulk URL is probed, because the file host is the only
@@ -1942,10 +1962,8 @@ def _fetch_revalidation_validator(
                     f"Revalidation ranged GET for {url} got 200; "
                     "server ignored the Range header."
                 )
-            if etag := response.headers.get("ETag"):
-                return etag, "etag"
-            if last_modified := response.headers.get("Last-Modified"):
-                return last_modified, "last_modified"
+            if validator := _response_validator(response.headers):
+                return validator
             _warn_revalidation_failure(
                 url,
                 f"HTTP {response.status_code} carried neither ETag nor Last-Modified",

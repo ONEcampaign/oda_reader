@@ -6,7 +6,8 @@ the cached bulk file, where ``digest`` hashes the release token, so its bytes
 never change while it exists. CRS is published as Parquet, and its file is a
 hard link to the cached payload. DAC1, DAC2A and Multisystem are published as
 zipped CSVs, and are converted once per release. The files of the current and
-the previous release are kept; older ones are deleted.
+the previous release are kept until the cache is cleared, even when OECD moves
+the dataset to a new URL, and older ones are deleted.
 """
 
 import contextlib
@@ -27,7 +28,13 @@ import pyarrow.parquet as pq
 from filelock import FileLock
 
 from oda_reader._cache.config import get_bulk_cache_dir
-from oda_reader._cache.manager import ISO_FORMAT, CacheManager, bulk_cache_manager
+from oda_reader._cache.manager import (
+    ISO_FORMAT,
+    CacheManager,
+    _payload_id,
+    bulk_cache_manager,
+    derived_files,
+)
 from oda_reader.download.download_tools import (
     BULK_DATASETS,
     _atomic_write,
@@ -72,7 +79,7 @@ class ScannedTable:
     Attributes:
         path: The Parquet file. Read it in place; do not modify it. Its bytes
             stay those of `release` while it exists, and it is kept until
-            a second newer release has been scanned.
+            a second newer release has been scanned or the cache is cleared.
         release: The release token of the bulk file it holds. See `release`.
         label_release: The readable release id OECD appends to the dataset's
             annotation label, such as ``"v20260803"`` for CRS, or ``None``
@@ -106,7 +113,10 @@ class BulkFileInfo:
         derived_bytes: The disk space used by the Parquet files `scan`
             made from it, counting a hard link to the file as 0.
         stale: True when a downloaded file is past its time-to-live. An
-            online read downloads it again; an offline read still uses it.
+            online read of its URL downloads it again, and an offline read
+            still uses it. A file kept for the previous release after OECD
+            moved the dataset to a new URL stays stale and is not downloaded
+            again.
         path: The cached file.
     """
 
@@ -134,7 +144,9 @@ def scan(
     first time a release is scanned, and the converted file is reused until
     the release token changes. The returned path is named for its release, so
     a later download or conversion leaves its bytes unchanged. The files of
-    the current and the previous release are kept and older ones deleted.
+    the current and the previous release are kept until the cache is
+    cleared, also across a change of the dataset's URL, and older ones are
+    deleted.
     Converted columns are snake_case and unique
     case-insensitively (``DONOR`` and ``Donor`` become ``donor_code`` and
     ``donor_name``), so DuckDB reads them without renaming.
@@ -195,8 +207,11 @@ def release(
     dataset. Two copies of the same published file have the same token,
     whenever and wherever they were downloaded, and a file OECD rewrites gets
     a new one. A cached file with neither (a file registered while the host
-    was unreachable) gets ``"sha256:<digest of the file>"``. The readable CRS
-    id, such as ``"v20260803"``, is `ScannedTable.label_release`.
+    was unreachable) gets ``"sha256:<digest of the file>"``. A download
+    records the token its own response carried, so a downloaded copy's token
+    names the bytes it holds even if OECD republished during the download.
+    The readable CRS id, such as ``"v20260803"``, is
+    `ScannedTable.label_release`.
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
@@ -338,7 +353,7 @@ def _record_release(
         while chunk := f.read(1 << 20):
             digest.update(chunk)
     token = f"sha256:{digest.hexdigest()}"
-    manager.set_content_hash(key, token, seq=record.get("seq"))
+    manager.set_content_hash(key, token, payload_id=_payload_id(record))
     return token
 
 
@@ -346,14 +361,10 @@ def _downloaded_at(record: Mapping[str, typing.Any]) -> datetime:
     return datetime.strptime(record["downloaded_at"], ISO_FORMAT)
 
 
-def _derived_files(payload: Path) -> list[Path]:
-    return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
-
-
 def _derived_bytes(payload: Path, stat: os.stat_result | None) -> int:
     """Disk used by *payload*'s derived files, skipping hard links to it."""
     total = 0
-    for derived in _derived_files(payload):
+    for derived in derived_files(payload):
         with contextlib.suppress(OSError):
             derived_stat = derived.stat()
             if stat is None or not os.path.samestat(derived_stat, stat):
@@ -390,11 +401,11 @@ def _table_file(
         if dest.exists():
             return dest
         if columns is None:
-            if not manager.link_payload(key, dest, seq=record.get("seq")):
+            if not manager.link_payload(key, dest, payload_id=_payload_id(record)):
                 raise _replaced(payload)
         else:
             _convert(manager, key, record, dest, columns)
-        _remove_older_releases(payload, dest)
+        manager.remove_older_releases(key, dest)
     return dest
 
 
@@ -411,7 +422,7 @@ def _convert(
     # record the token came from, they are the bytes the token names.
     with zipfile.ZipFile(zip_path) as z:
         current = manager.find_record(key=key)
-        if current is None or current[2].get("seq") != record.get("seq"):
+        if current is None or _payload_id(current[2]) != _payload_id(record):
             raise _replaced(zip_path)
         logger.info(f"Converting {zip_path.name} to Parquet as {dest.name}.")
         _atomic_write(dest, lambda tmp: _write_parquet(z, tmp, columns))
@@ -427,31 +438,6 @@ def _replaced(payload: Path) -> RuntimeError:
     return RuntimeError(
         f"{payload.name} was replaced or removed while scan() read it. Scan again."
     )
-
-
-def _remove_older_releases(payload: Path, dest: Path) -> None:
-    """Delete *payload*'s derived files except *dest* and the newest other one.
-
-    The newest other file is the previous release's, which a reader that
-    scanned before *dest* was made may still hold open.
-    """
-    others = sorted(
-        (path for path in _derived_files(payload) if path != dest),
-        key=_mtime_ns,
-        reverse=True,
-    )
-    for old in others[1:]:
-        # A file another process holds open on Windows stays until next time.
-        with contextlib.suppress(OSError):
-            old.unlink()
-
-
-def _mtime_ns(path: Path) -> int:
-    """*path*'s modification time, or 0 for a file another process removed."""
-    try:
-        return path.stat().st_mtime_ns
-    except OSError:
-        return 0
 
 
 def _write_parquet(
