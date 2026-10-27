@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--NSI Web Service v10.11.8.0-->
+<message:Structure xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common">
+  <message:Header>
+    <message:ID>IDREF314</message:ID>
+    <message:Test>false</message:Test>
+    <message:Prepared>2026-10-27T18:24:27.8669572+01:00</message:Prepared>
+    <message:Sender id="Unknown" />
+    <message:Receiver id="Unknown" />
+  </message:Header>
+  <message:Structures>
+    <structure:Dataflows>
+      <structure:Dataflow id="DSD_CRS@DF_CRS" agencyID="OECD.DCD.FSD" version="1.7" isFinal="true">
+        <common:Annotations>
+          <common:Annotation>
+            <common:AnnotationType>NonProductionDataflow</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">true</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>RECIPIENT</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>TIME_PERIOD</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_COLUMN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR,SECTOR,FLOW,CHANNEL,FLOWTYPE,AIDTYPE,AMOUNTTYPE</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW_SECTION</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM</common:AnnotationTitle>
+            <common:AnnotationType>DRILLDOWN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>1.4</common:AnnotationTitle>
+            <common:AnnotationType>SEARCH_WEIGHT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>OBS_STATUS=A,MD_DIM,MD_ID,ALLOCABLE,MARKER,SCORE</common:AnnotationTitle>
+            <common:AnnotationType>NOT_DISPLAYED</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MD_DIM=_T,LASTNPERIODS=5,DONOR=DAC,SECTOR=1000,MEASURE=100,CHANNEL=_T,MODALITY=_T,FLOW_TYPE=D,PRICE_BASE=Q</common:AnnotationTitle>
+            <common:AnnotationType>DEFAULT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR:OECD.DCD.FSD:HCL_DACDONORS(1.6).H,RECIPIENT:OECD.DCD.FSD:HCL_DACRECIPIENTS(1.6).H</common:AnnotationTitle>
+            <common:AnnotationType>HIER_CONTEXT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>UNIT_MEASURE,UNIT_MULT,BASE_PER</common:AnnotationTitle>
+            <common:AnnotationType>COMBINED_CONCEPTS</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">COMBINED_UNIT_MEASURE:Unit of measure</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">COMBINED_UNIT_MEASURE:Unité de mesure</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS-README|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/crs readme_en.txt</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC-LISEZMOI|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/crs readme_fr.txt</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS-Parquet-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC-parquet-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS-reduced-parquet-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS-reduced.parquet</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC-parquet-réduit-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS-reduced.parquet</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2025 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2025 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2025 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2025 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2024 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2024 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2024 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2024 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2023 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2023 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2023 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2023 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2022 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2022 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2022 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2022 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2021 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2021 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2021 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2021 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2020 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2020 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2020 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2020 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2019 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2019 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2019 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2019 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2018 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2018 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2018 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2018 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2017 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2017 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2017 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2017 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2016 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2016 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2016 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2016 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2015 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2015 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2015 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2015 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2014 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2014 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2014 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2014 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2013 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2013 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2013 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2013 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2012 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2012 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2012 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2012 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2011 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2011 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2011 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2011 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2010 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2010 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2010 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2010 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2009 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2009 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2009 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2009 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2008 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2008 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2008 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2008 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2007 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2007 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2007 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2007 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2006 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2006 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2006 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2006 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2004-05 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2004-05 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2004-05 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2004-05 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2002-03 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2002-03 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2002-03 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2002-03 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 2000-01 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2000-01 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 2000-01 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2000-01 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 1995-99 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 1995-99 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 1995-99 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 1995-99 data.zip</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">CRS 1973-94 (dotStat format)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 1973-94 data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">SNPC 1973-94 (en format dotStat)-v20261006|https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 1973-94 data.zip</common:AnnotationText>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">CRS: Creditor Reporting System (flows)</common:Name>
+        <common:Name xml:lang="fr">SNPC: Système de notification des pays créanciers (flux)</common:Name>
+        <common:Description xml:lang="en">&lt;p&gt;This dataset provides readily available, granular data on who is giving what aid, to where, and for what purpose, on a flow basis. These data are comparable across all providers who report their activity-level statistics to the OECD.&lt;/p&gt;&lt;p&gt;Please consult our database of &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;development finance classifications&lt;/a&gt; for further information on all possible codes for each attribute.&lt;/p&gt;&lt;p&gt;Users of the "related files", which contain the raw data by year (or altogether in .parquet format), may find descriptions of each column on the sheet "CRS bulk data – codebook" of &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;this Excel file&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;For more information on these flows, please see the OECD's main page on &lt;a href="https://www.oecd.org/en/topics/official-development-assistance-oda.html"&gt;official development assistance&lt;/a&gt; and &lt;a href="https://www.oecd.org/en/topics/finance-for-sustainable-development.html"&gt;finance for sustainable development&lt;/a&gt;, including &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;frequently asked questions (FAQs)&lt;/a&gt; on ODA. See also the &lt;a href="https://one.oecd.org/document/DCD/DAC(2024)40/FINAL/en/pdf"&gt;converged statistical reporting directives&lt;/a&gt; governing these data, alongside &lt;a href="https://www.oecd.org/content/oecd/en/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;other guidance on using our data&lt;/a&gt;, and a &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;DE User guide for DAC/CRS statistics&lt;/a&gt;. You may also be interested in our latest &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;dashboards&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;While you are here, please take a moment to &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;answer our short survey&lt;/a&gt; to inform the next generation of dissemination tools of OECD development finance statistics.&lt;/p&gt;</common:Description>
+        <common:Description xml:lang="fr">&lt;p&gt;Cet ensemble de données fournit des données granulaires facilement accessibles sur qui donne quelle aide, à quel pays et dans quel objectif, sur la base des flux. Ces données sont comparables entre tous les fournisseurs qui notifient leurs statistiques au niveau d'activité à l'OCDE.&lt;/p&gt;&lt;p&gt;Veuillez consulter notre base de données des &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;classifications du financement du développement&lt;/a&gt; pour plus d'informations sur tous les codes possibles pour chaque attribut.&lt;/p&gt;&lt;p&gt;Les utilisateurs des « fichiers connexes », qui contiennent les données brutes par année (ou dans leur ensemble au format .parquet), peuvent trouver des descriptions de chaque colonne sur la feuille « CRS bulk data - codebook » dans &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;ce fichier Excel&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Pour plus d'informations sur ces flux, veuillez consulter la page principale de l'OCDE sur &lt;a href="https://www.oecd.org/fr/themes/aide-publique-au-developpement-apd.html"&gt;l'aide publique au développement&lt;/a&gt; et le &lt;a href="https://www.oecd.org/fr/cad/financementpourledeveloppementdurable/statistiques-financement-developpement/"&gt;financement du développement durable&lt;/a&gt;, y compris la &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;foire aux questions (FAQ)&lt;/a&gt; sur l'APD. Voir également les &lt;a href="https://one.oecd.org/document/DCD/DAC/STAT(2023)9/FINAL/en/pdf"&gt;directives de notification statistique convergées&lt;/a&gt; (en anglais) régissant ces données, ainsi que d'autres &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;conseils sur l'utilisation de nos données&lt;/a&gt;, ainsi qu'un &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;guide d'utilisation de l'ED consacré aux statistiques du CAD et du CRS&lt;/a&gt; (en anglais). Nos derniers &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;tableaux de bord&lt;/a&gt; pourraient également vous intéresser.&lt;/p&gt;&lt;p&gt;Profitez de votre visite pour &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;répondre à notre brève enquête&lt;/a&gt; (en anglais) afin de contribuer à l'élaboration de la prochaine génération d'outils de diffusion des statistiques de l'OCDE sur le financement du développement.&lt;/p&gt;</common:Description>
+        <structure:Structure>
+          <Ref id="DSD_CRS" version="1.7" agencyID="OECD.DCD.FSD" package="datastructure" class="DataStructure" />
+        </structure:Structure>
+      </structure:Dataflow>
+    </structure:Dataflows>
+    <structure:DataStructures>
+      <structure:DataStructure id="DSD_CRS" agencyID="OECD.DCD.FSD" version="1.7" isFinal="true">
+        <common:Annotations>
+          <common:Annotation>
+            <common:AnnotationTitle>urn:sdmx:org.sdmx.infomodel.metadatastructure.MetadataStructure=OECD:MSD_REF_METADATA(1.0)</common:AnnotationTitle>
+            <common:AnnotationType>METADATA</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>4000</common:AnnotationTitle>
+            <common:AnnotationType>MAXTEXTATTRIBUTELENGTH</common:AnnotationType>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">DSD_CRS</common:Name>
+        <common:Description xml:lang="en">DSD for dataflow CRS</common:Description>
+        <structure:DataStructureComponents>
+          <structure:DimensionList id="DimensionDescriptor">
+            <structure:Dimension id="DONOR" position="1">
+              <structure:ConceptIdentity>
+                <Ref id="DONOR" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_AREA_ORG" version="1.6" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="RECIPIENT" position="2">
+              <structure:ConceptIdentity>
+                <Ref id="RECIPIENT" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_AREA_ORG" version="1.6" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="SECTOR" position="3">
+              <structure:ConceptIdentity>
+                <Ref id="SECTOR" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DAC_SECTOR" version="1.3" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="MEASURE" position="4">
+              <structure:ConceptIdentity>
+                <Ref id="MEASURE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_CRS_MEASURE" version="1.4" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="CHANNEL" position="5">
+              <structure:ConceptIdentity>
+                <Ref id="CHANNEL" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_CRS_CHANNEL" version="1.2" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="MODALITY" position="6">
+              <structure:ConceptIdentity>
+                <Ref id="MODALITY" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_CRS_MODALITY" version="1.2" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="FLOW_TYPE" position="7">
+              <structure:ConceptIdentity>
+                <Ref id="FLOW_TYPE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_FLOW_TYPE" version="1.0" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="PRICE_BASE" position="8">
+              <structure:ConceptIdentity>
+                <Ref id="PRICE_BASE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_PRICES" version="1.0" agencyID="OECD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="MD_DIM" position="9">
+              <structure:ConceptIdentity>
+                <Ref id="MD_DIM" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_CRS1_MD_DIM" version="1.0" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="MD_ID" position="10">
+              <structure:ConceptIdentity>
+                <Ref id="MD_ID" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="50" />
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="UNIT_MEASURE" position="11">
+              <structure:ConceptIdentity>
+                <Ref id="UNIT_MEASURE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_UNIT_MEASURE" version="1.8" agencyID="OECD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:TimeDimension id="TIME_PERIOD" position="12">
+              <structure:ConceptIdentity>
+                <Ref id="TIME_PERIOD" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="ObservationalTimePeriod" />
+              </structure:LocalRepresentation>
+            </structure:TimeDimension>
+          </structure:DimensionList>
+          <structure:AttributeList id="AttributeDescriptor">
+            <structure:Attribute id="BASE_PER" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="BASE_PER" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="ObservationalTimePeriod" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:Dimension>
+                  <Ref id="UNIT_MEASURE" />
+                </structure:Dimension>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="OBS_STATUS" assignmentStatus="Mandatory">
+              <structure:ConceptIdentity>
+                <Ref id="OBS_STATUS" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_OBS_STATUS" version="2.2" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="UNIT_MULT" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="UNIT_MULT" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_UNIT_MULT" version="1.1" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:Dimension>
+                  <Ref id="UNIT_MEASURE" />
+                </structure:Dimension>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DECIMALS" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DECIMALS" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DECIMALS" version="1.0" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DONOR_AGENCY" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DONOR_AGENCY" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="150" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="OECD_ID" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="OECD_ID" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="15" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DONOR_PROJECT_ID" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DONOR_PROJECT_ID" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="50" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="REGION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="REGION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="150" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="INCOME_GROUP" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="INCOME_GROUP" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="150" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CHANNELDELIVERY_CODE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CHANNELDELIVERY_CODE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CHANNELDELIVERY_NAME" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CHANNELDELIVERY_NAME" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="255" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CATEGORY_CODE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CATEGORY_CODE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CATEGORY_NAME" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CATEGORY_NAME" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="75" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="FINANCETYPE_CODE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="FINANCETYPE_CODE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="FINANCETYPE_NAME" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="FINANCETYPE_NAME" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="255" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="BIMULTI_CODE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="BIMULTI_CODE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="SHORT_DESCRIPTION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="SHORT_DESCRIPTION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="150" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="PROJECT_TITLE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="PROJECT_TITLE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="300" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="LONG_DESCRIPTION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="LONG_DESCRIPTION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="4000" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="SDG_FOCUS" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="SDG_FOCUS" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="100" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="GENDER_EQUALITY" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="GENDER_EQUALITY" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="ENVIRONMENT" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="ENVIRONMENT" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="GOVERNANCE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="GOVERNANCE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="RMNCH" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="RMNCH" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DRR" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DRR" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="NUTRITION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="NUTRITION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DISABILITY" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DISABILITY" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="BIODIVERSITY" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="BIODIVERSITY" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CLIMATE_MITIGATION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CLIMATE_MITIGATION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="CLIMATE_ADAPTATION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="CLIMATE_ADAPTATION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DESERTIFICATION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DESERTIFICATION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="AMOUNT_TIED" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="AMOUNT_TIED" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Double" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="AMOUNT_UNTIED" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="AMOUNT_UNTIED" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Double" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="AMOUNT_PARTIALLY_UNTIED" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="AMOUNT_PARTIALLY_UNTIED" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Double" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="NATURE_OF_SUBMISSION" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="NATURE_OF_SUBMISSION" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="PSIFLAG_CODE" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="PSIFLAG_CODE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Integer" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="PSIFLAG_NAME" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="PSIFLAG_NAME" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="String" maxLength="150" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+          </structure:AttributeList>
+          <structure:MeasureList id="MeasureDescriptor">
+            <structure:PrimaryMeasure id="OBS_VALUE">
+              <structure:ConceptIdentity>
+                <Ref id="OBS_VALUE" maintainableParentID="CS_CRS" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Double" />
+              </structure:LocalRepresentation>
+            </structure:PrimaryMeasure>
+          </structure:MeasureList>
+        </structure:DataStructureComponents>
+      </structure:DataStructure>
+    </structure:DataStructures>
+  </message:Structures>
+</message:Structure>

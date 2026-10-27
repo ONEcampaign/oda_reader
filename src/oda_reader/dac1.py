@@ -12,8 +12,6 @@ from oda_reader.download.download_tools import (
 )
 
 DATAFLOW_ID: str = "DSD_DAC1@DF_DAC1"
-# Default version; actual version is discovered dynamically on fallback
-DATAFLOW_VERSION: str = "1.8"
 
 DAC1_BULK_LABEL = "DAC1 full dataset (dotStat format)"
 
@@ -36,16 +34,12 @@ def download_dac1(
         filters (dict): Optional filters to pass to the download.
         pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        dataflow_version (str): The version of the dataflow. Optional
+        dataflow_version (str | None): The dataflow version to read. Defaults to the latest published version.
 
     Returns:
         pd.DataFrame: The DAC1 data.
 
     """
-
-    # Inform of the dataflow being downloaded
-    if dataflow_version is None:
-        dataflow_version = DATAFLOW_VERSION
 
     df = download(
         version="dac1",
