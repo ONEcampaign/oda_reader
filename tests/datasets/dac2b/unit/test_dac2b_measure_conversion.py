@@ -22,6 +22,7 @@ ALL_API_CODES = [
     2217,
     2250,
     2255,
+    2260,
     2292,
     2293,
     2295,
@@ -75,7 +76,7 @@ class TestConvertDac2bToDotstatCodes:
         assert str(MAPPINGS["dac2b_measure_dotstat"]) in str(exc_info.value)
 
     def test_mapping_matches_documented_conversion(self):
-        """The mapping file itself carries the 13 documented API -> .stat codes."""
+        """The mapping file itself carries the 14 documented API -> .stat codes."""
         mapping = dac2b_measure_mapping()
 
         assert mapping == {code: code - 2000 for code in ALL_API_CODES}

@@ -1,6 +1,6 @@
 # Changelog for oda_reader
 
-## 1.14.0 (unreleased)
+## 1.14.0 (2026-10-27)
 
 - **Adds `scan()`, which returns DAC1, DAC2A, CRS or Multisystem as one local Parquet file** that
   DuckDB, Polars or PyArrow query in place. It returns a frozen `ScannedTable` with `path`,
@@ -45,6 +45,10 @@
   gains `release`, and `list_records()` reports each entry's `flow_url`, `label`, `release` and
   `content_hash`. Clearing or expiring a bulk file also deletes the Parquet files `scan()` made
   from it. `download_*` and `bulk_download_*` return what they returned in 1.13.0.
+
+- **DAC2B measure 2260 converts to .Stat 260.** The OECD reports measure 2260 (private sector
+  instruments, net) from 2023, and the measure mapping had no entry for it, so `download_dac2b`
+  raised `Unmapped DAC2B measure code(s): [2260]` on current data. The code now converts to 260.
 
 - **Downloads read the latest dataflow version by default.** Each table module pinned a version,
   and the OECD keeps superseded versions online with their data frozen, so the pinned version
