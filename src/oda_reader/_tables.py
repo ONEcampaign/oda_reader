@@ -12,6 +12,7 @@ the previous release are kept; older ones are deleted.
 import contextlib
 import hashlib
 import io
+import logging
 import os
 import typing
 import zipfile
@@ -27,7 +28,6 @@ from filelock import FileLock
 
 from oda_reader._cache.config import get_bulk_cache_dir
 from oda_reader._cache.manager import ISO_FORMAT, CacheManager, bulk_cache_manager
-from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     BULK_DATASETS,
     _atomic_write,
@@ -45,6 +45,8 @@ from oda_reader.schemas.bulk_columns import (
     BulkColumn,
     converted_columns,
 )
+
+logger = logging.getLogger(__name__)
 
 type ScanDataset = typing.Literal["dac1", "dac2a", "crs", "multisystem"]
 
