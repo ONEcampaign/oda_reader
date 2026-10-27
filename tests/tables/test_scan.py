@@ -248,7 +248,7 @@ def no_sockets(mocker):
     }
 
 
-def _age_records(*, days: int) -> None:
+def _age_records(*, days: float) -> None:
     """Move every bulk cache record's download time *days* into the past."""
     manifest_path = bulk_cache_manager().manifest_path
     manifest = json.loads(manifest_path.read_text())
@@ -433,6 +433,16 @@ class TestScan:
             paths.append(scan(dataset).path)
 
         assert [path.exists() for path in paths] == [False, True, True]
+
+    @pytest.mark.parametrize("days", [90 + 1 / 24, 90 - 1 / 24])
+    def test_stale_says_whether_an_online_read_refetches(self, host, days):
+        scan("dac1")
+        _age_records(days=days)
+
+        [info] = cache_info()
+        scan("dac1")
+
+        assert info.stale == (host.download.call_count == 2)
 
     def test_a_release_that_cannot_be_removed_stays(self, host):
         paths = []

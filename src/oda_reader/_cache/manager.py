@@ -539,7 +539,7 @@ class CacheManager:
                         "content_hash": record.get("content_hash"),
                         "size_mb": size_mb,
                         "is_stale": not _is_registered(record)
-                        and age.days > record["ttl_days"],
+                        and _past_ttl(downloaded, record["ttl_days"]),
                     }
                 )
 
@@ -630,10 +630,7 @@ class CacheManager:
             return False
 
         downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
-        age = datetime.now(UTC) - downloaded
-        ttl = timedelta(days=entry.ttl_days)
-
-        return age > ttl
+        return _past_ttl(downloaded, entry.ttl_days)
 
     def _load_manifest(self) -> dict:
         """Load manifest from disk."""
@@ -697,7 +694,6 @@ class CacheManager:
         survives a URL change.
         """
         manifest = self._load_manifest()
-        now = datetime.now(UTC)
         try:
             newest: dict[tuple[str, str], tuple[int, datetime]] = {}
             for record in manifest.values():
@@ -714,8 +710,8 @@ class CacheManager:
                     continue
                 recency = _recency(record)
                 _, downloaded = recency
-                if newest.get(dataset, recency) > recency and (
-                    now - downloaded > timedelta(days=record["ttl_days"])
+                if newest.get(dataset, recency) > recency and _past_ttl(
+                    downloaded, record["ttl_days"]
                 ):
                     expired.append(key)
             kept = {
@@ -762,6 +758,11 @@ def _held_open(error: OSError) -> bool:
     """Whether *error* is Windows refusing to delete a file another process holds open."""
     # 32 is ERROR_SHARING_VIOLATION.
     return isinstance(error, PermissionError) and getattr(error, "winerror", None) == 32
+
+
+def _past_ttl(downloaded: datetime, ttl_days: int) -> bool:
+    """Whether a download made at *downloaded* is older than *ttl_days*."""
+    return datetime.now(UTC) - downloaded > timedelta(days=ttl_days)
 
 
 def _warn_held_open(files: list[Path]) -> None:
