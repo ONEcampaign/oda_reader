@@ -756,7 +756,7 @@ class TestDeprecationWarnings:
         """Stub the cache manager + content extractor to avoid real downloads.
 
         The fake path must exist and start with the zip magic bytes, since
-        ``bulk_cache_manager().ensure()``'s return value gets its magic bytes
+        ``bulk_cache_manager().ensure_record()``'s path gets its magic bytes
         inspected by ``_consume_bulk_zip`` before any extraction is
         attempted. ``_save_or_return_parquet_files_from_content`` is the
         patch point for the extraction itself.
@@ -764,7 +764,7 @@ class TestDeprecationWarnings:
         fake_path = tmp_path / "fake.zip"
         fake_path.write_bytes(b"PK\x03\x04" + b"\x00" * 16)
         fake_manager = mocker.Mock()
-        fake_manager.ensure.return_value = fake_path
+        fake_manager.ensure_record.return_value = (fake_path, {})
         mocker.patch(
             "oda_reader.download.download_tools.bulk_cache_manager",
             return_value=fake_manager,

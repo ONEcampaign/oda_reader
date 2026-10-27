@@ -50,10 +50,15 @@ def get_cache_dir() -> Path:
     Returns:
         Path: The cache directory path.
     """
+    return _resolve_cache_root(_CACHE_DIR_OVERRIDE)
+
+
+def _resolve_cache_root(override: Path | None) -> Path:
+    """The schema- and version-segmented cache root under *override*, or the default."""
     return resolve_cache_dir(
         app="oda-reader",
         app_version=version("oda_reader"),
-        cache_dir=_CACHE_DIR_OVERRIDE,
+        cache_dir=override,
         ensure_exists=True,
     )
 
@@ -116,14 +121,23 @@ def get_http_cache_path() -> Path:
     return http_cache_dir
 
 
-def get_bulk_cache_dir() -> Path:
+def get_bulk_cache_dir(cache_dir: str | Path | None = None) -> Path:
     """Get the directory for bulk file downloads (parquet files).
+
+    Args:
+        cache_dir: A cache root for this call only. It is segmented the way
+            `set_cache_dir` segments its path, and the process-wide root is
+            left unchanged. ``None`` uses the process-wide root.
 
     Returns:
         Path: Path to the bulk files cache directory.
     """
-    cache_dir = get_cache_dir()
-    bulk_dir = cache_dir / "bulk_files"
+    root = (
+        get_cache_dir()
+        if cache_dir is None
+        else _resolve_cache_root(Path(cache_dir).expanduser().resolve())
+    )
+    bulk_dir = root / "bulk_files"
     bulk_dir.mkdir(parents=True, exist_ok=True)
     return bulk_dir
 

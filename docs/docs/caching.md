@@ -185,6 +185,13 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   `save_to_path` are written to a temporary sibling file and moved into
   place afterward, so a failed or interrupted write never leaves a
   truncated file where a good one used to be.
+- **Converted tables**: `scan()` keeps the Parquet conversion of a DAC1,
+  DAC2A or Multisystem zip beside it, and deletes it with the zip. See
+  [Query bulk files in place](bulk-downloads.md#query-bulk-files-in-place-with-scan).
+
+`oda_reader.cache_info()` lists the cached bulk files with their dataset,
+release token, download time, size, staleness and path. Pass `cache_dir=`
+to list another cache root.
 
 #### Cache invalidation on republish
 

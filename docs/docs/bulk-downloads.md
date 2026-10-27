@@ -366,6 +366,60 @@ download_aiddata(save_to_path="./data/aiddata.parquet")
 
 **Note**: AidData filtering happens after download (Excel file is downloaded first, then filtered).
 
+## Query bulk files in place with `scan()`
+
+`scan()` returns a bulk dataset as one Parquet file on disk, which DuckDB, Polars or PyArrow can query without loading it into pandas. It covers `"dac1"`, `"dac2a"`, `"crs"` and `"multisystem"`:
+
+```python
+import duckdb
+import oda_reader
+
+dac2a = oda_reader.scan("dac2a")
+dac2a.path      # PosixPath('.../bulk_files/<key>-<digest>.parquet')
+dac2a.release   # '0x8DF2539E5D52F9D'
+
+duckdb.sql(
+    f"SELECT year, sum(value) FROM '{dac2a.path}' "
+    "WHERE donor_code = 4 AND data_type_code = 'D' GROUP BY year"
+)
+```
+
+`scan()` returns a frozen `ScannedTable` with four fields: `path`, `release`, `downloaded` (UTC) and `columns`. Read the file in place and leave it unmodified.
+
+CRS is published as Parquet, so `scan("crs")` returns the cached bulk file itself. DAC1, DAC2A and Multisystem are published as zipped CSVs. The first `scan()` of a release streams the CSV into Parquet beside the cached zip, and later calls return that file until the release token changes. On a 2026 release the conversion took 0.6 s for DAC1 (1,046,691 rows), 6.3 s for DAC2A (10,115,276 rows, about 0.5 GB of memory) and 3.3 s for Multisystem (1,145,632 rows). Row groups hold 122,880 rows, so a filter on year or donor skips the groups whose statistics exclude it.
+
+Converted columns are snake_case and unique case-insensitively. The raw `DONOR` and `Donor` collide in DuckDB, which is case-insensitive; they become `donor_code` and `donor_name`. The names match those `download_dac1()`, `download_dac2a()` and the CRS Parquet already use:
+
+| Raw column (DAC1, DAC2A) | Converted | Type |
+| --- | --- | --- |
+| `DONOR` / `Donor` | `donor_code` / `donor_name` | int32 / string |
+| `RECIPIENT` / `Recipient` (DAC2A) | `recipient_code` / `recipient_name` | int32 / string |
+| `PART` / `Part` | `part_code` / `part_name` | int32 / string |
+| `AIDTYPE` / `Aid type` | `aidtype_code` / `aid_type` | int32 / string |
+| `FLOWS` / `Fund flows` (DAC1) | `flows_code` / `fund_flows` | int32 / string |
+| `AMOUNTTYPE` (DAC1), `DATATYPE` (DAC2A) / `Amount type` | `amounttype_code`, `data_type_code` / `amount_type` | string |
+| `TIME` | `year` | int32 |
+| `Year` | dropped, it repeats `TIME` | |
+| `Value` / `Flags` | `value` / `flags` | float64 / string |
+
+Multisystem's CamelCase headers follow the CRS names: `Year` becomes `year`, `DonorCode` `donor_code`, `AgencyNameE` `agency_name`, `ChannelCode` `channel_code`, `RecipientCode` `recipient_code`, `Purposecode` `purpose_code`, `FlowType` `flow_type`, `AmountType` `amount_type`, `AidToOrThru` `aid_to_or_thru` and `Amount` `amount`. A column OECD adds later is kept as a string under its snake_case name.
+
+### Release tokens
+
+`oda_reader.release(dataset)` returns the token that names a published file. Two copies of the same file carry the same token, whenever they were downloaded. For CRS it is the release id OECD appends to the dataflow annotation, such as `"v20260803"`. For DAC1, DAC2A and Multisystem it is the file host's ETag, else its Last-Modified date. A file cached without either, such as one registered while the host was unreachable, gets `"sha256:<digest of the file>"`.
+
+Online, `release()` reads the token of the file OECD publishes now and downloads nothing. With `offline=True` it returns the cached copy's token.
+
+### Options
+
+`scan()` and `release()` take the same keyword arguments:
+
+- `offline=True` makes no network request and uses the cached or registered copy, whatever its age. A cold cache raises `BulkFileNotCachedError`.
+- `refresh=True` downloads the bulk file again and bypasses the cached dataflow annotations. It cannot be combined with `offline=True`.
+- `cache_dir=` reads and writes the bulk file and its conversion under another cache root for this call only, leaving the process-wide root unchanged. The dataflow annotations are still looked up through the process-wide HTTP cache.
+
+`oda_reader.cache_info()` lists the cached bulk files as `BulkFileInfo` records: `dataset`, `release`, `downloaded`, `size_bytes`, `stale` and `path`.
+
 ## Bulk files use the .Stat schema
 
 **Critical difference**: Bulk download files from OECD use the **OECD.Stat schema**, not the Data Explorer API schema.

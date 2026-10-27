@@ -48,6 +48,10 @@ class CacheEntry:
         flow_url: Optional dataflow URL the bulk reader resolved ``url``
             from, recorded so ``find_entry`` can match it offline
         label: Optional EXT_RESOURCE annotation label within ``flow_url``
+        release: Optional readable release id for the payload, such as the
+            ``v20260803`` date OECD appends to a CRS annotation label.
+            Recorded only when ``version`` is known, so it never describes a
+            payload the version check could not confirm.
     """
 
     key: str
@@ -59,6 +63,7 @@ class CacheEntry:
     url: str | None = None
     flow_url: str | None = None
     label: str | None = None
+    release: str | None = None
 
 
 class CacheManager:
@@ -78,7 +83,8 @@ class CacheManager:
         ├── manifest.json       # Metadata tracking
         ├── .cache.lock         # FileLock for coordination
         ├── .snapshot-*/        # Private read snapshots, removed after each read
-        └── *.zip               # Cached datasets
+        ├── {key}.zip           # Cached datasets
+        └── {key}-*.parquet     # Files derived from a cached dataset, removed with it
     """
 
     def __init__(self, base_dir: Path | None = None) -> None:
@@ -163,6 +169,8 @@ class CacheManager:
                     if record.get(field) is None
                     and (value := getattr(entry, field)) is not None
                 }
+                if _confirmed_release(entry) not in (None, record.get("release")):
+                    missing["release"] = entry.release
                 if missing:
                     record.update(missing)
                     self._save_manifest(manifest)
@@ -184,6 +192,7 @@ class CacheManager:
                 "url": entry.url,
                 "flow_url": entry.flow_url,
                 "label": entry.label,
+                "release": _confirmed_release(entry),
             }
             manifest[entry.key] = record
             self._save_manifest(manifest)
@@ -306,11 +315,36 @@ class CacheManager:
             label: The annotation label to match, together with ``flow_url``.
 
         Returns:
-            ``(key, path, url)`` of the entry stored under ``key`` when a key
-            is given, else of the last stored entry (see ``_recency``) matching
-            ``flow_url`` and ``label``. ``None`` when no such entry's file
-            exists. ``url`` is ``None`` for an entry stored before URLs were
-            recorded.
+            ``(key, path, url)`` of the entry ``find_record`` finds, or
+            ``None``. ``url`` is ``None`` for an entry stored before URLs
+            were recorded.
+        """
+        found = self.find_record(key=key, flow_url=flow_url, label=label)
+        if found is None:
+            return None
+        entry_key, path, record = found
+        return entry_key, path, record.get("url")
+
+    def find_record(
+        self,
+        *,
+        key: str | None = None,
+        flow_url: str | None = None,
+        label: str | None = None,
+    ) -> tuple[str, Path, dict[str, Any]] | None:
+        """Like ``find_entry``, and return the entry's manifest record.
+
+        Args:
+            key: The manifest key to match. When given, it alone decides
+                the match and ``flow_url`` and ``label`` are ignored.
+            flow_url: The dataflow URL to match, together with ``label``.
+            label: The annotation label to match, together with ``flow_url``.
+
+        Returns:
+            ``(key, path, record)`` of the entry stored under ``key`` when a
+            key is given, else of the last stored entry (see ``_recency``)
+            matching ``flow_url`` and ``label``. ``None`` when no such
+            entry's file exists.
         """
         with self._lock:
             manifest = self._load_manifest()
@@ -333,7 +367,29 @@ class CacheManager:
         if not matches:
             return None
         entry_key, record = max(matches, key=lambda m: _recency(m[1]))
-        return entry_key, self.base_dir / record["filename"], record.get("url")
+        return entry_key, self.base_dir / record["filename"], record
+
+    def set_release(self, key: str, release: str, *, seq: int | None) -> bool:
+        """Record *release* on the entry ``key``, if it still holds payload ``seq``.
+
+        Args:
+            key: The manifest key.
+            release: The release id to record.
+            seq: The ``seq`` of the record the caller computed *release*
+                from. A different ``seq`` means the payload was replaced in
+                the meantime, and nothing is written.
+
+        Returns:
+            True if the release was recorded.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+            record = manifest.get(key)
+            if record is None or record.get("seq") != seq:
+                return False
+            record["release"] = release
+            self._save_manifest(manifest)
+            return True
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
@@ -346,13 +402,11 @@ class CacheManager:
 
             if key is None:
                 for record in manifest.values():
-                    file_path = self.base_dir / record["filename"]
-                    file_path.unlink(missing_ok=True)
+                    self._remove_payload(record["filename"])
                 manifest.clear()
                 logger.info("Cleared all bulk cache entries")
             elif key in manifest:
-                file_path = self.base_dir / manifest[key]["filename"]
-                file_path.unlink(missing_ok=True)
+                self._remove_payload(manifest[key]["filename"])
                 del manifest[key]
                 logger.info(f"Cleared cache entry: {key}")
             else:
@@ -389,6 +443,9 @@ class CacheManager:
                         "version": record.get("version"),
                         "source": record.get("source", "download"),
                         "url": record.get("url"),
+                        "flow_url": record.get("flow_url"),
+                        "label": record.get("label"),
+                        "release": record.get("release"),
                         "size_mb": size_mb,
                         "is_stale": not _is_registered(record)
                         and age.days > record["ttl_days"],
@@ -412,6 +469,13 @@ class CacheManager:
             "total_size_mb": total_size,
             "stale_entries": stale_count,
         }
+
+    def _remove_payload(self, filename: str) -> None:
+        """Delete a cached payload and the ``{key}-*.parquet`` files derived from it."""
+        path = self.base_dir / filename
+        for derived in self.base_dir.glob(f"{path.stem}-*.parquet"):
+            derived.unlink(missing_ok=True)
+        path.unlink(missing_ok=True)
 
     def _install(self, path: Path, write: Callable[[Path], object]) -> None:
         """Write a payload to a host+pid tmp file, validate it, then move it to *path*.
@@ -535,7 +599,7 @@ class CacheManager:
         for key in expired:
             file_path = self.base_dir / manifest[key]["filename"]
             try:
-                file_path.unlink(missing_ok=True)
+                self._remove_payload(manifest[key]["filename"])
             except OSError as e:
                 # Keep the record so the next sweep retries the removal.
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")
@@ -544,6 +608,11 @@ class CacheManager:
             del manifest[key]
 
         self._save_manifest(manifest)
+
+
+def _confirmed_release(entry: CacheEntry) -> str | None:
+    """``entry.release`` when ``entry.version`` confirms which payload it names."""
+    return entry.release if entry.version is not None else None
 
 
 def _dataset(record: dict) -> tuple[str, str] | None:

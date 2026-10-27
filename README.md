@@ -30,6 +30,7 @@ ODA Reader is a project created and maintained by The ONE Campaign.
 1. [CRS](#downloading-crs-data)
 1. [CPA](#downloading-cpa-data)
 1. [Multisystem](#downloading-multisystem-data)
+1. [Querying bulk files in place](#querying-bulk-files-in-place)
 1. [Using filters](#using-filters)
 1. [Rate limiting](#rate-limiting)
 1. [Contribute](#contributing-to-oda-reader)
@@ -748,6 +749,29 @@ from oda_reader import bulk_download_multisystem
 
 full_multisystem = bulk_download_multisystem()
 ```
+
+## Querying bulk files in place
+
+`scan()` returns DAC1, DAC2a, CRS or Multisystem as one local Parquet file that DuckDB, Polars or
+PyArrow can query without pandas. CRS is served as published. DAC1, DAC2a and Multisystem are
+converted from their zipped CSV once per release, with snake_case column names that are unique
+case-insensitively (`DONOR` and `Donor` become `donor_code` and `donor_name`).
+
+```python
+import duckdb
+import oda_reader
+
+dac1 = oda_reader.scan("dac1")
+duckdb.sql(f"SELECT year, sum(value) FROM '{dac1.path}' WHERE donor_code = 4 GROUP BY year")
+
+oda_reader.release("dac1")  # the file host's token for the current release
+oda_reader.cache_info()     # the cached bulk files, with release, size and staleness
+```
+
+`scan()` and `release()` take `offline=True` (no network request), `refresh=True` (download
+again) and `cache_dir=` (a cache root for this call only). See
+[Bulk Downloads](docs/docs/bulk-downloads.md#query-bulk-files-in-place-with-scan) for the column names
+and release tokens.
 
 ## Using filters
 
