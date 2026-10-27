@@ -5,7 +5,7 @@
 - **Adds `scan()`, which returns DAC1, DAC2A, CRS or Multisystem as one local Parquet file** that
   DuckDB, Polars or PyArrow query in place. It returns a frozen `ScannedTable` with `path`,
   `release`, `label_release`, `downloaded` and `columns`. The path is named for its release, so
-  its bytes stay the same after a newer release is downloaded; the files of the current and the
+  its bytes stay the same after a newer release is downloaded. The files of the current and the
   previous release are kept and older ones deleted. CRS is served as a hard link to the cached
   Parquet. DAC1, DAC2A and Multisystem are streamed from their zipped CSV into Parquet beside the
   cached zip, once per release token, with an atomic write and row groups of 122,880 rows.
@@ -15,6 +15,12 @@
   `donor_name`, Multisystem's `AidToOrThru` becomes `aid_to_or_thru`. DAC1's and DAC2A's `Year`
   column, a copy of `TIME`, is dropped. On the current release the DAC2A conversion takes about 6
   seconds and 0.5 GB of memory.
+- **Adds `lease()`, which scans like `scan()` and keeps the Parquet file until the lease is
+  closed.** It returns a `TableLease` with `table` (the `ScannedTable`) and `close()`, and works
+  as a context manager. While it is open, no later `scan()` deletes its file, however many
+  releases follow, so a DuckDB view on the path keeps reading. Each lease is an exclusive file
+  lock of its own beside the Parquet file. The prune skips a file whose lease it cannot lock and
+  removes lease files whose holder has exited, so a crashed process holds nothing.
 - **Adds `release()`, which returns a bulk dataset's release token**: the file host's ETag, else
   Last-Modified, for every dataset. A cached file with neither is named by the SHA-256 of its
   bytes. The download time is kept apart from the token, so two copies of one file share a token,

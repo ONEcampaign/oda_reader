@@ -23,6 +23,7 @@ from oda_reader._cache.config import (
     get_bulk_cache_dir,
     register_cache_dir_change_listener,
 )
+from oda_reader._cache.lease import derived_files, lease_guard, leased
 from oda_reader.exceptions import validate_payload_or_raise
 
 logger = logging.getLogger(__name__)
@@ -428,6 +429,8 @@ class CacheManager:
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
 
+        Clearing is explicit, so it also deletes Parquet files a `lease` holds.
+
         Args:
             key: If provided, clear only this entry. If None, clear all.
         """
@@ -508,7 +511,7 @@ class CacheManager:
     def _remove_payload(self, filename: str) -> None:
         """Delete a cached payload and the ``{key}-*.parquet`` files derived from it."""
         path = self.base_dir / filename
-        for derived in self.base_dir.glob(f"{path.stem}-*.parquet"):
+        for derived in derived_files(path):
             derived.unlink(missing_ok=True)
         path.unlink(missing_ok=True)
 
@@ -597,11 +600,11 @@ class CacheManager:
         A downloaded entry goes, with its file, when it is past its own TTL and
         the manifest holds a later download or registration of the same
         dataset (same ``flow_url`` and ``label``) whose file exists, "later"
-        as ``_recency`` ranks it. A
-        dataset's newest copy is never deleted: it stays stale, so an online
-        read refetches it and an offline read can still use it. Entries with no
-        ``flow_url`` and ``label`` are never replaced, and registered entries
-        have no TTL, so neither is deleted here.
+        as ``_recency`` ranks it. A dataset's newest copy stays, stale, so an
+        online read refetches it and an offline read can still use it. Entries
+        with no ``flow_url`` and ``label`` have no replacement, and registered
+        entries have no TTL, so neither is deleted here. An entry with a derived file
+        a `lease` holds stays, record and all, until a sweep finds it unleased.
         """
         manifest = self._load_manifest()
         now = datetime.now(UTC)
@@ -634,7 +637,11 @@ class CacheManager:
         for key in expired:
             file_path = self.base_dir / manifest[key]["filename"]
             try:
-                self._remove_payload(manifest[key]["filename"])
+                with lease_guard(file_path):
+                    if any(leased(path) for path in derived_files(file_path)):
+                        logger.info(f"Keeping expired {file_path}: a reader leases it.")
+                        continue
+                    self._remove_payload(manifest[key]["filename"])
             except OSError as e:
                 # Keep the record so the next sweep retries the removal.
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")

@@ -186,7 +186,8 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   place afterward, so a failed or interrupted write never leaves a
   truncated file where a good one used to be.
 - **Scanned tables**: `scan()` keeps the Parquet files of the current and
-  the previous release beside the bulk file, and deletes them with it. See
+  the previous release beside the bulk file, and any file a `lease()` holds,
+  and deletes them with the bulk file. See
   [Query bulk files in place](bulk-downloads.md#query-bulk-files-in-place-with-scan).
 
 `oda_reader.cache_info()` lists the cached bulk files with their dataset,
