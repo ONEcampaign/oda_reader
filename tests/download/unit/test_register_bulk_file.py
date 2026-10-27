@@ -258,9 +258,13 @@ class TestOnlineReadOfRegisteredEntry:
             return_value="e2",
         )
         republished = pd.DataFrame({"donor_code": [9]})
+
+        def deliver(url, headers, path):
+            republished.to_parquet(path)
+            return "e2", "etag"
+
         mocker.patch(
-            "oda_reader.download.download_tools._stream_to_file",
-            side_effect=lambda url, headers, path: republished.to_parquet(path),
+            "oda_reader.download.download_tools._stream_to_file", side_effect=deliver
         )
 
         result = bulk_download_crs()
