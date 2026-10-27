@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--NSI Web Service v10.11.8.0-->
+<message:Structure xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common">
+  <message:Header>
+    <message:ID>IDREF15612</message:ID>
+    <message:Test>false</message:Test>
+    <message:Prepared>2026-10-27T21:12:02.4231469+01:00</message:Prepared>
+    <message:Sender id="Unknown" />
+    <message:Receiver id="Unknown" />
+  </message:Header>
+  <message:Structures>
+    <structure:Dataflows>
+      <structure:Dataflow id="DSD_DAC1@DF_DAC1" agencyID="OECD.DCD.FSD" version="1.8" isFinal="true">
+        <common:Annotations>
+          <common:Annotation>
+            <common:AnnotationType>NonProductionDataflow</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">true</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>MEASURE</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_ROW</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>TIME_PERIOD</common:AnnotationTitle>
+            <common:AnnotationType>LAYOUT_COLUMN</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>1.001</common:AnnotationTitle>
+            <common:AnnotationType>SEARCH_WEIGHT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>OBS_STATUS,TYING_STATUS,SECTOR</common:AnnotationTitle>
+            <common:AnnotationType>NOT_DISPLAYED</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR=DAC,FLOW_TYPE=1160,PRICE_BASE=V+Q,LASTNPERIODS=10,SECTOR=_Z</common:AnnotationTitle>
+            <common:AnnotationType>DEFAULT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationTitle>DONOR:OECD.DCD.FSD:HCL_DACDONORS(1.6).H</common:AnnotationTitle>
+            <common:AnnotationType>HIER_CONTEXT</common:AnnotationType>
+          </common:Annotation>
+          <common:Annotation>
+            <common:AnnotationTitle>UNIT_MEASURE,UNIT_MULT,BASE_PER</common:AnnotationTitle>
+            <common:AnnotationType>COMBINED_CONCEPTS</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">COMBINED_UNIT_MEASURE:Unit of measure</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">;COMBINED_UNIT_MEASURE:Unité de mesure</common:AnnotationText>
+          </common:Annotation>
+          <common:Annotation id="@SDMX">
+            <common:AnnotationType>EXT_RESOURCE</common:AnnotationType>
+            <common:AnnotationText xml:lang="en">DAC1 full dataset (dotStat format)|https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC1/Table1_Data.zip</common:AnnotationText>
+            <common:AnnotationText xml:lang="fr">Données completes CAD1 (formatté dotStat)|https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC1/Table1_Data.zip</common:AnnotationText>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">DAC1: Flows by provider (ODA+OOF+Private)</common:Name>
+        <common:Name xml:lang="fr">CAD1: Flux par fournisseur (APD+AASP+privé)</common:Name>
+        <common:Description xml:lang="en">&lt;p&gt;This dataset provides main aggregates of DAC members' and other provider countries' official development assistance (ODA) flows and grant equivalents, as well as other resource flows to developing countries.&lt;/p&gt;&lt;p&gt;To assist with the transition between systems, we provide a &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/dotStat/Correspondences_DAC1.csv"&gt;mapping of codes&lt;/a&gt; between OECD.Stat (legacy) and the OECD Data Explorer. Please consult our database of &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;development finance classifications&lt;/a&gt; for further information on all possible codes for each attribute. We also have a &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;codebook for the DAC and CRS tables&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;For more information on these flows, please see the OECD's main page on &lt;a href="https://www.oecd.org/en/topics/official-development-assistance-oda.html"&gt;official development assistance&lt;/a&gt; and &lt;a href="https://www.oecd.org/en/topics/finance-for-sustainable-development.html"&gt;finance for sustainable development&lt;/a&gt;, including &lt;a href="https://www.oecd.org/en/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;frequently asked questions (FAQs)&lt;/a&gt; on ODA. See also the &lt;a href="https://one.oecd.org/document/DCD/DAC(2024)40/FINAL/en/pdf"&gt;converged statistical reporting directives&lt;/a&gt; governing these data, alongside &lt;a href="https://www.oecd.org/content/oecd/en/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;other guidance on using our data&lt;/a&gt;, and a &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;DE User guide for DAC/CRS statistics&lt;/a&gt;. You may also be interested in our latest &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;dashboards&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;While you are here, please take a moment to &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;answer our short survey&lt;/a&gt; to inform the next generation of dissemination tools of OECD development finance statistics.&lt;/p&gt;</common:Description>
+        <common:Description xml:lang="fr">&lt;p&gt;Cet ensemble de données fournit les principaux agrégats des flux d'aide publique au développement (APD) et des équivalents-dons des membres du CAD et d'autres pays fournisseurs, ainsi que d'autres flux de ressources vers les pays en développement.&lt;/p&gt;&lt;p&gt;Pour faciliter la transition entre les systèmes, nous fournissons une &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/dotStat/Correspondences_DAC1.csv"&gt;correspondance des codes&lt;/a&gt; entre OECD.Stat (ancien système) et OECD Data Explorer. Veuillez consulter notre base de données des &lt;a href="https://development-finance-codelists.oecd.org/CodesList.aspx"&gt;classifications du financement du développement&lt;/a&gt; pour plus d'informations sur tous les codes possibles pour chaque attribut. Nous disposons également d'un &lt;a href="https://webfs.oecd.org/oda/DataCollection/Resources/DAC-tables-CRS-codebook.xlsx"&gt;manuel des codes pour les tableaux du CAD et SNPC&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Pour plus d'informations sur ces flux, veuillez consulter la page principale de l'OCDE sur &lt;a href="https://www.oecd.org/fr/themes/aide-publique-au-developpement-apd.html"&gt;l'aide publique au développement&lt;/a&gt; et le &lt;a href="https://www.oecd.org/fr/cad/financementpourledeveloppementdurable/statistiques-financement-developpement/"&gt;financement du développement durable&lt;/a&gt;, y compris la &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/07/frequently-asked-questions-on-official-development-assistance-oda.html"&gt;foire aux questions (FAQ)&lt;/a&gt; sur l'APD. Voir également les &lt;a href="https://one.oecd.org/document/DCD/DAC/STAT(2023)9/FINAL/en/pdf"&gt;directives de notification statistique convergées&lt;/a&gt; (en anglais) régissant ces données, ainsi que d'autres &lt;a href="https://www.oecd.org/fr/data/insights/data-explainers/2024/10/resources-for-reporting-development-finance-statistics.html"&gt;conseils sur l'utilisation de nos données&lt;/a&gt;, ainsi qu'un &lt;a href="https://webfs.oecd.org/oda/DataExplorer/DE_User_Guide_for_DAC-CRS_statistics.pdf"&gt;guide d'utilisation de l'ED consacré aux statistiques du CAD et du CRS&lt;/a&gt; (en anglais). Nos derniers &lt;a href="https://www.oecd.org/en/data/dashboards-and-tools.html?orderBy=mostRecent&amp;page=0&amp;facetTags=oecd-policy-areas%3Apa3"&gt;tableaux de bord&lt;/a&gt; pourraient également vous intéresser.&lt;/p&gt;&lt;p&gt;Profitez de votre visite pour &lt;a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=1MdBrGEfDUaw9PySWitHHJlgUay9zUlGq1KOvaQB5e1UOFVZTERHQlIwWlo4MlE3UTdQUTZMNzVBRi4u&amp;route=shorturl"&gt;répondre à notre brève enquête&lt;/a&gt; (en anglais) afin de contribuer à l'élaboration de la prochaine génération d'outils de diffusion des statistiques de l'OCDE sur le financement du développement.&lt;/p&gt;</common:Description>
+        <structure:Structure>
+          <Ref id="DSD_DAC1" version="1.8" agencyID="OECD.DCD.FSD" package="datastructure" class="DataStructure" />
+        </structure:Structure>
+      </structure:Dataflow>
+    </structure:Dataflows>
+    <structure:DataStructures>
+      <structure:DataStructure id="DSD_DAC1" agencyID="OECD.DCD.FSD" version="1.8" isFinal="true">
+        <common:Annotations>
+          <common:Annotation>
+            <common:AnnotationTitle>urn:sdmx:org.sdmx.infomodel.metadatastructure.MetadataStructure=OECD:MSD_REF_METADATA(1.0)</common:AnnotationTitle>
+            <common:AnnotationType>METADATA</common:AnnotationType>
+          </common:Annotation>
+        </common:Annotations>
+        <common:Name xml:lang="en">DACProvider</common:Name>
+        <common:Description xml:lang="en">DSD for dataflows DAC1, DAC5, DAC7B</common:Description>
+        <structure:DataStructureComponents>
+          <structure:DimensionList id="DimensionDescriptor">
+            <structure:Dimension id="DONOR" position="1">
+              <structure:ConceptIdentity>
+                <Ref id="DONOR" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_AREA_ORG" version="1.6" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="SECTOR" position="2">
+              <structure:ConceptIdentity>
+                <Ref id="SECTOR" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DAC_SECTOR" version="1.3" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="MEASURE" position="3">
+              <structure:ConceptIdentity>
+                <Ref id="MEASURE" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DAC157_MEASURE" version="1.3" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="TYING_STATUS" position="4">
+              <structure:ConceptIdentity>
+                <Ref id="TYING_STATUS" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DAC_TYINGSTATUS" version="1.0" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="FLOW_TYPE" position="5">
+              <structure:ConceptIdentity>
+                <Ref id="FLOW_TYPE" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_FLOW_TYPE" version="1.1" agencyID="OECD.DCD.FSD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="UNIT_MEASURE" position="6">
+              <structure:ConceptIdentity>
+                <Ref id="UNIT_MEASURE" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_UNIT_MEASURE" version="1.8" agencyID="OECD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:Dimension id="PRICE_BASE" position="7">
+              <structure:ConceptIdentity>
+                <Ref id="PRICE_BASE" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_PRICES" version="1.0" agencyID="OECD" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+            </structure:Dimension>
+            <structure:TimeDimension id="TIME_PERIOD" position="8">
+              <structure:ConceptIdentity>
+                <Ref id="TIME_PERIOD" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="ObservationalTimePeriod" />
+              </structure:LocalRepresentation>
+            </structure:TimeDimension>
+          </structure:DimensionList>
+          <structure:AttributeList id="AttributeDescriptor">
+            <structure:Attribute id="BASE_PER" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="BASE_PER" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="ObservationalTimePeriod" />
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:Dimension>
+                  <Ref id="UNIT_MEASURE" />
+                </structure:Dimension>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="OBS_STATUS" assignmentStatus="Mandatory">
+              <structure:ConceptIdentity>
+                <Ref id="OBS_STATUS" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_OBS_STATUS" version="2.2" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:PrimaryMeasure>
+                  <Ref id="OBS_VALUE" />
+                </structure:PrimaryMeasure>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="UNIT_MULT" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="UNIT_MULT" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_UNIT_MULT" version="1.1" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:Dimension>
+                  <Ref id="UNIT_MEASURE" />
+                </structure:Dimension>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+            <structure:Attribute id="DECIMALS" assignmentStatus="Conditional">
+              <structure:ConceptIdentity>
+                <Ref id="DECIMALS" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:Enumeration>
+                  <Ref id="CL_DECIMALS" version="1.0" agencyID="SDMX" package="codelist" class="Codelist" />
+                </structure:Enumeration>
+              </structure:LocalRepresentation>
+              <structure:AttributeRelationship>
+                <structure:Dimension>
+                  <Ref id="UNIT_MEASURE" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="PRICE_BASE" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="DONOR" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="SECTOR" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="MEASURE" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="TYING_STATUS" />
+                </structure:Dimension>
+                <structure:Dimension>
+                  <Ref id="FLOW_TYPE" />
+                </structure:Dimension>
+              </structure:AttributeRelationship>
+            </structure:Attribute>
+          </structure:AttributeList>
+          <structure:MeasureList id="MeasureDescriptor">
+            <structure:PrimaryMeasure id="OBS_VALUE">
+              <structure:ConceptIdentity>
+                <Ref id="OBS_VALUE" maintainableParentID="CS_DAC1" maintainableParentVersion="1.6" agencyID="OECD.DCD.FSD" package="conceptscheme" class="Concept" />
+              </structure:ConceptIdentity>
+              <structure:LocalRepresentation>
+                <structure:TextFormat textType="Double" />
+              </structure:LocalRepresentation>
+            </structure:PrimaryMeasure>
+          </structure:MeasureList>
+        </structure:DataStructureComponents>
+      </structure:DataStructure>
+    </structure:DataStructures>
+  </message:Structures>
+</message:Structure>

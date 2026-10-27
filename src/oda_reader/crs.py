@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_CRS@DF_CRS"
 DATAFLOW_ID_GE: str = "DSD_GREQ@DF_CRS_GREQ"
-# Default version; actual version is discovered dynamically on fallback
-DATAFLOW_VERSION: str = "1.6"
 
 # EXT_RESOURCE annotation labels of the full and reduced bulk parquet files.
 CRS_BULK_LABEL: str = "CRS-Parquet"
@@ -176,7 +174,7 @@ def download_crs(
     pre_process: bool = True,
     dotstat_codes: bool = True,
     as_grant_equivalent: bool = False,
-    dataflow_version: str = DATAFLOW_VERSION,
+    dataflow_version: str | None = None,
 ) -> pd.DataFrame:
     """
     Download the CRS data from the API.
@@ -188,7 +186,7 @@ def download_crs(
         pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
         as_grant_equivalent (bool): Whether to download the grant equivalent data instead of flows.
-        dataflow_version (str): The version of the dataflow to download.
+        dataflow_version (str | None): The dataflow version to read. Defaults to the latest published version.
 
     Returns:
         pd.DataFrame: The CRS data.

@@ -33,7 +33,10 @@ from oda_reader.common import (
     api_response_to_df,
 )
 from oda_reader.download.query_builder import QueryBuilder
-from oda_reader.download.version_discovery import discover_latest_version
+from oda_reader.download.version_discovery import (
+    discover_latest_version,
+    resolve_dataflow,
+)
 from oda_reader.exceptions import (
     BulkDownloadChallengeError,
     BulkDownloadHTTPError,
@@ -394,7 +397,8 @@ def download(
     Args:
         version (str): The version of the data to download.
         dataflow_id (str): The dataflow id of the data to download.
-        dataflow_version (str): The version of the dataflow. Optional
+        dataflow_version (str | None): The dataflow version to read. Defaults to the
+            latest published version.
         start_year (int): The start year of the data to download. Optional
         end_year (int): The end year of the data to download. Optional
         filters (dict): Optional filters to pass to the download.
@@ -419,8 +423,16 @@ def download(
         "dtype": data_types,
     }
 
+    # Resolve the dataflow version and the key order of its data structure
+    structure = resolve_dataflow(dataflow_id, dataflow_version)
+    logger.info(f"Reading dataflow {dataflow_id} version {structure.version}.")
+
     # instantiate the query builder
-    qb = QueryBuilder(dataflow_id=dataflow_id, dataflow_version=dataflow_version)
+    qb = QueryBuilder(
+        dataflow_id=dataflow_id,
+        dataflow_version=structure.version,
+        dimensions=structure.dimensions,
+    )
 
     # Define the version functions
     version_functions = {
@@ -470,7 +482,7 @@ def download(
     df_cache = dataframe_cache()
     cached_df = df_cache.get(
         dataflow_id=dataflow_id,
-        dataflow_version=dataflow_version or "default",
+        dataflow_version=structure.version,
         url=url,
         pre_process=pre_process,
         dotstat_codes=dotstat_codes,
@@ -495,7 +507,7 @@ def download(
     df_cache.set(
         df=df,
         dataflow_id=dataflow_id,
-        dataflow_version=dataflow_version or "default",
+        dataflow_version=structure.version,
         url=url,
         pre_process=pre_process,
         dotstat_codes=dotstat_codes,
@@ -949,7 +961,7 @@ def _parse_retry_after(value: str | None) -> float | None:
     """Read a ``Retry-After`` header as seconds to wait.
 
     The header holds either a delay in seconds or an HTTP date. A date in the
-    past reads as zero. A missing or unparseable header reads as ``None``.
+    past reads as zero. A missing or unparsable header reads as ``None``.
     """
     if value is None:
         return None

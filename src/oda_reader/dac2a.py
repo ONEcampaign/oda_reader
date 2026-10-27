@@ -17,8 +17,6 @@ from oda_reader.download.download_tools import (
 logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2A"
-# Default version; actual version is discovered dynamically on fallback
-DATAFLOW_VERSION: str = "1.4"
 
 DAC2A_BULK_LABEL = "DAC2A full dataset (dotStat format)"
 
@@ -72,7 +70,7 @@ def download_dac2a(
         filters (dict): Optional filters to pass to the download.
         pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        dataflow_version (str): The version of the data. Optional
+        dataflow_version (str | None): The dataflow version to read. Defaults to the latest published version.
 
     Returns:
         pd.DataFrame: The DAC2a data.
@@ -81,10 +79,6 @@ def download_dac2a(
 
     # Inform download is about to start
     logger.info("Downloading DAC2A data. This may take a while...")
-
-    # Inform of the dataflow being downloaded
-    if dataflow_version is None:
-        dataflow_version = DATAFLOW_VERSION
 
     df = download(
         version="dac2a",

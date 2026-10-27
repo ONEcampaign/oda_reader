@@ -8,7 +8,6 @@ from oda_reader.download.download_tools import download
 logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_CPA@DF_CRS_CPA"
-DATAFLOW_VERSION: str = "1.4"
 
 # CPA filter structure (dimension order mirrors CRS):
 # donor, recipient, sector, measure, channel,
@@ -23,7 +22,7 @@ def download_cpa(
     filters: dict | None = None,
     pre_process: bool = True,
     dotstat_codes: bool = True,
-    dataflow_version: str = DATAFLOW_VERSION,
+    dataflow_version: str | None = None,
 ) -> pd.DataFrame:
     """
     Download the CPA (Country Programmable Aid) data from the API.
@@ -37,7 +36,7 @@ def download_cpa(
         filters (dict): Optional filters to pass to the download.
         pre_process (bool): Whether to preprocess the data. Defaults to True. Preprocessing makes it comply with the .stat schema.
         dotstat_codes (bool): Whether to convert the donor codes to the .stat schema.
-        dataflow_version (str): The version of the dataflow to download.
+        dataflow_version (str | None): The dataflow version to read. Defaults to the latest published version.
 
     Note:
         CPA has no grant-equivalent dataflow, so ``as_grant_equivalent`` is not

@@ -1,5 +1,49 @@
 # Changelog for oda_reader
 
+## 1.14.0 (unreleased)
+
+- **Downloads read the latest dataflow version by default.** Each table module pinned a version,
+  and the OECD keeps superseded versions online with their data frozen, so the pinned version
+  answered with a 200 and no 2025 data. The `download_*` functions now look up the latest
+  published version and read it, repeating the lookup after a day in a long-running process. The
+  defaults move as follows:
+
+  | Table       | Was | Now |
+  | ----------- | --- | --- |
+  | DAC1        | 1.8 | 1.8 |
+  | DAC2A       | 1.4 | 1.7 |
+  | DAC2B       | 1.7 | 1.8 |
+  | CRS         | 1.6 | 1.7 |
+  | Multisystem | 1.6 | 1.7 |
+  | CPA         | 1.4 | 1.5 |
+
+  The superseded versions stop at 2024, where the latest versions have 2025. Pass
+  `dataflow_version=` to pin a version.
+
+- **Query keys are built by dimension ID.** `QueryBuilder` placed each filter by a hardcoded
+  position and checked only the number of dimensions, so a version that reordered dimensions
+  (DSD_DAC1 1.5 and 1.8 have the same seven in a different order) could send a filter to the wrong
+  position. The key now follows the dimension order of the resolved version's data structure. A
+  filter on a dimension the version lacks raises a `ValueError` naming the dimension, dataflow and
+  version. A dimension the package has no filter for is read unfiltered, with a warning.
+  `QueryBuilder` takes `dimensions=` to set the order, and without it follows each table's latest
+  order.
+
+- **Clearer errors for no matching data and a missing version.** A response with no records
+  raises a `ConnectionError` saying that no data matches the filters. A response naming a missing
+  dataflow or data structure raises a `ConnectionError` that suggests `clear_version_cache()` or
+  another `dataflow_version`. A pinned `dataflow_version` the OECD does not publish raises a
+  `ConnectionError` saying so, and that omitting `dataflow_version` reads the latest. Any other
+  failure reports the HTTP status and body. A failed
+  metadata lookup with nothing cached raises a `ConnectionError`. `common.get_data_from_api` no
+  longer retries a missing version with the latest.
+
+- **Removes the `DATAFLOW_VERSION` constants and `version_discovery.get_dimension_count`.** The
+  constants in the `dac1`, `dac2a`, `dac2b`, `crs`, `multisystem` and `cpa` modules held the
+  pinned versions. `get_dimension_count` compared the number of dimensions only. Use
+  `dataflow_version=` to pin a version and `version_discovery.resolve_dataflow` to read a
+  version's dimensions.
+
 ## 1.13.1 (2026-10-27)
 
 - **EU Institutions converts to donor code 918 again.** The DAC1 and DAC2 codelists list both 918
