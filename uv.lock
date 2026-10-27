@@ -668,7 +668,7 @@ wheels = [
 
 [[package]]
 name = "oda-reader"
-version = "1.14.0rc1"
+version = "1.14.0rc2"
 source = { editable = "." }
 dependencies = [
     { name = "filelock" },
