@@ -2,6 +2,10 @@
 
 ## 1.14.0 (unreleased)
 
+- **DAC2B measure 2260 converts to .Stat 260.** The OECD reports measure 2260 (private sector
+  instruments, net) from 2023, and the measure mapping had no entry for it, so `download_dac2b`
+  raised `Unmapped DAC2B measure code(s): [2260]` on current data. The code now converts to 260.
+
 - **Downloads read the latest dataflow version by default.** Each table module pinned a version,
   and the OECD keeps superseded versions online with their data frozen, so the pinned version
   answered with a 200 and no 2025 data. The `download_*` functions now look up the latest
