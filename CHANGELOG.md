@@ -28,7 +28,8 @@
   that names `oda_importer` and keeps the default `disable_existing_loggers` silences the
   package's loggers, warnings included, so rename the key to `oda_reader`. Setting `.disabled`
   on `oda_importer` or adding a logger-level filter to it has no effect on the package's
-  messages. Adding a filter still emits the `DeprecationWarning`.
+  messages. Adding a filter still emits the `DeprecationWarning`. `oda_reader.common.logger` is the
+  deprecated `oda_importer` logger and follows the same rules.
 
 ## 1.12.0 (2026-10-21)
 

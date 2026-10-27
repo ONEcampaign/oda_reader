@@ -105,7 +105,9 @@ class TestImport:
         module_loggers = {}
         for name in _package_modules():
             module = importlib.import_module(name)
-            if isinstance(logger := getattr(module, "logger", None), logging.Logger):
+            # `common.logger` is the exported `oda_importer` alias.
+            attribute = "_logger" if name == "oda_reader.common" else "logger"
+            if isinstance(logger := getattr(module, attribute, None), logging.Logger):
                 module_loggers[name] = logger.name
 
         assert module_loggers
@@ -168,6 +170,19 @@ class TestDeprecatedName:
 
         assert legacy_handler.messages == ["progress"]
         assert root_handler.messages == []
+
+    def test_exported_common_logger_is_the_deprecated_logger(
+        self, legacy_logger, root_handler
+    ):
+        from oda_reader.common import logger
+
+        assert logger is legacy_logger
+        with pytest.warns(DeprecationWarning):
+            logger.setLevel(logging.INFO)
+
+        logging.getLogger(PACKAGE_MODULE_LOGGER).info("progress")
+
+        assert root_handler.messages == ["progress"]
 
     def test_child_of_deprecated_name_reaches_root(self, root_handler):
         logging.getLogger("oda_importer.child").warning("from a child")
