@@ -222,3 +222,26 @@ class TestApplicationConfiguration:
         )
 
         assert output.splitlines() == ["progress"]
+
+    def test_package_logger_enabled_state_cached_before_import_is_refreshed(self):
+        output = _run_in_fresh_interpreter(
+            f"""
+            import logging
+            import sys
+
+            legacy = logging.getLogger("oda_importer")
+            legacy.addHandler(logging.StreamHandler(sys.stdout))
+            legacy.setLevel(logging.INFO)
+            legacy.propagate = False
+
+            # Not yet a descendant of `oda_importer`, so this caches False.
+            module_logger = logging.getLogger({PACKAGE_MODULE_LOGGER!r})
+            assert not module_logger.isEnabledFor(logging.INFO)
+
+            import oda_reader
+
+            module_logger.info("progress")
+            """
+        )
+
+        assert output.splitlines() == ["progress"]
