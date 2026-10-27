@@ -6,6 +6,7 @@ import shutil
 import socket
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest import mock
 
 import pandas as pd
 import pyarrow as pa
@@ -433,6 +434,24 @@ class TestScan:
 
         assert [path.exists() for path in paths] == [False, True, True]
 
+    def test_a_release_that_cannot_be_removed_stays(self, host):
+        paths = []
+        for n in (1, 2):
+            host.tokens["dac2a"] = f"etag-dac2a-{n}"
+            paths.append(scan("dac2a").path)
+        unlink = Path.unlink
+
+        def unlink_but_first(path, missing_ok=False):
+            if path == paths[0]:
+                raise OSError("read-only file system")
+            unlink(path, missing_ok=missing_ok)
+
+        host.tokens["dac2a"] = "etag-dac2a-3"
+        with mock.patch.object(Path, "unlink", unlink_but_first):
+            paths.append(scan("dac2a").path)
+
+        assert [path.exists() for path in paths] == [True, True, True]
+
     @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
     def test_the_previous_release_survives_expiry_after_a_url_change(
         self, host, dataset
@@ -547,6 +566,41 @@ class TestScan:
             scan("dac1")
 
         assert list(bulk_cache_manager().base_dir.glob("*.parquet")) == []
+
+    def test_conversion_cleared_midway_keeps_a_zip_held_open(self, host, mocker):
+        """Windows refuses to delete the zip the conversion holds open."""
+        write = oda_reader._tables._write_parquet
+        unlink = Path.unlink
+
+        def refuse(winerror):
+            def unlink_but_zip(path, missing_ok=False):
+                if path.suffix == ".zip":
+                    error = PermissionError(13, "Permission denied", str(path))
+                    error.winerror = winerror
+                    raise error
+                unlink(path, missing_ok=missing_ok)
+
+            return mock.patch.object(Path, "unlink", unlink_but_zip)
+
+        def clear_then_write(z, dest, columns):
+            with refuse(winerror=32):
+                bulk_cache_manager().clear()
+            write(z, dest, columns)
+
+        patched = mocker.patch(
+            "oda_reader._tables._write_parquet", side_effect=clear_then_write
+        )
+        with pytest.raises(RuntimeError, match="removed"):
+            scan("dac1")
+        mocker.stop(patched)
+
+        manager = bulk_cache_manager()
+        assert manager.list_records() == []
+        assert len(list(manager.base_dir.glob("*.zip"))) == 1
+        assert list(manager.base_dir.glob("*.parquet")) == []
+        assert pq.read_table(scan("dac1").path).num_rows == 5
+        with refuse(winerror=None), pytest.raises(PermissionError):
+            manager.clear()
 
     def test_cache_dir_scopes_the_call(self, host, tmp_path):
         root = get_cache_dir()

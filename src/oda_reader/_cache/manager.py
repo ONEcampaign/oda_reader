@@ -4,7 +4,6 @@ Inspired by pydeflate's cache design, this module provides a robust caching syst
 for large, monolithic datasets (bulk CRS, Multisystem, AidData downloads).
 """
 
-import contextlib
 import json
 import logging
 import os
@@ -469,13 +468,21 @@ class CacheManager:
                 path for path in self._release_files(manifest, record) if path != keep
             ]
             for old in others[1:]:
-                # A file another process holds open on Windows stays until
-                # next time.
-                with contextlib.suppress(OSError):
-                    old.unlink()
+                # A file that cannot be deleted now, such as one another
+                # process holds open on Windows, stays until next time.
+                try:
+                    old.unlink(missing_ok=True)
+                except OSError as e:
+                    logger.warning(f"Could not delete older release {old}: {e}")
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
+
+        A file another process holds open on Windows cannot be deleted. It
+        stays on disk, with a warning, and its record goes all the same, so a
+        scan converting it raises. The next download of the same URL replaces
+        the payload, and the next conversion of its dataset removes the
+        derived files ``remove_older_releases`` does not keep.
 
         Args:
             key: If provided, clear only this entry. If None, clear all.
@@ -485,11 +492,11 @@ class CacheManager:
 
             if key is None:
                 for record in manifest.values():
-                    self._remove_payload(record["filename"])
+                    _warn_held_open(self._remove_payload(record["filename"]))
                 manifest.clear()
                 logger.info("Cleared all bulk cache entries")
             elif key in manifest:
-                self._remove_payload(manifest[key]["filename"])
+                _warn_held_open(self._remove_payload(manifest[key]["filename"]))
                 del manifest[key]
                 logger.info(f"Cleared cache entry: {key}")
             else:
@@ -554,12 +561,23 @@ class CacheManager:
             "stale_entries": stale_count,
         }
 
-    def _remove_payload(self, filename: str) -> None:
-        """Delete a cached payload and the ``{key}-*.parquet`` files derived from it."""
+    def _remove_payload(self, filename: str) -> list[Path]:
+        """Delete a cached payload and the ``{key}-*.parquet`` files derived from it.
+
+        Returns:
+            The files left on disk because another process on Windows holds
+            them open.
+        """
         path = self.base_dir / filename
-        for derived in derived_files(path):
-            derived.unlink(missing_ok=True)
-        path.unlink(missing_ok=True)
+        held_open = []
+        for file in [*derived_files(path), path]:
+            try:
+                file.unlink(missing_ok=True)
+            except OSError as e:
+                if not _held_open(e):
+                    raise
+                held_open.append(file)
+        return held_open
 
     def _release_files(self, manifest: dict, record: dict) -> list[Path]:
         """The derived files of *record*'s dataset, newest first.
@@ -720,11 +738,14 @@ class CacheManager:
 
         for key in expired:
             file_path = self.base_dir / manifest[key]["filename"]
+            # Keep the record of a file not removed so the next sweep retries.
             try:
-                self._remove_payload(manifest[key]["filename"])
+                held_open = self._remove_payload(manifest[key]["filename"])
             except OSError as e:
-                # Keep the record so the next sweep retries the removal.
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")
+                continue
+            if held_open:
+                _warn_held_open(held_open)
                 continue
             logger.info(f"Expired cache entry removed: {file_path}")
             del manifest[key]
@@ -735,6 +756,17 @@ class CacheManager:
 def derived_files(payload: Path) -> list[Path]:
     """The ``{key}-*.parquet`` files derived from the cached *payload*."""
     return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def _held_open(error: OSError) -> bool:
+    """Whether *error* is Windows refusing to delete a file another process holds open."""
+    # 32 is ERROR_SHARING_VIOLATION.
+    return isinstance(error, PermissionError) and getattr(error, "winerror", None) == 32
+
+
+def _warn_held_open(files: list[Path]) -> None:
+    for file in files:
+        logger.warning(f"Could not delete {file}: another process holds it open.")
 
 
 def _mtime_ns(path: Path) -> int:
