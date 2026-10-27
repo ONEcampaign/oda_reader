@@ -7,7 +7,11 @@ never change while it exists. CRS is published as Parquet, and its file is a
 hard link to the cached payload. DAC1, DAC2A and Multisystem are published as
 zipped CSVs, and are converted once per release. The files of the current and
 the previous release are kept until the cache is cleared, even when OECD moves
-the dataset to a new URL, and older ones are deleted.
+the dataset to a new URL, and older ones are deleted unless a reader holds a
+lease on them.
+
+`lease` scans like `scan` and holds the file until the lease is closed; see
+`oda_reader._cache.lease` for how a lease works.
 """
 
 import contextlib
@@ -21,6 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from types import TracebackType
 
 import pyarrow as pa
 import pyarrow.csv as pacsv
@@ -28,6 +33,7 @@ import pyarrow.parquet as pq
 from filelock import FileLock
 
 from oda_reader._cache.config import get_bulk_cache_dir
+from oda_reader._cache.lease import release_lease, take_lease
 from oda_reader._cache.manager import (
     ISO_FORMAT,
     CacheManager,
@@ -80,6 +86,7 @@ class ScannedTable:
         path: The Parquet file. Read it in place; do not modify it. Its bytes
             stay those of `release` while it exists, and it is kept until
             a second newer release has been scanned or the cache is cleared.
+            A `TableLease` on it keeps it past newer releases while it is open.
         release: The release token of the bulk file it holds. See `release`.
         label_release: The readable release id OECD appends to the dataset's
             annotation label, such as ``"v20260803"`` for CRS, or ``None``
@@ -130,6 +137,45 @@ class BulkFileInfo:
     path: Path
 
 
+class TableLease:
+    """A scanned table whose Parquet file is kept until the lease is closed.
+
+    `lease` returns it. While it is open, no later `scan` or `lease` deletes
+    `table.path`, so a reader that keeps the path, such as a DuckDB view,
+    can read it for as long as it needs. Close it when the reader is done, or
+    use it as a context manager. A process that exits releases its leases.
+    Clearing the cache deletes the file all the same.
+
+    The lease lasts only while this object is kept open. One that is dropped
+    without `close`, as in ``oda_reader.lease(x).table.path``, is released at
+    once. Hold the object or use a ``with`` block for as long as the path is
+    read.
+
+    Attributes:
+        table: The scanned table, as `scan` returns it.
+    """
+
+    def __init__(self, table: ScannedTable, lock: FileLock) -> None:
+        self.table = table
+        self._lock = lock
+
+    def close(self) -> None:
+        """Release the lease. Closing it again does nothing."""
+        if self._lock.is_locked:
+            release_lease(self._lock)
+
+    def __enter__(self) -> typing.Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
+
+
 def scan(
     dataset: ScanDataset,
     *,
@@ -146,7 +192,7 @@ def scan(
     a later download or conversion leaves its bytes unchanged. The files of
     the current and the previous release are kept until the cache is
     cleared, also across a change of the dataset's URL, and older ones are
-    deleted.
+    deleted, except those a `lease` holds.
     Converted columns are snake_case and unique
     case-insensitively (``DONOR`` and ``Donor`` become ``donor_code`` and
     ``donor_name``), so DuckDB reads them without renaming.
@@ -177,21 +223,57 @@ def scan(
         RuntimeError: If another process replaced or cleared the cached bulk
             file while it was being served. Scanning again serves the new file.
     """
-    _check_dataset(dataset)
-    manager = _manager(cache_dir)
-    key, path, record = _bulk_file(dataset, manager, refresh=refresh, offline=offline)
-    token = _record_release(manager, key, path, record)
+    manager, key, record, token = _resolve(
+        dataset, cache_dir=cache_dir, refresh=refresh, offline=offline
+    )
+    return _scanned_table(dataset, manager, key, record, token)
 
-    table_path = _table_file(
-        manager, key, record, token, _CONVERTED_COLUMNS.get(dataset)
+
+def lease(
+    dataset: ScanDataset,
+    *,
+    cache_dir: str | Path | None = None,
+    refresh: bool = False,
+    offline: bool = False,
+) -> TableLease:
+    """Scan a bulk dataset as `scan` does, and keep its Parquet file until closed.
+
+    `scan` deletes the files of releases before the previous one, which
+    breaks a reader that still holds an older path. A lease keeps its file
+    through any number of newer releases until `TableLease.close`. Each
+    lease is an exclusive lock on a file of its own, so leases from any
+    number of threads and processes coexist, and one that a process leaves
+    open is released when the process exits. Clearing the cache deletes a
+    leased file.
+
+    Use a ``with`` block or hold the returned object for as long as the path
+    is read; see `TableLease`.
+
+    Args:
+        dataset: ``"dac1"``, ``"dac2a"``, ``"crs"`` or ``"multisystem"``.
+        cache_dir: A cache root for this call only, as in `scan`.
+        refresh: If True, download the bulk file even when a current copy is
+            cached, as in `scan`.
+        offline: If True, make no network request, as in `scan`.
+
+    Returns:
+        TableLease: The open lease. Its `table` is the `ScannedTable`.
+
+    Raises:
+        The errors `scan` raises, with no lease left held.
+    """
+    manager, key, record, token = _resolve(
+        dataset, cache_dir=cache_dir, refresh=refresh, offline=offline
     )
-    return ScannedTable(
-        path=table_path,
-        release=token,
-        label_release=record.get("release"),
-        downloaded=_downloaded_at(record),
-        columns=tuple(pq.read_schema(table_path).names),
-    )
+    # The lease comes before the file is looked up, so no prune can delete
+    # the file between the lookup and the caller's first read.
+    lock = take_lease(_table_path(manager.base_dir / record["filename"], token))
+    try:
+        table = _scanned_table(dataset, manager, key, record, token)
+    except BaseException:
+        release_lease(lock)
+        raise
+    return TableLease(table, lock)
 
 
 def release(
@@ -284,6 +366,35 @@ def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
             )
         )
     return infos
+
+
+def _resolve(
+    dataset: str, *, cache_dir: str | Path | None, refresh: bool, offline: bool
+) -> tuple[CacheManager, str, dict[str, typing.Any], str]:
+    """Cache *dataset*'s bulk file; return its manager, key, record and token."""
+    _check_dataset(dataset)
+    manager = _manager(cache_dir)
+    key, path, record = _bulk_file(dataset, manager, refresh=refresh, offline=offline)
+    return manager, key, record, _record_release(manager, key, path, record)
+
+
+def _scanned_table(
+    dataset: str,
+    manager: CacheManager,
+    key: str,
+    record: Mapping[str, typing.Any],
+    token: str,
+) -> ScannedTable:
+    table_path = _table_file(
+        manager, key, record, token, _CONVERTED_COLUMNS.get(dataset)
+    )
+    return ScannedTable(
+        path=table_path,
+        release=token,
+        label_release=record.get("release"),
+        downloaded=_downloaded_at(record),
+        columns=tuple(pq.read_schema(table_path).names),
+    )
 
 
 def _check_dataset(dataset: str) -> None:
@@ -392,8 +503,7 @@ def _table_file(
             cleared it during the conversion.
     """
     payload = manager.base_dir / record["filename"]
-    digest = hashlib.sha256(token.encode()).hexdigest()[:16]
-    dest = payload.with_name(f"{payload.stem}-{digest}.parquet")
+    dest = _table_path(payload, token)
     if dest.exists():
         return dest
 
@@ -407,6 +517,11 @@ def _table_file(
             _convert(manager, key, record, dest, columns)
         manager.remove_older_releases(key, dest)
     return dest
+
+
+def _table_path(payload: Path, token: str) -> Path:
+    digest = hashlib.sha256(token.encode()).hexdigest()[:16]
+    return payload.with_name(f"{payload.stem}-{digest}.parquet")
 
 
 def _convert(

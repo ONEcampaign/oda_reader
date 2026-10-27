@@ -27,7 +27,15 @@ from oda_reader._cache.legacy import clear_cache as _impl_clear_cache
 from oda_reader._cache.legacy import disable_cache as _impl_disable_cache
 from oda_reader._cache.legacy import enable_cache as _impl_enable_cache
 from oda_reader._logging import install_legacy_logger_name
-from oda_reader._tables import BulkFileInfo, ScannedTable, cache_info, release, scan
+from oda_reader._tables import (
+    BulkFileInfo,
+    ScannedTable,
+    TableLease,
+    cache_info,
+    lease,
+    release,
+    scan,
+)
 from oda_reader.aiddata import download_aiddata
 from oda_reader.common import (
     API_RATE_LIMITER,
@@ -176,8 +184,10 @@ __all__ = [
     "get_available_filters",
     # Local Parquet tables
     "scan",
+    "lease",
     "release",
     "ScannedTable",
+    "TableLease",
     # Cache configuration
     "get_cache_dir",
     "set_cache_dir",

@@ -187,8 +187,10 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   truncated file where a good one used to be.
 - **Scanned tables**: `scan()` keeps the Parquet files of the current and
   the previous release beside the bulk files until the cache is cleared,
-  also after OECD moves a dataset to a new URL. Clearing a bulk file deletes
-  the Parquet files made from it. See
+  also after OECD moves a dataset to a new URL, and any older file a
+  `lease()` holds. Clearing a bulk file deletes the Parquet files made from
+  it, leased or not, and so do `clear_cache()` and `enforce_cache_limits()`,
+  which walk the whole cache root. See
   [Query bulk files in place](bulk-downloads.md#query-bulk-files-in-place-with-scan).
 
 `oda_reader.cache_info()` lists the cached bulk files with their dataset,

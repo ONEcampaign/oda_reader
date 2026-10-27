@@ -1,5 +1,16 @@
 # Changelog for oda_reader
 
+## 1.15.0 (unreleased)
+
+- **Adds `lease()`, which scans like `scan()` and keeps the Parquet file until the lease is
+  closed.** It returns a `TableLease` with `table` (the `ScannedTable`) and `close()`, and works
+  as a context manager. While it is open, no later `scan()` or expiry sweep deletes its file,
+  however many releases follow, so a DuckDB view on the path keeps reading. The lease holds only
+  while the `TableLease` object is kept: one dropped without `close()` is released at once. Each
+  lease is an exclusive file lock of its own beside the Parquet file. The prune skips a file
+  whose lease it cannot lock and removes lease files whose holder has exited, so a crashed
+  process holds nothing. Clearing the cache deletes leased files.
+
 ## 1.14.0 (2026-10-27)
 
 - **Adds `scan()`, which returns DAC1, DAC2A, CRS or Multisystem as one local Parquet file** that
