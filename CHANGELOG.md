@@ -4,20 +4,26 @@
 
 - **Adds `scan()`, which returns DAC1, DAC2A, CRS or Multisystem as one local Parquet file** that
   DuckDB, Polars or PyArrow query in place. It returns a frozen `ScannedTable` with `path`,
-  `release`, `downloaded` and `columns`. CRS is served from the bulk cache as published. DAC1,
-  DAC2A and Multisystem are streamed from their zipped CSV into Parquet beside the cached zip,
-  once per release token, with an atomic write and row groups of 122,880 rows. Converted columns
+  `release`, `label_release`, `downloaded` and `columns`. The path is named for its release, so
+  its bytes stay the same after a newer release is downloaded; the files of the current and the
+  previous release are kept and older ones deleted. CRS is served as a hard link to the cached
+  Parquet. DAC1, DAC2A and Multisystem are streamed from their zipped CSV into Parquet beside the
+  cached zip, once per release token, with an atomic write and row groups of 122,880 rows.
+  Converted columns
   are snake_case and unique case-insensitively, using the names `download_dac1()`,
   `download_dac2a()` and the CRS Parquet already use: `DONOR` and `Donor` become `donor_code` and
   `donor_name`, Multisystem's `AidToOrThru` becomes `aid_to_or_thru`. DAC1's and DAC2A's `Year`
   column, a copy of `TIME`, is dropped. On the current release the DAC2A conversion takes about 6
   seconds and 0.5 GB of memory.
-- **Adds `release()`, which returns a bulk dataset's release token.** For CRS it is the release
-  id on the dataflow annotation, such as `v20260803`. For DAC1, DAC2A and Multisystem it is the
-  file host's ETag, else Last-Modified. A cached file with neither is named by the SHA-256 of its
-  bytes. The download time is kept apart from the token, so two copies of one file share a token.
+- **Adds `release()`, which returns a bulk dataset's release token**: the file host's ETag, else
+  Last-Modified, for every dataset. A cached file with neither is named by the SHA-256 of its
+  bytes. The download time is kept apart from the token, so two copies of one file share a token,
+  and `scan()` reports the same token for the same file. CRS's readable release id from the
+  dataflow annotation, such as `v20260803`, is `label_release` on `ScannedTable` and
+  `BulkFileInfo`.
 - **Adds a public `cache_info()`**, which lists the bulk file cache as `BulkFileInfo` records:
-  `dataset`, `release`, `downloaded`, `size_bytes`, `stale` and `path`. The `cache_info`
+  `dataset`, `release`, `label_release`, `downloaded`, `size_bytes`, `derived_bytes` (the
+  Parquet files `scan()` made from it), `stale` and `path`. The `cache_info`
   decorator in `oda_reader._cache` keeps its name.
 - **`scan()`, `release()` and `cache_info()` take `cache_dir=`**, a cache root for that call only.
   `scan()` and `release()` also take `offline=True`, which raises `BulkFileNotCachedError` on a
@@ -25,10 +31,10 @@
 - **The deprecation warnings on `clear_cache`, `set_cache_dir`, `enable_cache` and
   `disable_cache` fire only alongside oda-data 2.x or earlier.** oda-data 3 users see none. The
   functions are unchanged.
-- `CacheManager` gains `find_record()` and `set_release()`. `CacheEntry` gains `release`, and
-  `list_records()` reports each entry's `flow_url`, `label` and `release`. Clearing or expiring a
-  bulk file also deletes the Parquet files converted from it. `download_*` and `bulk_download_*`
-  return what they returned in 1.13.0.
+- `CacheManager` gains `find_record()`, `set_content_hash()` and `link_payload()`. `CacheEntry`
+  gains `release`, and `list_records()` reports each entry's `flow_url`, `label`, `release` and
+  `content_hash`. Clearing or expiring a bulk file also deletes the Parquet files `scan()` made
+  from it. `download_*` and `bulk_download_*` return what they returned in 1.13.0.
 
 ## 1.13.0 (2026-10-27)
 

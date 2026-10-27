@@ -369,26 +369,60 @@ class CacheManager:
         entry_key, record = max(matches, key=lambda m: _recency(m[1]))
         return entry_key, self.base_dir / record["filename"], record
 
-    def set_release(self, key: str, release: str, *, seq: int | None) -> bool:
-        """Record *release* on the entry ``key``, if it still holds payload ``seq``.
+    def set_content_hash(self, key: str, content_hash: str, *, seq: int | None) -> bool:
+        """Record *content_hash* on the entry ``key``, if it still holds payload ``seq``.
 
         Args:
             key: The manifest key.
-            release: The release id to record.
-            seq: The ``seq`` of the record the caller computed *release*
-                from. A different ``seq`` means the payload was replaced in
-                the meantime, and nothing is written.
+            content_hash: The ``sha256:<hex>`` digest of the payload.
+            seq: The ``seq`` of the record the caller hashed the payload of.
+                A different ``seq`` means the payload was replaced in the
+                meantime, and nothing is written.
 
         Returns:
-            True if the release was recorded.
+            True if the hash was recorded.
         """
         with self._lock:
             manifest = self._load_manifest()
             record = manifest.get(key)
             if record is None or record.get("seq") != seq:
                 return False
-            record["release"] = release
+            record["content_hash"] = content_hash
             self._save_manifest(manifest)
+            return True
+
+    def link_payload(self, key: str, dest: Path, *, seq: int | None) -> bool:
+        """Hard-link the payload of entry ``key`` to *dest*, if it still holds ``seq``.
+
+        The check and the link run under the cache lock, so *dest* holds the
+        bytes of the record with ``seq``. A later refetch replaces the cached
+        file with a new inode and leaves *dest* as it was. Where the
+        filesystem refuses the link, the payload is copied. *dest* appears
+        complete or not at all.
+
+        Args:
+            key: The manifest key.
+            dest: The new name for the payload, inside the cache directory.
+            seq: The ``seq`` of the record the caller expects the payload of.
+
+        Returns:
+            True if *dest* was written; False if the entry is gone or holds
+            another payload.
+        """
+        tmp_path = Path(f"{dest}.tmp-{_HOSTNAME}-{os.getpid()}")
+        with self._lock:
+            record = self._load_manifest().get(key)
+            if record is None or record.get("seq") != seq:
+                return False
+            path = self.base_dir / record["filename"]
+            try:
+                try:
+                    os.link(path, tmp_path)
+                except OSError:
+                    shutil.copyfile(path, tmp_path)
+                tmp_path.replace(dest)
+            finally:
+                tmp_path.unlink(missing_ok=True)
             return True
 
     def clear(self, key: str | None = None) -> None:
@@ -446,6 +480,7 @@ class CacheManager:
                         "flow_url": record.get("flow_url"),
                         "label": record.get("label"),
                         "release": record.get("release"),
+                        "content_hash": record.get("content_hash"),
                         "size_mb": size_mb,
                         "is_stale": not _is_registered(record)
                         and age.days > record["ttl_days"],

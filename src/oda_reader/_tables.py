@@ -1,15 +1,18 @@
 """Local Parquet tables for the DAC1, DAC2A, CRS and Multisystem bulk files.
 
 `scan` serves each bulk file as one Parquet file on disk that a query engine
-such as DuckDB reads in place. CRS is published as Parquet and is served from
-the bulk cache unchanged. DAC1, DAC2A and Multisystem are published as zipped
-CSVs, and are converted once per release into ``{key}-{digest}.parquet``
-beside the cached zip, where ``digest`` hashes the release token.
+such as DuckDB reads in place. The file is ``{key}-{digest}.parquet`` beside
+the cached bulk file, where ``digest`` hashes the release token, so its bytes
+never change while it exists. CRS is published as Parquet, and its file is a
+hard link to the cached payload. DAC1, DAC2A and Multisystem are published as
+zipped CSVs, and are converted once per release. The files of the current and
+the previous release are kept; older ones are deleted.
 """
 
 import contextlib
 import hashlib
 import io
+import os
 import typing
 import zipfile
 from collections.abc import Mapping
@@ -46,8 +49,9 @@ from oda_reader.schemas.bulk_columns import (
 type ScanDataset = typing.Literal["dac1", "dac2a", "crs", "multisystem"]
 
 # The converted file's row-group size. DuckDB writes row groups of 122,880
-# rows and skips any whose min/max statistics exclude a filter, so groups
-# this size let a filter on year or donor skip most of a file.
+# rows and skips any whose min/max statistics exclude a filter. The bulk CSVs
+# are sorted by year, so a year filter skips most groups; other columns span
+# their whole range in every group.
 _ROW_GROUP_ROWS = 122_880
 
 # Columns per dataset for the zipped-CSV datasets. CRS is served as published.
@@ -64,14 +68,21 @@ class ScannedTable:
     """A bulk dataset as one local Parquet file.
 
     Attributes:
-        path: The Parquet file. Read it in place; do not modify it.
+        path: The Parquet file. Read it in place; do not modify it. Its bytes
+            stay those of `release` while it exists, and it is kept until
+            a second newer release has been scanned.
         release: The release token of the bulk file it holds. See `release`.
+        label_release: The readable release id OECD appends to the dataset's
+            annotation label, such as ``"v20260803"`` for CRS, or ``None``
+            when the label carries none or the host gave no token to confirm
+            it describes these bytes.
         downloaded: When the bulk file was downloaded or registered (UTC).
         columns: The Parquet file's column names, in file order.
     """
 
     path: Path
     release: str
+    label_release: str | None
     downloaded: datetime
     columns: tuple[str, ...]
 
@@ -84,9 +95,14 @@ class BulkFileInfo:
         dataset: The `register_bulk_file` dataset name (``"crs"``,
             ``"dac1"`` and so on), or ``None`` for a file without one, such
             as a CRS year file.
-        release: The file's release token, or ``None`` when none is recorded.
+        release: The file's release token, or ``None`` when none is
+            recorded yet. See `release`.
+        label_release: The readable release id of the annotation label, as
+            in `ScannedTable`, or ``None``.
         downloaded: When the file was downloaded or registered (UTC).
         size_bytes: The file's size on disk, 0 if it is missing.
+        derived_bytes: The disk space used by the Parquet files `scan`
+            made from it, counting a hard link to the file as 0.
         stale: True when a downloaded file is past its time-to-live. An
             online read downloads it again; an offline read still uses it.
         path: The cached file.
@@ -94,8 +110,10 @@ class BulkFileInfo:
 
     dataset: str | None
     release: str | None
+    label_release: str | None
     downloaded: datetime
     size_bytes: int
+    derived_bytes: int
     stale: bool
     path: Path
 
@@ -109,10 +127,13 @@ def scan(
 ) -> ScannedTable:
     """Return a bulk dataset as one local Parquet file, downloading it if needed.
 
-    CRS is served from the bulk cache as published. DAC1, DAC2A and
-    Multisystem are converted from their zipped CSV to Parquet the first time
-    a release is scanned, and the converted file is reused until the release
-    token changes. Converted columns are snake_case and unique
+    CRS is served as published, through a hard link to the cached file. DAC1,
+    DAC2A and Multisystem are converted from their zipped CSV to Parquet the
+    first time a release is scanned, and the converted file is reused until
+    the release token changes. The returned path is named for its release, so
+    a later download or conversion leaves its bytes unchanged. The files of
+    the current and the previous release are kept and older ones deleted.
+    Converted columns are snake_case and unique
     case-insensitively (``DONOR`` and ``Donor`` become ``donor_code`` and
     ``donor_name``), so DuckDB reads them without renaming.
 
@@ -129,8 +150,8 @@ def scan(
             registered copy whatever its age.
 
     Returns:
-        ScannedTable: The Parquet file, its release token, download time and
-            column names.
+        ScannedTable: The Parquet file, its release token and readable label
+            release, download time and column names.
 
     Raises:
         ValueError: If `dataset` is not one of the four names, or if both
@@ -139,21 +160,21 @@ def scan(
             copy.
         BulkDownloadChallengeError: If the file host challenges the download.
             Register a browser download with `register_bulk_file`.
-        RuntimeError: If another process replaced the cached zip while it
-            was being converted. Scanning again converts the new file.
+        RuntimeError: If another process replaced or cleared the cached bulk
+            file while it was being served. Scanning again serves the new file.
     """
     _check_dataset(dataset)
     manager = _manager(cache_dir)
     key, path, record = _bulk_file(dataset, manager, refresh=refresh, offline=offline)
     token = _record_release(manager, key, path, record)
 
-    columns = _CONVERTED_COLUMNS.get(dataset)
-    table_path = (
-        path if columns is None else _converted(manager, key, record, token, columns)
+    table_path = _table_file(
+        manager, key, record, token, _CONVERTED_COLUMNS.get(dataset)
     )
     return ScannedTable(
         path=table_path,
         release=token,
+        label_release=record.get("release"),
         downloaded=_downloaded_at(record),
         columns=tuple(pq.read_schema(table_path).names),
     )
@@ -168,17 +189,17 @@ def release(
 ) -> str:
     """Return the release token of a bulk dataset.
 
-    Two copies of the same published file have the same token, whenever and
-    wherever they were downloaded. For CRS the token is the readable release
-    id OECD appends to the dataflow annotation, such as ``"v20260803"``. For
-    DAC1, DAC2A and Multisystem it is the file host's ETag, else its
-    Last-Modified date. A cached file with neither (a file registered while
-    the host was unreachable) gets ``"sha256:<digest of the file>"``.
+    The token is the file host's ETag, else its Last-Modified date, for every
+    dataset. Two copies of the same published file have the same token,
+    whenever and wherever they were downloaded, and a file OECD rewrites gets
+    a new one. A cached file with neither (a file registered while the host
+    was unreachable) gets ``"sha256:<digest of the file>"``. The readable CRS
+    id, such as ``"v20260803"``, is `ScannedTable.label_release`.
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
     host. Nothing is downloaded. When the host sends no token, the cached
-    copy's token is returned.
+    copy's token is returned, as `scan` reports it.
 
     Args:
         dataset: ``"dac1"``, ``"dac2a"``, ``"crs"`` or ``"multisystem"``.
@@ -203,11 +224,9 @@ def release(
 
     url = None
     if not offline:
-        url, label_release = _resolve_bulk_file(
+        url, _label_release = _resolve_bulk_file(
             flow_url, label, bypass_annotation_cache=refresh
         )
-        if dataset == "crs" and label_release is not None:
-            return label_release
         if (version := _fetch_revalidation_token(url)) is not None:
             return version
 
@@ -220,8 +239,9 @@ def release(
 def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
     """List the files in the bulk file cache.
 
-    Converted Parquet files are not listed. They sit beside the bulk file
-    they were converted from and are deleted with it.
+    The Parquet files `scan` makes are not listed; each entry's
+    `derived_bytes` counts them. They sit beside the bulk file they were
+    made from and are deleted with it.
 
     Args:
         cache_dir: A cache root for this call only, as in `scan`.
@@ -233,12 +253,15 @@ def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
     infos = []
     for row in manager.list_records():
         path = manager.base_dir / row["filename"]
+        stat = path.stat() if path.exists() else None
         infos.append(
             BulkFileInfo(
                 dataset=_bulk_dataset_name(row["flow_url"], row["label"]),
-                release=row["release"] or row["version"],
+                release=row["version"] or row["content_hash"],
+                label_release=row["release"],
                 downloaded=_downloaded_at(row),
-                size_bytes=path.stat().st_size if path.exists() else 0,
+                size_bytes=stat.st_size if stat else 0,
+                derived_bytes=_derived_bytes(path, stat),
                 stale=row["is_stale"],
                 path=path,
             )
@@ -306,14 +329,14 @@ def _record_release(
     manager: CacheManager, key: str, path: Path, record: Mapping[str, typing.Any]
 ) -> str:
     """The release token of a cached payload, hashing the file when none is recorded."""
-    if token := record.get("release") or record.get("version"):
+    if token := record.get("version") or record.get("content_hash"):
         return token
     digest = hashlib.sha256()
     with path.open("rb") as f:
         while chunk := f.read(1 << 20):
             digest.update(chunk)
     token = f"sha256:{digest.hexdigest()}"
-    manager.set_release(key, token, seq=record.get("seq"))
+    manager.set_content_hash(key, token, seq=record.get("seq"))
     return token
 
 
@@ -321,48 +344,112 @@ def _downloaded_at(record: Mapping[str, typing.Any]) -> datetime:
     return datetime.strptime(record["downloaded_at"], ISO_FORMAT)
 
 
-def _converted(
+def _derived_files(payload: Path) -> list[Path]:
+    return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def _derived_bytes(payload: Path, stat: os.stat_result | None) -> int:
+    """Disk used by *payload*'s derived files, skipping hard links to it."""
+    total = 0
+    for derived in _derived_files(payload):
+        with contextlib.suppress(OSError):
+            derived_stat = derived.stat()
+            if stat is None or not os.path.samestat(derived_stat, stat):
+                total += derived_stat.st_size
+    return total
+
+
+def _table_file(
     manager: CacheManager,
     key: str,
     record: Mapping[str, typing.Any],
     token: str,
-    columns: Mapping[str, BulkColumn | None],
+    columns: Mapping[str, BulkColumn | None] | None,
 ) -> Path:
-    """The Parquet conversion of the cached zip *key* for release *token*.
+    """The Parquet file for the cached payload *key* at release *token*.
 
-    The conversion is written once, under a lock so concurrent scans convert
-    the file once, and removes earlier releases' conversions.
+    A Parquet payload (*columns* is ``None``) is hard-linked to the file; a
+    zipped CSV is converted into it with *columns*. Either is done once,
+    under a lock so concurrent scans do it once, and then removes files of
+    releases before the previous one.
 
     Raises:
-        RuntimeError: If another process replaced the cached zip after
-            *record* was read, so *token* no longer names its contents.
+        RuntimeError: If another process replaced the cached payload after
+            *record* was read, so *token* no longer names its contents, or
+            cleared it during the conversion.
     """
-    zip_path = manager.base_dir / record["filename"]
+    payload = manager.base_dir / record["filename"]
     digest = hashlib.sha256(token.encode()).hexdigest()[:16]
-    dest = zip_path.with_name(f"{zip_path.stem}-{digest}.parquet")
+    dest = payload.with_name(f"{payload.stem}-{digest}.parquet")
     if dest.exists():
         return dest
 
-    with FileLock(str(zip_path.with_name(f".{zip_path.stem}.convert.lock"))):
+    with FileLock(str(payload.with_name(f".{payload.stem}.convert.lock"))):
         if dest.exists():
             return dest
-        # The open handle pins the bytes read. If the manifest still holds the
-        # record *token* came from, they are the bytes *token* names.
-        with zipfile.ZipFile(zip_path) as z:
-            current = manager.find_record(key=key)
-            if current is None or current[2].get("seq") != record.get("seq"):
-                raise RuntimeError(
-                    f"{zip_path.name} was replaced while scan() read it. Scan again."
-                )
-            logger.info(f"Converting {zip_path.name} to Parquet for release {token}.")
-            _atomic_write(dest, lambda tmp: _write_parquet(z, tmp, columns))
-
-        for old in zip_path.parent.glob(f"{zip_path.stem}-*.parquet"):
-            if old != dest:
-                # A conversion another process holds open stays until next time.
-                with contextlib.suppress(OSError):
-                    old.unlink()
+        if columns is None:
+            if not manager.link_payload(key, dest, seq=record.get("seq")):
+                raise _replaced(payload)
+        else:
+            _convert(manager, key, record, dest, columns)
+        _remove_older_releases(payload, dest)
     return dest
+
+
+def _convert(
+    manager: CacheManager,
+    key: str,
+    record: Mapping[str, typing.Any],
+    dest: Path,
+    columns: Mapping[str, BulkColumn | None],
+) -> None:
+    """Convert the cached zip of *record* into *dest*, atomically."""
+    zip_path = manager.base_dir / record["filename"]
+    # The open handle pins the bytes read. If the manifest still holds the
+    # record the token came from, they are the bytes the token names.
+    with zipfile.ZipFile(zip_path) as z:
+        current = manager.find_record(key=key)
+        if current is None or current[2].get("seq") != record.get("seq"):
+            raise _replaced(zip_path)
+        logger.info(f"Converting {zip_path.name} to Parquet as {dest.name}.")
+        _atomic_write(dest, lambda tmp: _write_parquet(z, tmp, columns))
+
+    # A clear() that ran during the conversion found no file to delete. One
+    # that runs after this check finds dest and deletes it.
+    if manager.find_record(key=key) is None:
+        dest.unlink(missing_ok=True)
+        raise _replaced(zip_path)
+
+
+def _replaced(payload: Path) -> RuntimeError:
+    return RuntimeError(
+        f"{payload.name} was replaced or removed while scan() read it. Scan again."
+    )
+
+
+def _remove_older_releases(payload: Path, dest: Path) -> None:
+    """Delete *payload*'s derived files except *dest* and the newest other one.
+
+    The newest other file is the previous release's, which a reader that
+    scanned before *dest* was made may still hold open.
+    """
+    others = sorted(
+        (path for path in _derived_files(payload) if path != dest),
+        key=_mtime_ns,
+        reverse=True,
+    )
+    for old in others[1:]:
+        # A file another process holds open on Windows stays until next time.
+        with contextlib.suppress(OSError):
+            old.unlink()
+
+
+def _mtime_ns(path: Path) -> int:
+    """*path*'s modification time, or 0 for a file another process removed."""
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return 0
 
 
 def _write_parquet(

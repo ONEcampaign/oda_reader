@@ -301,16 +301,18 @@ class TestConvertedColumns:
 
 @pytest.mark.unit
 class TestScan:
-    def test_crs_is_served_in_place(self, host):
+    def test_crs_is_a_hard_link_to_the_cached_file(self, host):
         table = scan("crs")
 
-        record = bulk_cache_manager().find_record(key=table.path.stem)
-        assert record is not None and record[1] == table.path
-        assert table.release == "v20260803"
+        [info] = cache_info()
+        assert table.path != info.path
+        assert table.path.samefile(info.path)
+        assert table.release == "etag-crs-1"
+        assert table.label_release == "v20260803"
         assert table.columns == ("donor_code", "usd_disbursement")
         pd.testing.assert_frame_equal(pd.read_parquet(table.path), _CRS_FRAME)
 
-    def test_crs_downloaded_earlier_gains_its_release_on_a_matching_token(
+    def test_crs_downloaded_earlier_gains_its_label_release_on_a_matching_token(
         self, host, crs_parquet
     ):
         register_bulk_file(
@@ -319,8 +321,20 @@ class TestScan:
 
         table = scan("crs")
 
-        assert table.release == "v20260803"
+        assert table.release == "etag-crs-1"
+        assert table.label_release == "v20260803"
         host.download.assert_not_called()
+
+    def test_crs_refetched_under_the_same_label_gets_a_new_token(self, host):
+        first = scan("crs")
+
+        host.tokens["crs"] = "etag-crs-2"
+        second = scan("crs")
+
+        assert host.download.call_count == 2
+        assert second.label_release == first.label_release == "v20260803"
+        assert second.release == "etag-crs-2"
+        assert second.path != first.path
 
     def test_same_token_reuses_the_conversion(self, host, mocker):
         spy = mocker.spy(oda_reader._tables, "_write_parquet")
@@ -344,9 +358,33 @@ class TestScan:
 
         assert second.release == "etag-dac2a-2"
         assert second.path != first.path
-        assert not first.path.exists()
         assert spy.call_count == 2
         assert host.download.call_count == 2
+
+    @pytest.mark.parametrize("dataset", ["dac1", "crs"])
+    def test_a_returned_path_keeps_its_bytes_after_a_new_release(
+        self, host, tmp_path, dataset
+    ):
+        first = scan(dataset)
+        before = pq.read_table(first.path)
+
+        new_crs = tmp_path / "CRS-2.parquet"
+        _CRS_FRAME.assign(usd_disbursement=[9.0, 9.0]).to_parquet(new_crs)
+        host.payloads = {**host.payloads, "crs": new_crs, "dac1": _ZIPS["dac2a"]}
+        host.tokens[dataset] = f"etag-{dataset}-2"
+        second = scan(dataset)
+
+        assert not pq.read_table(second.path).equals(before)
+        assert pq.read_table(first.path).equals(before)
+
+    @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+    def test_files_before_the_previous_release_are_removed(self, host, dataset):
+        paths = []
+        for n in (1, 2, 3):
+            host.tokens[dataset] = f"etag-{dataset}-{n}"
+            paths.append(scan(dataset).path)
+
+        assert [path.exists() for path in paths] == [False, True, True]
 
     def test_failed_conversion_leaves_no_file(self, host, mocker):
         def write_then_fail(z, dest, columns):
@@ -365,8 +403,13 @@ class TestScan:
         FakeHost(mocker, host.payloads["crs"])
         assert pq.read_table(scan("dac1").path).num_rows == 5
 
-    def test_conversion_refuses_a_zip_replaced_after_its_record_was_read(self, host):
-        scan("dac1")
+    @pytest.mark.parametrize(
+        ("dataset", "columns"), [("dac1", MULTISYSTEM_COLUMNS), ("crs", None)]
+    )
+    def test_refuses_a_payload_replaced_after_its_record_was_read(
+        self, host, dataset, columns
+    ):
+        scan(dataset)
         manager = bulk_cache_manager()
         key = cache_info()[0].path.stem
         found = manager.find_record(key=key)
@@ -374,9 +417,22 @@ class TestScan:
         stale = {**found[2], "seq": found[2]["seq"] - 1}
 
         with pytest.raises(RuntimeError, match="replaced"):
-            oda_reader._tables._converted(
-                manager, key, stale, "another-token", MULTISYSTEM_COLUMNS
+            oda_reader._tables._table_file(
+                manager, key, stale, "another-token", columns
             )
+
+    def test_conversion_cleared_midway_leaves_no_file(self, host, mocker):
+        write = oda_reader._tables._write_parquet
+
+        def clear_then_write(z, dest, columns):
+            bulk_cache_manager().clear()
+            write(z, dest, columns)
+
+        mocker.patch("oda_reader._tables._write_parquet", side_effect=clear_then_write)
+        with pytest.raises(RuntimeError, match="removed"):
+            scan("dac1")
+
+        assert list(bulk_cache_manager().base_dir.glob("*.parquet")) == []
 
     def test_cache_dir_scopes_the_call(self, host, tmp_path):
         root = get_cache_dir()
@@ -431,8 +487,24 @@ class TestScan:
 
 @pytest.mark.unit
 class TestRelease:
-    def test_online_crs_is_the_readable_label_id(self, host):
-        assert release("crs") == "v20260803"
+    def test_online_crs_is_the_host_token(self, host):
+        assert release("crs") == "etag-crs-1"
+        host.download.assert_not_called()
+
+    @pytest.mark.parametrize("version", [None, "etag-registered"])
+    def test_registered_crs_agrees_with_scan_when_the_probe_fails(
+        self, host, crs_parquet, version
+    ):
+        register_bulk_file(
+            crs_parquet, dataset="crs", url=_URLS["crs"], version=version
+        )
+        host.tokens["crs"] = None
+
+        table = scan("crs")
+
+        assert release("crs") == table.release
+        assert release("crs", offline=True) == table.release
+        assert table.label_release is None
         host.download.assert_not_called()
 
     def test_online_dac1_is_the_host_token(self, host):
@@ -470,17 +542,20 @@ class TestRelease:
 
 
 @pytest.mark.unit
-def test_cache_info_lists_bulk_files(host):
-    table = scan("dac2a")
+@pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+def test_cache_info_lists_bulk_files(host, dataset):
+    table = scan(dataset)
 
     [info] = cache_info()
 
-    assert info.dataset == "dac2a"
+    assert info.dataset == dataset
     assert info.release == table.release
+    assert info.label_release == table.label_release
     assert info.downloaded == table.downloaded
-    assert info.size_bytes == _ZIPS["dac2a"].stat().st_size
+    assert info.size_bytes == host.payloads[dataset].stat().st_size
+    # A CRS hard link shares the cached file's disk space.
+    assert info.derived_bytes == (0 if dataset == "crs" else table.path.stat().st_size)
     assert info.stale is False
-    assert info.path.suffix == ".zip"
 
 
 @pytest.mark.unit
