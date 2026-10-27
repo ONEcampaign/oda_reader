@@ -25,6 +25,7 @@ from oda_reader._cache.config import set_cache_dir as _impl_set_cache_dir
 from oda_reader._cache.legacy import clear_cache as _impl_clear_cache
 from oda_reader._cache.legacy import disable_cache as _impl_disable_cache
 from oda_reader._cache.legacy import enable_cache as _impl_enable_cache
+from oda_reader._logging import install_legacy_logger_name
 from oda_reader.aiddata import download_aiddata
 from oda_reader.common import (
     API_RATE_LIMITER,
@@ -61,6 +62,8 @@ from oda_reader.exceptions import (
 )
 from oda_reader.multisystem import bulk_download_multisystem, download_multisystem
 from oda_reader.tools import get_available_filters
+
+install_legacy_logger_name()
 
 # Each shim emits a one-time-per-session DeprecationWarning when oda_data is
 # also imported (umbrella users should migrate to oda_data.cache.*); standalone

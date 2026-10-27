@@ -1,8 +1,11 @@
+import logging
+
 import pandas as pd
 
 from oda_reader._cache import cache_info
-from oda_reader.common import logger
 from oda_reader.download.download_tools import download
+
+logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_CPA@DF_CRS_CPA"
 DATAFLOW_VERSION: str = "1.4"

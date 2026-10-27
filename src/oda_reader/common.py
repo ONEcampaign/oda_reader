@@ -18,6 +18,7 @@ from oda_reader._http_primitives import (
 from oda_reader._http_primitives import (
     get_response_text as _get_response_text,
 )
+from oda_reader._logging import LEGACY_LOGGER_NAME
 from oda_reader.download.version_discovery import (
     discover_latest_version,
     get_dimension_count,
@@ -39,9 +40,9 @@ __all__ = [
     "text_to_stringio",
 ]
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
-logger = logging.getLogger("oda_importer")
+# The deprecated `oda_importer` logger, kept for 1.x.
+logger = logging.getLogger(LEGACY_LOGGER_NAME)
+_logger = logging.getLogger(__name__)
 
 # Error message patterns that indicate a dataflow/version not found error
 # These should trigger a version discovery retry
@@ -109,7 +110,7 @@ def clear_http_cache() -> None:
     """
     session = _get_http_session()
     session.cache.clear()
-    logger.info("HTTP cache cleared")
+    _logger.info("HTTP cache cleared")
 
 
 def get_http_cache_info() -> dict:
@@ -265,13 +266,13 @@ def get_data_from_api(url: str, compressed: bool = True) -> str:
             except (ConnectionError, ValueError) as exc:
                 if "breaking schema change" in str(exc):
                     raise
-                logger.warning(
+                _logger.warning(
                     f"Could not verify DSD compatibility: {exc}. "
                     f"Proceeding with discovered version {discovered_version}."
                 )
 
             new_url = _replace_dataflow_version(url=url, version=discovered_version)
-            logger.info(
+            _logger.info(
                 f"Dataflow not found at version {version}, retrying with "
                 f"discovered version {discovered_version}"
             )
@@ -289,7 +290,7 @@ def get_data_from_api(url: str, compressed: bool = True) -> str:
         status_code, response, _ = _get_response_text(url, headers=headers)
 
     if status_code > 299:
-        logger.error(f"Error {status_code}: {response}")
+        _logger.error(f"Error {status_code}: {response}")
         raise ConnectionError(f"Error {status_code}: {response}")
 
     return response

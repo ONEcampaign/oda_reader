@@ -1,5 +1,38 @@
 # Changelog for oda_reader
 
+## 1.13.0 (2026-10-27)
+
+- **Importing `oda_reader` no longer configures the root logger.** The package called
+  `logging.basicConfig(level=logging.INFO, ...)` at import, which gave the host application a
+  stderr handler, an INFO level and oda_reader's message format. If the application configured
+  logging after the import, its own `basicConfig` did nothing. The package now leaves logging to
+  the application, so by default only warnings and errors show. To get the INFO messages back,
+  configure logging in your application:
+
+  ```python
+  import logging
+
+  logging.basicConfig(level=logging.INFO)
+  ```
+
+  To raise only oda_reader, add a handler and set the level on its logger with
+  `logging.getLogger("oda_reader").setLevel(logging.INFO)`. To silence it, set that level to
+  `logging.ERROR`.
+
+- **Every package message goes through a logger under `oda_reader`.** Each module logs with
+  `logging.getLogger(__name__)`, sets no handler or level, and propagates to the application's
+  logging. The package's messages used to be split between the `oda_importer` and `oda_reader`
+  loggers. `docs/docs/advanced.md` documents how to turn the logging up or down.
+
+- **The `oda_importer` logger name is deprecated and removed in 2.0.** Setting a level on it or
+  adding a handler (including with `propagate = False`) still applies to the package's messages
+  and emits a `DeprecationWarning`. Three cases no longer work. A `dictConfig` or `fileConfig`
+  that names `oda_importer` and keeps the default `disable_existing_loggers` silences the
+  package's loggers, warnings included, so rename the key to `oda_reader`. Setting `.disabled`
+  on `oda_importer` or adding a logger-level filter to it has no effect on the package's
+  messages. Adding a filter still emits the `DeprecationWarning`. `oda_reader.common.logger` is the
+  deprecated `oda_importer` logger and follows the same rules.
+
 ## 1.12.0 (2026-10-21)
 
 - **Adds `download_crdf()`, `download_crdf_file()` and `list_crdf_files()`** for the OECD

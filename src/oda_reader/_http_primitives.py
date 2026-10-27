@@ -21,7 +21,7 @@ import requests_cache
 
 from oda_reader._cache.config import get_http_cache_path
 
-logger = logging.getLogger("oda_importer")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Same-origin redirect following

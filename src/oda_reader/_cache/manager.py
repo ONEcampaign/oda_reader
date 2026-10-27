@@ -25,7 +25,7 @@ from oda_reader._cache.config import (
 )
 from oda_reader.exceptions import validate_payload_or_raise
 
-logger = logging.getLogger("oda_reader")
+logger = logging.getLogger(__name__)
 
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 _TMP_MAX_AGE_SECONDS = 86_400  # 24 hours

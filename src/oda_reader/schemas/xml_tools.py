@@ -1,7 +1,8 @@
 import json
+import logging
 from pathlib import Path
 
-from oda_reader.common import logger
+logger = logging.getLogger(__name__)
 
 
 def keys_to_int(dictionary: dict) -> dict:
