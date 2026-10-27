@@ -150,13 +150,13 @@ def test_a_leased_derived_file_keeps_its_expired_entry_until_released(
     _populate(tmp_path, {"old": 120, "fresh": 1}, labels={"old": "CRS", "fresh": "CRS"})
     derived = tmp_path / "old-0123456789abcdef.parquet"
     derived.write_bytes(b"PAR1")
-    # Two newer releases, so only the lease keeps the old one.
+    # Two newer releases, so only the lease keeps the old one. The offsets
+    # are whole seconds: NTFS stores mtimes in 100 ns ticks and FAT in 2 s.
     for n, digest in enumerate(["1111111111111111", "2222222222222222"], start=1):
         newer = tmp_path / f"fresh-{digest}.parquet"
         newer.write_bytes(b"PAR1")
-        os.utime(
-            newer, ns=(derived.stat().st_mtime_ns + n, derived.stat().st_mtime_ns + n)
-        )
+        mtime = derived.stat().st_mtime + 10 * n
+        os.utime(newer, (mtime, mtime))
     lock = take_lease(derived)
 
     CacheManager(base_dir=tmp_path)
