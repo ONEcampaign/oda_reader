@@ -224,9 +224,45 @@ def get_crs_data():
 
 ## Debugging tips
 
+### Enable logging
+
+ODA Reader logs through loggers under the name `oda_reader` and leaves handlers and levels to your
+application. Importing the package does not configure logging, so by default you see only warnings
+and errors.
+
+To see the INFO messages, such as downloads and cache hits, configure logging in your application:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+```
+
+To raise only ODA Reader, give your application a handler and set the level on the `oda_reader`
+logger:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("oda_reader").setLevel(logging.INFO)
+```
+
+To silence everything below errors:
+
+```python
+import logging
+
+logging.getLogger("oda_reader").setLevel(logging.ERROR)
+```
+
+The `oda_importer` logger name is deprecated and will be removed in 2.0. A level or handler set on
+it still applies to the package's messages, with a `DeprecationWarning`. A `dictConfig` or
+`fileConfig` that names `oda_importer` silences the package's loggers, so name `oda_reader` there.
+
 ### Inspect caches
 
-ODA Reader doesn't have built-in verbose logging yet, but you can inspect behaviour:
+Check where the caches live and clear them to force fresh downloads:
 
 ```python
 # Check cache behavior

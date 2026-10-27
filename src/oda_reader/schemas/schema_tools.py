@@ -1,9 +1,12 @@
 import json
+import logging
 from collections import defaultdict
 
 import pandas as pd
 
-from oda_reader.common import ImporterPaths, logger
+from oda_reader.common import ImporterPaths
+
+logger = logging.getLogger(__name__)
 
 # CPA reuses the full CRS microdata schema; DAC2A and DAC2B share one
 # schema (both live on DSD_DAC2). Aliasing avoids duplicate JSON.

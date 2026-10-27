@@ -8,6 +8,7 @@ nav:
   - Datasets Overview: datasets.md
   - Filtering Data: filtering.md
   - Bulk Downloads: bulk-downloads.md
+  - Climate Finance (CRDF): crdf.md
   - Caching & Performance: caching.md
   - Schema Translation: schema-translation.md
   - Codelists: codelists.md

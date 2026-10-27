@@ -14,6 +14,7 @@ import requests
 
 from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
 from oda_reader._cache.manager import CacheManager
+from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
 from oda_reader.download.download_tools import (
     _WARNED_REVALIDATION_URLS,
@@ -22,6 +23,7 @@ from oda_reader.download.download_tools import (
     _detect_delimiter,
     _extract_dataflow_id_from_flow_url,
     _fetch_revalidation_token,
+    _fetch_revalidation_validator,
     _finalize_resolved_url,
     _get_with_validated_redirects,
     _iter_csv_chunks,
@@ -32,6 +34,7 @@ from oda_reader.download.download_tools import (
     bulk_download_parquet,
     get_bulk_file_id,
     get_bulk_file_url,
+    get_bulk_file_url_with_version,
 )
 from oda_reader.exceptions import (
     BulkDownloadChallengeError,
@@ -1017,6 +1020,38 @@ class TestGetBulkFileUrl:
 
         assert mock_get.call_args.kwargs["force_refresh"] is False
 
+    @pytest.mark.parametrize(
+        ("annotation_label", "host_token", "expected"),
+        [
+            (f"{LABEL}-v20261006", "0x8DF2B9AD7FFE00E", "0x8DF2B9AD7FFE00E"),
+            (f"{LABEL}-v20261006", None, None),
+            (LABEL, "0x8DF2B9AD7FFE00E", "0x8DF2B9AD7FFE00E"),
+        ],
+        ids=["host-token-ignores-label", "probe-fails", "unsuffixed-label"],
+    )
+    def test_version_token_prefers_file_host(
+        self, mocker, annotation_label, host_token, expected
+    ):
+        """The token is the file host's alone, because OECD can rewrite a
+        file without changing its label date."""
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(
+                200,
+                _annotation_xml(annotation_label, RESOLVED_URL),
+                False,
+            ),
+        )
+        probe = mocker.patch(
+            "oda_reader.download.download_tools._fetch_revalidation_token",
+            return_value=host_token,
+        )
+
+        url, version = get_bulk_file_url_with_version(FLOW_URL, LABEL, latest_flow=1.6)
+
+        assert (url, version) == (RESOLVED_URL, expected)
+        probe.assert_called_once_with(RESOLVED_URL)
+
 
 @pytest.mark.unit
 class TestParseExtResourcesRealFixtures:
@@ -1040,92 +1075,73 @@ class TestParseExtResourcesRealFixtures:
         full = resources["CRS-Parquet"]
         reduced = resources["CRS-reduced-parquet"]
 
+        assert full == "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
         assert (
-            full.url == "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
-        )
-        assert (
-            reduced.url
+            reduced
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS-reduced.parquet"
         )
-        assert full.url != reduced.url
-        # Both carry the live fixture's version token -- this is the value
-        # that must end up in CacheEntry.version so a republish (a new
-        # token under the same, now-permanently-stable URL) forces a
-        # refetch instead of being indistinguishable from a cache hit.
-        assert full.version == "v20260803"
-        assert reduced.version == "v20260803"
+        assert full != reduced
 
     def test_crs_year_zip_label(self):
         resources = _parse_ext_resources(self._load("dataflow_crs.xml"))
         resource = resources["CRS 2024 (dotStat format)"]
         assert (
-            resource.url
+            resource
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2024 data.zip"
         )
-        assert resource.version == "v20260803"
 
     def test_dac2a_unsuffixed_label(self):
         """The DAC2A fixture's label carries no -vYYYYMMDD suffix at all --
-        the lookup must still match it as-is, and the version token must be
-        None (get_bulk_file_url_with_version falls back to an ETag/
-        Last-Modified ranged GET for this case, not tested here)."""
+        the lookup must still match it as-is."""
         resources = _parse_ext_resources(self._load("dataflow_dac2a.xml"))
         resource = resources["DAC2A full dataset (dotStat format)"]
         assert (
-            resource.url
+            resource
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2a_Data.zip"
         )
-        assert resource.version is None
 
     def test_dac2b_unsuffixed_label(self):
         """The DAC2B fixture's label carries no -vYYYYMMDD suffix at all --
-        the lookup must still match it as-is, and the version token must be
-        None (get_bulk_file_url_with_version falls back to an ETag/
-        Last-Modified ranged GET for this case, not tested here)."""
+        the lookup must still match it as-is."""
         resources = _parse_ext_resources(self._load("dataflow_dac2b.xml"))
         resource = resources["DAC2B full dataset (dotStat format)"]
         assert (
-            resource.url
+            resource
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2b_Data.zip"
         )
-        assert resource.version is None
 
     def test_multisystem_suffixed_label(self):
         resources = _parse_ext_resources(self._load("dataflow_multi.xml"))
         resource = resources["Entire dataset (dotStat format)"]
         assert (
-            resource.url
+            resource
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_MULTI/MultiSystem entire dataset.zip"
         )
-        assert resource.version == "v20260710"
 
     def test_cpa_suffixed_label(self):
         resources = _parse_ext_resources(self._load("dataflow_cpa.xml"))
         resource = resources["CRS CPA 2024 (dotStat format)"]
         assert (
-            resource.url
+            resource
             == "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRSCPA/CrsCPA 2024 data.zip"
         )
-        assert resource.version == "v20260710"
 
     def test_dac1_legacy_fileview_url_unsuffixed(self):
         """DAC1's fixture predates the URL migration (still a fileview2.aspx
         GUID link, no -vYYYYMMDD suffix) -- parsing must not choke on it."""
         resources = _parse_ext_resources(self._load("dataflow_dac1.xml"))
         resource = resources["DAC1 full dataset (dotStat format)"]
-        assert resource.url == (
+        assert resource == (
             "https://stats.oecd.org/wbos/fileview2.aspx?"
             "IDFile=570b240e-df9c-4586-b53d-99946fac437d"
         )
-        assert resource.version is None
 
     def test_same_day_republish_suffix_variant(self):
         """No captured fixture has been republished same-day yet, so the
         -vYYYYMMDD-N tail is exercised directly here."""
         xml = _annotation_xml(f"{LABEL}-v20260803-1", RESOLVED_URL)
         resources = _parse_ext_resources(xml)
-        assert resources[LABEL].url == RESOLVED_URL
-        assert resources[LABEL].version == "v20260803-1"
+        assert resources[LABEL] == RESOLVED_URL
 
 
 @pytest.mark.unit
@@ -1236,9 +1252,9 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        result = _fetch_revalidation_token(self._URL)
+        result = _fetch_revalidation_validator(self._URL)
 
-        assert result == "Tue, 07 Jul 2026 13:05:26 GMT"
+        assert result == ("Tue, 07 Jul 2026 13:05:26 GMT", "last_modified")
 
     def test_200_with_range_ignored_returns_etag_without_reading_body(self, mocker):
         """The server ignoring the Range header (200 instead of 206) is
@@ -1255,7 +1271,7 @@ class TestFetchRevalidationToken:
         response = self._response(mocker, 200, headers={})
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1272,7 +1288,7 @@ class TestFetchRevalidationToken:
         response = self._response(mocker, status_code, headers={"ETag": '"abc123"'})
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1286,7 +1302,7 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1305,7 +1321,7 @@ class TestFetchRevalidationToken:
         )
         self._session(mocker, response)
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1314,10 +1330,16 @@ class TestFetchRevalidationToken:
         response.iter_content.assert_not_called()
 
     def test_500_returns_none_and_warning_names_status(self, mocker, caplog):
+        """Captured through the deprecated `oda_importer` name, which receives
+        the package's records until 2.0."""
         response = self._response(mocker, 500, headers={})
         self._session(mocker, response)
+        _warn_once.cache_clear()
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with (
+            pytest.warns(DeprecationWarning, match="oda_reader"),
+            caplog.at_level(logging.WARNING, logger="oda_importer"),
+        ):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1332,7 +1354,7 @@ class TestFetchRevalidationToken:
         )
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
 
-        with caplog.at_level(logging.WARNING, logger="oda_importer"):
+        with caplog.at_level(logging.WARNING, logger="oda_reader"):
             result = _fetch_revalidation_token(self._URL)
 
         assert result is None
@@ -1419,7 +1441,7 @@ class TestFetchRevalidationToken:
         )
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
 
-        with caplog.at_level(logging.DEBUG, logger="oda_importer"):
+        with caplog.at_level(logging.DEBUG, logger="oda_reader"):
             _fetch_revalidation_token(self._URL)
             _fetch_revalidation_token(self._URL)
 
@@ -1592,7 +1614,7 @@ class TestStreamToFileRetry:
             _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
 
         assert exc_info.value.cf_ray is None
-        assert "Contact OECD support" in str(exc_info.value)
+        assert "OECD support" in str(exc_info.value)
 
     def test_challenge_header_wins_over_2xx_status(self, mocker, tmp_path):
         mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
@@ -1711,6 +1733,113 @@ class TestStreamToFileRetry:
         assert type(exc_info.value) is BulkDownloadHTTPError
         assert exc_info.value.status_code == 503
         assert exc_info.value.body == ""
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize("status_code", [429, 503])
+    def test_throttle_waits_retry_after_then_succeeds(
+        self, mocker, tmp_path, status_code
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(status_code, headers={"Retry-After": "7"}),
+            self._fake_response(200, chunks=[b"payload"]),
+        ]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+        target = tmp_path / "out.bin"
+
+        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, target)
+
+        assert target.read_bytes() == b"payload"
+        mock_sleep.assert_called_once_with(7.0)
+
+    def test_throttle_raises_after_three_retries(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = lambda *a, **k: self._fake_response(
+            429, headers={"retry-after": "2"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.retry_after == 2.0
+        assert session.get.call_count == 4
+        assert [c.args for c in mock_sleep.call_args_list] == [(2.0,)] * 3
+
+    @pytest.mark.parametrize(
+        ("headers", "retry_after"),
+        [
+            ({"Retry-After": "301"}, 301.0),
+            ({"Retry-After": "soon"}, None),
+            ({}, None),
+        ],
+        ids=["over-cap", "unparseable", "absent"],
+    )
+    def test_throttle_without_usable_retry_after_raises_at_once(
+        self, mocker, tmp_path, headers, retry_after
+    ):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(503, headers=headers)
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        assert session.get.call_count == 1
+        mock_sleep.assert_not_called()
+        assert exc_info.value.retry_after == retry_after
+
+    def test_http_date_retry_after_is_honoured(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.side_effect = [
+            self._fake_response(
+                429, headers={"Retry-After": "Sun, 06 Nov 1994 08:49:37 GMT"}
+            ),
+            self._fake_response(200, chunks=[b"payload"]),
+        ]
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
+        mock_sleep.assert_called_once_with(0.0)
+
+    def test_challenge_with_retry_after_is_not_retried(self, mocker, tmp_path):
+        mock_sleep = mocker.patch("oda_reader.download.download_tools.time.sleep")
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        session = mocker.Mock()
+        session.get.return_value = self._fake_response(
+            429, headers={"cf-mitigated": "challenge", "Retry-After": "1"}
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_bulk_stream_session",
+            return_value=session,
+        )
+
+        with pytest.raises(BulkDownloadChallengeError):
+            _stream_to_file("https://sdmx.oecd.org/f.zip", {}, tmp_path / "out.bin")
+
         assert session.get.call_count == 1
         mock_sleep.assert_not_called()
 
@@ -2217,6 +2346,48 @@ class TestVersionThreadedInvalidation:
 
         assert fetch_count["n"] == 1
         assert manager.list_records()[0]["version"] is None
+
+    def test_failed_probe_keeps_fresh_cache(self, tmp_path, mocker):
+        """A probe that fails between two successful ones must not refetch,
+        and must not touch the network for the file at all."""
+        manager = CacheManager(base_dir=tmp_path)
+        mocker.patch(
+            "oda_reader.download.download_tools.bulk_cache_manager",
+            return_value=manager,
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._get_response_text",
+            return_value=(
+                200,
+                _annotation_xml(f"{LABEL}-v20261006", RESOLVED_URL),
+                False,
+            ),
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._fetch_revalidation_token",
+            side_effect=["0x8DF2533665E7CB7", None, "0x8DF2533665E7CB7"],
+        )
+
+        fetch_count = {"n": 0}
+
+        def fake_stream(url_, headers, path):
+            fetch_count["n"] += 1
+            if fetch_count["n"] > 1:
+                raise ConnectionError("host offline")
+            _write_tiny_parquet(path)
+
+        mocker.patch(
+            "oda_reader.download.download_tools._stream_to_file",
+            side_effect=fake_stream,
+        )
+
+        for _ in range(3):
+            url, version = get_bulk_file_url_with_version(
+                FLOW_URL, LABEL, latest_flow=1.6
+            )
+            bulk_download_parquet(url=url, version=version, use_raw_cache=True)
+
+        assert fetch_count["n"] == 1
 
 
 @pytest.mark.unit

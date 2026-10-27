@@ -20,7 +20,7 @@ from oda_reader._cache.config import set_cache_dir as _impl_set_cache_dir
 from oda_reader._cache.dataframe import dataframe_cache
 from oda_reader.common import disable_http_cache, enable_http_cache
 
-logger = logging.getLogger("oda_reader")
+logger = logging.getLogger(__name__)
 
 # Constants
 CACHE_MAX_SIZE_MB = 2_500

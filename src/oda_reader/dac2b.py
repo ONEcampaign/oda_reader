@@ -1,16 +1,18 @@
+import logging
 import typing
 from pathlib import Path
 
 import pandas as pd
 
 from oda_reader._cache import cache_info
-from oda_reader.common import logger
 from oda_reader.download.download_tools import (
     DAC2B_FLOW_URL,
     bulk_download_parquet,
     download,
     get_bulk_file_url_with_version,
 )
+
+logger = logging.getLogger(__name__)
 
 DATAFLOW_ID: str = "DSD_DAC2@DF_DAC2B"
 # Default version; actual version is discovered dynamically on fallback
@@ -70,6 +72,7 @@ def bulk_download_dac2b(
     *,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
+    offline: bool = False,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the DAC2b data from the bulk download service. The expanded file is
@@ -83,23 +86,26 @@ def bulk_download_dac2b(
         as_iterator: If ``True`` yields ``DataFrame`` chunks instead of a single ``DataFrame``.
         use_raw_cache: If False, the raw zip is downloaded to a temporary directory and
             deleted after extraction. Each call hits the network. Validation still runs.
+        offline: If True, make no network request and read the cached or
+            registered copy (see `register_bulk_file`) whatever its age.
+            Raises `BulkFileNotCachedError` when there is none.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     Note:
-        OECD stamps no publication version on the DAC2B annotation label, so each
-        call makes a one-byte ranged GET against the resolved URL to read the
-        server's ETag (falling back to Last-Modified) and decide whether a cached
-        copy is current. A failed lookup logs a warning and invalidation falls
-        back to the 30-day TTL.
+        Each call makes a one-byte ranged GET against the resolved URL to read
+        the server's ETag (falling back to Last-Modified) and decide whether a
+        cached copy is current. A failed lookup logs a warning and invalidation
+        falls back to the 90-day TTL.
 
     """
-    # DAC2B's label carries no -vYYYYMMDD suffix (see get_bulk_file_url_with_version),
-    # so `version` here falls back to an ETag/Last-Modified ranged-GET token.
-    # That token is enough to force a refetch on republish.
-    url, version = get_bulk_file_url_with_version(
-        flow_url=DAC2B_FLOW_URL, label=DAC2B_BULK_LABEL
+    url, version = (
+        (None, None)
+        if offline
+        else get_bulk_file_url_with_version(
+            flow_url=DAC2B_FLOW_URL, label=DAC2B_BULK_LABEL
+        )
     )
 
     return bulk_download_parquet(
@@ -110,4 +116,5 @@ def bulk_download_dac2b(
         flow_url=DAC2B_FLOW_URL,
         label=DAC2B_BULK_LABEL,
         version=version,
+        offline=offline,
     )

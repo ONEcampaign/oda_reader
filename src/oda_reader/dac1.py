@@ -66,6 +66,7 @@ def bulk_download_dac1(
     *,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
+    offline: bool = False,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """
     Bulk download the DAC1 data from the bulk download service. The expanded file is
@@ -80,23 +81,26 @@ def bulk_download_dac1(
             caller accumulates.
         use_raw_cache: If False, the raw zip is downloaded to a temporary directory and
             deleted after extraction. Each call hits the network. Validation still runs.
+        offline: If True, make no network request and read the cached or
+            registered copy (see `register_bulk_file`) whatever its age.
+            Raises `BulkFileNotCachedError` when there is none.
 
     Returns:
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     Note:
-        OECD stamps no publication version on the DAC1 annotation label, so each
-        call makes a one-byte ranged GET against the resolved URL to read the
-        server's ETag (falling back to Last-Modified) and decide whether a cached
-        copy is current. A failed lookup logs a warning and invalidation falls
-        back to the 30-day TTL.
+        Each call makes a one-byte ranged GET against the resolved URL to read
+        the server's ETag (falling back to Last-Modified) and decide whether a
+        cached copy is current. A failed lookup logs a warning and invalidation
+        falls back to the 90-day TTL.
 
     """
-    # DAC1's label carries no -vYYYYMMDD suffix (see get_bulk_file_url_with_version),
-    # so `version` here falls back to an ETag/Last-Modified ranged-GET token.
-    # That token is enough to force a refetch on republish.
-    url, version = get_bulk_file_url_with_version(
-        flow_url=DAC1_FLOW_URL, label=DAC1_BULK_LABEL
+    url, version = (
+        (None, None)
+        if offline
+        else get_bulk_file_url_with_version(
+            flow_url=DAC1_FLOW_URL, label=DAC1_BULK_LABEL
+        )
     )
 
     return bulk_download_parquet(
@@ -107,4 +111,5 @@ def bulk_download_dac1(
         flow_url=DAC1_FLOW_URL,
         label=DAC1_BULK_LABEL,
         version=version,
+        offline=offline,
     )

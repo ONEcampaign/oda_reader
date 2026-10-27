@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 
 from oda_reader._http_primitives import _get_http_session, get_response_text
 
-logger = logging.getLogger("oda_importer")
+logger = logging.getLogger(__name__)
 
 METADATA_BASE_URL = "https://sdmx.oecd.org/public/rest/dataflow/OECD.DCD.FSD"
 DSD_BASE_URL = "https://sdmx.oecd.org/public/rest/datastructure/OECD.DCD.FSD"

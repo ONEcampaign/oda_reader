@@ -1,5 +1,112 @@
 # Changelog for oda_reader
 
+## 1.13.0 (2026-10-27)
+
+- **Importing `oda_reader` no longer configures the root logger.** The package called
+  `logging.basicConfig(level=logging.INFO, ...)` at import, which gave the host application a
+  stderr handler, an INFO level and oda_reader's message format. If the application configured
+  logging after the import, its own `basicConfig` did nothing. The package now leaves logging to
+  the application, so by default only warnings and errors show. To get the INFO messages back,
+  configure logging in your application:
+
+  ```python
+  import logging
+
+  logging.basicConfig(level=logging.INFO)
+  ```
+
+  To raise only oda_reader, add a handler and set the level on its logger with
+  `logging.getLogger("oda_reader").setLevel(logging.INFO)`. To silence it, set that level to
+  `logging.ERROR`.
+
+- **Every package message goes through a logger under `oda_reader`.** Each module logs with
+  `logging.getLogger(__name__)`, sets no handler or level, and propagates to the application's
+  logging. The package's messages used to be split between the `oda_importer` and `oda_reader`
+  loggers. `docs/docs/advanced.md` documents how to turn the logging up or down.
+
+- **The `oda_importer` logger name is deprecated and removed in 2.0.** Setting a level on it or
+  adding a handler (including with `propagate = False`) still applies to the package's messages
+  and emits a `DeprecationWarning`. Three cases no longer work. A `dictConfig` or `fileConfig`
+  that names `oda_importer` and keeps the default `disable_existing_loggers` silences the
+  package's loggers, warnings included, so rename the key to `oda_reader`. Setting `.disabled`
+  on `oda_importer` or adding a logger-level filter to it has no effect on the package's
+  messages. Adding a filter still emits the `DeprecationWarning`. `oda_reader.common.logger` is the
+  deprecated `oda_importer` logger and follows the same rules.
+
+## 1.12.0 (2026-10-21)
+
+- **Adds `download_crdf()`, `download_crdf_file()` and `list_crdf_files()`** for the OECD
+  Climate-Related Development Finance workbooks at `webfs.oecd.org/climate/`, read over plain
+  HTTP from either perspective. File names come from the live folder listing, and each year is
+  read from the narrowest workbook that holds it. Every header layout, current and archived,
+  maps to one set of columns through `schemas/mappings/crdf_schema.json`, with `price_year`,
+  `vintage`, `source_file`, `file_version` and `file_version_kind` added to each row.
+  `file_version` is the file host's validator for the cached copy read, and `file_version_kind`
+  says whether it is an `etag` or a `last_modified` date. An unknown layout raises
+  `CRDFSchemaError`, which lists the unmapped and missing columns. A folder listing entry that is
+  not a plain file name also raises `CRDFSchemaError`.
+- **Adds `register_bulk_file()` for bulk files downloaded in a browser.** It validates the file,
+  copies it into the bulk file cache under the key a download would use, and returns the cached
+  path. A registered entry never expires, so the TTL sweep never deletes it. Online reads serve it
+  while the file host's version token matches the one recorded, or cannot be read, and download
+  a republished file when the token changes. `dataset` takes `"crs"`, `"crs-reduced"`,
+  `"dac1"`, `"dac2a"`, `"dac2b"` or `"multisystem"`. Bulk files download whole, a single-byte
+  request reads the version token first, and a renamed file still resolves: online reads take
+  the name from the SDMX dataflow annotations and offline reads find the copy by dataset.
+- **Adds `offline=True` to `bulk_download_crs()`, the DAC1, DAC2a, DAC2b and multisystem bulk
+  readers, and `bulk_download_parquet()`.** The reader makes no network request and reads the
+  cached or registered copy whatever its age. With nothing cached it raises the new
+  `BulkFileNotCachedError`, which prints the `register_bulk_file` call. A CRS year file
+  registers with `url=` and reads offline through `bulk_download_parquet(url=..., offline=True)`.
+- **`BulkDownloadChallengeError` prints the fix.** Its message names the file to download in a
+  browser and the `register_bulk_file` call that registers it, including the version token the
+  reader saw. The error gains `filename`, `dataset` and `version` attributes.
+- **Bulk downloads honour `Retry-After` on 429 and 503.** A wait of up to 300 seconds is taken
+  and the request retried, up to three times. A longer wait, a missing header or a fourth
+  throttled response raises `BulkDownloadHTTPError`, which now carries `retry_after`.
+- **Adds `CRS_BULK_LABEL` and `CRS_REDUCED_BULK_LABEL`** to `oda_reader.crs`. `CacheManager`
+  gains `register()`, `find_entry()` and `snapshot()`, and `list_records()` reports each entry's
+  `source` and `url`.
+- **The bulk-file cache keeps a dataset's only copy past its TTL.** In 1.11.4 the startup sweep
+  deleted every downloaded file past its TTL, including a dataset's only copy, which a scripted
+  download may not be able to replace. The sweep now deletes an expired download only when a
+  newer copy of the same dataset is cached. An only copy stays: an online read refetches it and
+  an offline read uses it. A file downloaded by URL alone stays until a download replaces it or
+  the cache is cleared.
+- **A bulk URL with spaces and its `%20` form share one cache entry.** Registration, downloads
+  and offline reads all key the cache on the percent-encoded URL.
+- **A cache hit fills in the URL and dataset a cached record lacks**, so a file downloaded before
+  they were recorded becomes readable with `offline=True`.
+- **A dataset with two cached copies reads the one stored last**, even when both were stored
+  within the same second.
+- **Each CRDF workbook is read from a private snapshot of the cached copy**, so a concurrent
+  refresh cannot mix two revisions in one read or label rows with another revision's version.
+- **A corrupt download no longer replaces a cached copy.** A download is validated before it
+  reaches the cache and deleted if it fails, so the copy already there stays readable, and the
+  read raises `BulkPayloadCorruptError`.
+
+## 1.11.4 (2026-10-21)
+
+- **The bulk-file cache keeps every file it downloads until its TTL.** It used to keep only the
+  two most recently downloaded bulk files across all datasets, so a pipeline using three or more
+  (for example CRS, DAC1 and DAC2a) downloaded every file again on each run. Each URL has one
+  cache entry and a new version overwrites it in place, so the cache now deletes an entry only
+  once it is past its TTL. `CacheManager` no longer takes `keep_n`.
+- **Bulk files have a 90-day TTL, up from 30.** The ETag check catches a republish on any call,
+  so the TTL only matters when that check fails.
+
+## 1.11.3 (2026-10-21)
+
+- **Bulk downloads identify as oda-reader.** Requests to OECD's bulk-file host send
+  `oda-reader/<version>` as the User-Agent, the same one the codelist fetcher uses, and no
+  longer send a Chrome User-Agent or browser `Sec-Fetch-*` and `sec-ch-ua` headers. They keep
+  `Upgrade-Insecure-Requests: 1`, because the host's Cloudflare front end challenges a request
+  that lacks it.
+- **CRS and Multisystem bulk downloads detect a file rewritten under an unchanged label date.**
+  Every bulk file's publication-version token now comes from the file host's `ETag` (falling
+  back to `Last-Modified`). The annotation label's `-vYYYYMMDD` stamp is no longer a token. When
+  the token request fails, a cached file stays in use until the 30-day TTL.
+
 ## 1.11.2 (2026-09-15)
 
 - **DAC1, DAC2a and DAC2b bulk downloads detect republished files again on hosts that reject
