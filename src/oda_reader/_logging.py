@@ -57,6 +57,9 @@ def install_legacy_logger_name() -> None:
     # Leave loggers made by an application's own logger class untouched.
     if type(legacy) is logging.Logger:
         legacy.__class__ = _DeprecatedLoggerName
+    # Configuration made before the import never reached the warning methods.
+    if legacy.level != logging.NOTSET or legacy.handlers or legacy.filters:
+        _warn_once()
     logging.getLogger(PACKAGE_LOGGER_NAME).parent = legacy
     # Reparenting skips the isEnabledFor cache reset that setLevel performs.
     logging.Logger.manager._clear_cache()  # ty: ignore[unresolved-attribute]

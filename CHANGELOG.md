@@ -1,6 +1,6 @@
 # Changelog for oda_reader
 
-## 1.12.1 (2026-10-27)
+## 1.13.0 (2026-10-27)
 
 - **Importing `oda_reader` no longer configures the root logger.** The package called
   `logging.basicConfig(level=logging.INFO, ...)` at import, which gave the host application a
@@ -18,10 +18,12 @@
   To raise only oda_reader, add a handler and set the level on its logger with
   `logging.getLogger("oda_reader").setLevel(logging.INFO)`. To silence it, set that level to
   `logging.ERROR`.
+
 - **Every package message goes through a logger under `oda_reader`.** Each module logs with
   `logging.getLogger(__name__)`, sets no handler or level, and propagates to the application's
   logging. The package's messages used to be split between the `oda_importer` and `oda_reader`
   loggers. `docs/docs/advanced.md` documents how to turn the logging up or down.
+
 - **The `oda_importer` logger name is deprecated and removed in 2.0.** Setting a level on it or
   adding a handler (including with `propagate = False`) still applies to the package's messages
   and emits a `DeprecationWarning`. Three cases no longer work. A `dictConfig` or `fileConfig`

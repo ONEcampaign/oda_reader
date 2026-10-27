@@ -219,24 +219,30 @@ class TestApplicationConfiguration:
 
         assert output.splitlines() == ["from a module", "from the package"]
 
-    def test_deprecated_name_configured_before_import_still_applies(self):
+    def test_deprecated_name_configured_before_import_warns_and_still_applies(self):
         output = _run_in_fresh_interpreter(
             f"""
             import logging
             import sys
+            import warnings
 
             legacy = logging.getLogger("oda_importer")
             legacy.addHandler(logging.StreamHandler(sys.stdout))
             legacy.setLevel(logging.INFO)
             legacy.propagate = False
 
-            import oda_reader
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                import oda_reader
+            for warning in caught:
+                if "'oda_importer' logger is deprecated" in str(warning.message):
+                    print(warning.category.__name__)
 
             logging.getLogger({PACKAGE_MODULE_LOGGER!r}).info("progress")
             """
         )
 
-        assert output.splitlines() == ["progress"]
+        assert output.splitlines() == ["DeprecationWarning", "progress"]
 
     def test_package_logger_enabled_state_cached_before_import_is_refreshed(self):
         output = _run_in_fresh_interpreter(
