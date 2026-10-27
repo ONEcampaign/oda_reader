@@ -1,5 +1,21 @@
 # Changelog for oda_reader
 
+## 1.13.1 (2026-10-27)
+
+- **EU Institutions converts to donor code 918 again.** The DAC1 and DAC2 codelists list both 918
+  and 20918 under the API code `4EU001`, and since 1.7.0 the conversion to .Stat codes kept
+  whichever came last in the mapping file, so EU Institutions came out as 20918 in DAC1, DAC2A,
+  DAC2B, CRS and Multisystem data. `area_code_corrections.json` now decides every API code that
+  more than one .Stat code shares, and a clash with no correction raises a `ValueError` naming the
+  codes. The codelist refresh script refuses to write mappings with an undecided clash. Data
+  downloaded with 1.7.0 to 1.13.0 has 20918 for EU Institutions; cached DataFrames refresh with the
+  new version.
+
+- **`map_area_codes` takes `area_code_lookup=`.** It expects the `{API code: .Stat code}` lookup
+  that `build_area_code_lookup` returns, raises `TypeError` when given the old
+  `{.Stat code: API code}` mapping, and logs a warning naming API codes with no .Stat code. Those
+  rows were already left empty. `area_code_mapping()` returns the same mapping as before.
+
 ## 1.13.0 (2026-10-27)
 
 - **Importing `oda_reader` no longer configures the root logger.** The package called
