@@ -40,6 +40,7 @@ from oda_reader._cache.manager import (
     _payload_id,
     bulk_cache_manager,
     derived_files,
+    stale_marker,
 )
 from oda_reader.download.download_tools import (
     BULK_DATASETS,
@@ -495,7 +496,8 @@ def _table_file(
     A Parquet payload (*columns* is ``None``) is hard-linked to the file; a
     zipped CSV is converted into it with *columns*. Either is done once,
     under a lock so concurrent scans do it once, and then removes files of
-    releases before the previous one.
+    releases before the previous one. A file marked stale, which a lease
+    kept after its payload was discarded as corrupt, is made again.
 
     Raises:
         RuntimeError: If another process replaced the cached payload after
@@ -504,17 +506,19 @@ def _table_file(
     """
     payload = manager.base_dir / record["filename"]
     dest = _table_path(payload, token)
-    if dest.exists():
+    stale = stale_marker(dest)
+    if dest.exists() and not stale.exists():
         return dest
 
     with FileLock(str(payload.with_name(f".{payload.stem}.convert.lock"))):
-        if dest.exists():
+        if dest.exists() and not stale.exists():
             return dest
         if columns is None:
             if not manager.link_payload(key, dest, payload_id=_payload_id(record)):
                 raise _replaced(payload)
         else:
             _convert(manager, key, record, dest, columns)
+        stale.unlink(missing_ok=True)
         manager.remove_older_releases(key, dest)
     return dest
 

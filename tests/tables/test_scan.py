@@ -530,6 +530,22 @@ class TestScan:
 
         assert not held.table.path.exists()
 
+    def test_a_kept_crs_link_to_a_corrupt_payload_is_made_again(self, host, tmp_path):
+        held = lease("crs")
+        manager = bulk_cache_manager()
+        [record] = manager.list_records()
+        manager.discard(record["key"])
+        held.close()
+        fresh = tmp_path / "CRS-fresh.parquet"
+        _CRS_FRAME.assign(usd_disbursement=[9.0, 9.0]).to_parquet(fresh)
+        host.payloads = {**host.payloads, "crs": fresh}
+
+        table = scan("crs")
+
+        assert table.path == held.table.path
+        assert pq.read_table(table.path).equals(pq.read_table(fresh))
+        assert list(manager.base_dir.glob(".*.stale")) == []
+
     def test_a_dead_readers_lease_does_not_keep_its_file(self, host):
         first = scan("dac1").path
         # A lease file nobody locks is what a reader that died leaves behind.

@@ -479,6 +479,8 @@ class CacheManager:
                         old.unlink(missing_ok=True)
                     except OSError as e:
                         logger.warning(f"Could not delete older release {old}: {e}")
+                    else:
+                        stale_marker(old).unlink(missing_ok=True)
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
@@ -515,9 +517,10 @@ class CacheManager:
         """Drop a corrupt payload and its record, keeping derived files a `lease` holds.
 
         This is the automatic counterpart of ``clear(key)``. A kept file loses
-        its record. The next download of the same URL has the same key, so
-        the prune after its conversion removes the file once the lease is
-        closed.
+        its record and is marked stale, since a CRS file is a hard link to the
+        corrupt payload. The next scan of the same release replaces a stale
+        file with one made from a fresh download, and a prune removes it
+        after its lease is closed.
 
         Args:
             key: The manifest key of the corrupt payload.
@@ -606,9 +609,12 @@ class CacheManager:
         """
         path = self.base_dir / filename
         held_open = []
-        derived = derived_files(path)
-        if keep_leased:
-            derived = [file for file in derived if not leased(file)]
+        derived = []
+        for file in derived_files(path):
+            if keep_leased and leased(file):
+                stale_marker(file).touch()
+            else:
+                derived.append(file)
         for file in [*derived, path]:
             try:
                 file.unlink(missing_ok=True)
@@ -616,6 +622,8 @@ class CacheManager:
                 if not _held_open(e):
                     raise
                 held_open.append(file)
+            else:
+                stale_marker(file).unlink(missing_ok=True)
         return held_open
 
     def _release_files(self, manifest: dict, record: dict) -> list[Path]:
@@ -796,6 +804,11 @@ class CacheManager:
 def derived_files(payload: Path) -> list[Path]:
     """The ``{key}-*.parquet`` files derived from the cached *payload*."""
     return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def stale_marker(derived: Path) -> Path:
+    """The file whose presence says *derived* came from a payload discarded as corrupt."""
+    return derived.with_name(f".{derived.stem}.stale")
 
 
 def _held_open(error: OSError) -> bool:
