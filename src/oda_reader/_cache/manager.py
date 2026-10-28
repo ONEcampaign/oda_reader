@@ -24,6 +24,7 @@ from oda_reader._cache.config import (
     get_bulk_cache_dir,
     register_cache_dir_change_listener,
 )
+from oda_reader._cache.lease import lease_guard, leased
 from oda_reader.exceptions import validate_payload_or_raise
 
 logger = logging.getLogger(__name__)
@@ -453,7 +454,8 @@ class CacheManager:
         each was downloaded from. The newest other file, by modification
         time, is the previous release's, which a reader that scanned before
         *keep* was made may still hold open. A record without a dataset
-        counts only its own derived files.
+        counts only its own derived files. A file a `lease` holds stays
+        until its lease is closed and a later prune finds it.
 
         Args:
             key: The manifest key of the payload *keep* was derived from.
@@ -467,13 +469,18 @@ class CacheManager:
             others = [
                 path for path in self._release_files(manifest, record) if path != keep
             ]
-            for old in others[1:]:
-                # A file that cannot be deleted now, such as one another
-                # process holds open on Windows, stays until next time.
-                try:
-                    old.unlink(missing_ok=True)
-                except OSError as e:
-                    logger.warning(f"Could not delete older release {old}: {e}")
+            with lease_guard(self.base_dir):
+                for old in others[1:]:
+                    if leased(old):
+                        continue
+                    # A file that cannot be deleted now, such as one another
+                    # process holds open on Windows, stays until next time.
+                    try:
+                        old.unlink(missing_ok=True)
+                    except OSError as e:
+                        logger.warning(f"Could not delete older release {old}: {e}")
+                    else:
+                        stale_marker(old).unlink(missing_ok=True)
 
     def clear(self, key: str | None = None) -> None:
         """Clear cached data.
@@ -483,6 +490,8 @@ class CacheManager:
         scan converting it raises. The next download of the same URL replaces
         the payload, and the next conversion of its dataset removes the
         derived files ``remove_older_releases`` does not keep.
+
+        Clearing is explicit, so it also deletes Parquet files a `lease` holds.
 
         Args:
             key: If provided, clear only this entry. If None, clear all.
@@ -503,6 +512,29 @@ class CacheManager:
                 logger.warning(f"Cache key not found: {key}")
 
             self._save_manifest(manifest)
+
+    def discard(self, key: str) -> None:
+        """Drop a corrupt payload and its record, keeping derived files a `lease` holds.
+
+        This is the automatic counterpart of ``clear(key)``. A kept file loses
+        its record and is marked stale, since a CRS file is a hard link to the
+        corrupt payload. The next scan of the same release replaces a stale
+        file with one made from a fresh download, and a prune removes it
+        after its lease is closed.
+
+        Args:
+            key: The manifest key of the corrupt payload.
+        """
+        with self._lock:
+            manifest = self._load_manifest()
+            record = manifest.pop(key, None)
+            if record is None:
+                return
+            with lease_guard(self.base_dir):
+                held_open = self._remove_payload(record["filename"], keep_leased=True)
+            _warn_held_open(held_open)
+            self._save_manifest(manifest)
+            logger.info(f"Discarded corrupt cache entry: {key}")
 
     def list_records(self) -> list[dict[str, Any]]:
         """List all cached entries with metadata.
@@ -561,8 +593,15 @@ class CacheManager:
             "stale_entries": stale_count,
         }
 
-    def _remove_payload(self, filename: str) -> list[Path]:
+    def _remove_payload(
+        self, filename: str, *, keep_leased: bool = False
+    ) -> list[Path]:
         """Delete a cached payload and the ``{key}-*.parquet`` files derived from it.
+
+        Args:
+            filename: The payload's file name in the cache directory.
+            keep_leased: If True, keep derived files a `lease` holds. Hold the
+                lease guard.
 
         Returns:
             The files left on disk because another process on Windows holds
@@ -570,13 +609,21 @@ class CacheManager:
         """
         path = self.base_dir / filename
         held_open = []
-        for file in [*derived_files(path), path]:
+        derived = []
+        for file in derived_files(path):
+            if keep_leased and leased(file):
+                stale_marker(file).touch()
+            else:
+                derived.append(file)
+        for file in [*derived, path]:
             try:
                 file.unlink(missing_ok=True)
             except OSError as e:
                 if not _held_open(e):
                     raise
                 held_open.append(file)
+            else:
+                stale_marker(file).unlink(missing_ok=True)
         return held_open
 
     def _release_files(self, manifest: dict, record: dict) -> list[Path]:
@@ -691,7 +738,8 @@ class CacheManager:
         have no TTL, so neither is deleted here. Nor is an entry holding one
         of its dataset's two newest derived files (see
         ``remove_older_releases``), so a release a reader may still hold
-        survives a URL change.
+        survives a URL change. An entry with a derived file a `lease` holds
+        stays, record and all, until a sweep finds it unleased.
         """
         manifest = self._load_manifest()
         try:
@@ -736,7 +784,11 @@ class CacheManager:
             file_path = self.base_dir / manifest[key]["filename"]
             # Keep the record of a file not removed so the next sweep retries.
             try:
-                held_open = self._remove_payload(manifest[key]["filename"])
+                with lease_guard(self.base_dir):
+                    if any(leased(path) for path in derived_files(file_path)):
+                        logger.info(f"Keeping expired {file_path}: a reader leases it.")
+                        continue
+                    held_open = self._remove_payload(manifest[key]["filename"])
             except OSError as e:
                 logger.warning(f"Could not remove expired cache file {file_path}: {e}")
                 continue
@@ -752,6 +804,11 @@ class CacheManager:
 def derived_files(payload: Path) -> list[Path]:
     """The ``{key}-*.parquet`` files derived from the cached *payload*."""
     return list(payload.parent.glob(f"{payload.stem}-*.parquet"))
+
+
+def stale_marker(derived: Path) -> Path:
+    """The file whose presence says *derived* came from a payload discarded as corrupt."""
+    return derived.with_name(f".{derived.stem}.stale")
 
 
 def _held_open(error: OSError) -> bool:

@@ -1157,7 +1157,7 @@ def _wrap_iterator_corruption(
         yield from iterable
     except corrupt_exceptions as e:
         if manager is not None:
-            manager.clear(url_key)
+            manager.discard(url_key)
         else:
             path.unlink(missing_ok=True)
         raise BulkPayloadCorruptError(
@@ -1201,7 +1201,7 @@ def _consume_bare_parquet(
         # Dropping the traceback releases it before we touch the file.
         e.__traceback__ = None
         if manager is not None:
-            manager.clear(url_key)
+            manager.discard(url_key)
         else:
             parquet_path.unlink(missing_ok=True)
         raise BulkPayloadCorruptError(
@@ -1288,7 +1288,7 @@ def _consume_bulk_zip(
         )
     except zipfile.BadZipFile:
         if manager is not None:
-            manager.clear(url_key)
+            manager.discard(url_key)
         else:
             zip_path.unlink(missing_ok=True)
         raise BulkPayloadCorruptError(

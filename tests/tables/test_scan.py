@@ -1,4 +1,4 @@
-"""Tests for `scan`, `release` and `cache_info` on recorded bulk zip fixtures."""
+"""Tests for `scan`, `lease`, `release` and `cache_info` on recorded bulk zip fixtures."""
 
 import hashlib
 import json
@@ -17,6 +17,7 @@ import oda_reader
 from oda_reader import (
     BulkFileNotCachedError,
     cache_info,
+    lease,
     register_bulk_file,
     release,
     scan,
@@ -494,18 +495,83 @@ class TestScan:
         # The first URL's record holds no kept release, so expiry removes it.
         assert [info.release for info in cache_info()] == [f"etag-{dataset}-3"]
 
-    def test_failed_conversion_leaves_no_file(self, host, mocker):
+    @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+    def test_a_leased_file_survives_newer_releases_until_closed(self, host, dataset):
+        with lease(dataset) as held:
+            before = pq.read_table(held.table.path)
+            for n in (2, 3, 4):
+                host.tokens[dataset] = f"etag-{dataset}-{n}"
+                scan(dataset)
+
+            assert pq.read_table(held.table.path).equals(before)
+
+        host.tokens[dataset] = f"etag-{dataset}-5"
+        scan(dataset)
+
+        assert not held.table.path.exists()
+        assert list(bulk_cache_manager().base_dir.glob(".*.lease")) == []
+
+    @pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+    def test_a_leased_file_survives_newer_releases_at_a_new_url(self, host, dataset):
+        held = lease(dataset)
+        before = pq.read_table(held.table.path)
+        host.urls[dataset] = host.urls[dataset].replace("/files/", "/files/v2/")
+        for n in (2, 3, 4):
+            host.tokens[dataset] = f"etag-{dataset}-{n}"
+            scan(dataset)
+            _age_records(days=91)
+            CacheManager(bulk_cache_manager().base_dir)
+
+        assert pq.read_table(held.table.path).equals(before)
+
+        held.close()
+        host.tokens[dataset] = f"etag-{dataset}-5"
+        scan(dataset)
+
+        assert not held.table.path.exists()
+
+    def test_a_kept_crs_link_to_a_corrupt_payload_is_made_again(self, host, tmp_path):
+        held = lease("crs")
+        manager = bulk_cache_manager()
+        [record] = manager.list_records()
+        manager.discard(record["key"])
+        held.close()
+        fresh = tmp_path / "CRS-fresh.parquet"
+        _CRS_FRAME.assign(usd_disbursement=[9.0, 9.0]).to_parquet(fresh)
+        host.payloads = {**host.payloads, "crs": fresh}
+
+        table = scan("crs")
+
+        assert table.path == held.table.path
+        assert pq.read_table(table.path).equals(pq.read_table(fresh))
+        assert list(manager.base_dir.glob(".*.stale")) == []
+
+    def test_a_dead_readers_lease_does_not_keep_its_file(self, host):
+        first = scan("dac1").path
+        # A lease file nobody locks is what a reader that died leaves behind.
+        dead = first.with_name(f".{first.stem}.dead.lease")
+        dead.touch()
+        for n in (2, 3):
+            host.tokens["dac1"] = f"etag-dac1-{n}"
+            scan("dac1")
+
+        assert not first.exists()
+        assert not dead.exists()
+
+    @pytest.mark.parametrize("read", [scan, lease])
+    def test_failed_conversion_leaves_no_file(self, host, mocker, read):
         def write_then_fail(z, dest, columns):
             dest.write_bytes(b"PAR1 half-written")
             raise OSError("disk full")
 
         mocker.patch("oda_reader._tables._write_parquet", side_effect=write_then_fail)
         with pytest.raises(OSError, match="disk full"):
-            scan("dac1")
+            read("dac1")
 
         bulk_dir = bulk_cache_manager().base_dir
         assert list(bulk_dir.glob("*.parquet")) == []
         assert list(bulk_dir.glob("*.tmp-*")) == []
+        assert list(bulk_dir.glob(".*.lease")) == []
 
         mocker.stopall()
         FakeHost(mocker, host.payloads["crs"])

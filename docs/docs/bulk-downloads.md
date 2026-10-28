@@ -388,6 +388,17 @@ duckdb.sql(
 
 The returned path is named for its release, so its bytes stay the same after a later `scan()` downloads or converts a newer release. A DuckDB view built on it keeps reading the release it was built on. The files of the current and the previous release are kept until the cache is cleared, also after OECD moves a dataset to a new URL, and older ones are deleted.
 
+A reader that keeps a path for longer, through any number of newer releases, takes a lease. `oda_reader.lease(dataset)` scans as `scan()` does and returns a `TableLease`, whose `table` is the `ScannedTable`. No `scan()` deletes the file until the lease is closed:
+
+```python
+with oda_reader.lease("dac2a") as held:
+    duckdb.sql(f"SELECT count(*) FROM '{held.table.path}'")
+```
+
+The lease protects the file only while the `TableLease` object is kept open. A lease dropped without `close()`, as in `oda_reader.lease("dac2a").table.path`, releases at once and leaves the path unprotected. Use a `with` block or hold the object for as long as the path is read. Clearing the cache deletes a leased file.
+
+A lease is a lock the operating system releases when its process exits, so a crashed reader holds no file. Its empty lease file stays until a later prune of that release removes it.
+
 CRS is published as Parquet, so `scan("crs")` returns a hard link to the cached bulk file, which takes no extra disk space. DAC1, DAC2A and Multisystem are published as zipped CSVs. The first `scan()` of a release streams the CSV into Parquet beside the cached zip, and later calls return that file until the release token changes. On a 2026 release the conversion took 0.6 s for DAC1 (1,046,691 rows), 6.3 s for DAC2A (10,115,276 rows, about 0.5 GB of memory) and 3.3 s for Multisystem (1,145,632 rows). Row groups hold 122,880 rows. The files are sorted by year, so a filter on year skips most groups; a filter on donor or recipient does not.
 
 Converted columns are snake_case and unique case-insensitively. The raw `DONOR` and `Donor` collide in DuckDB, which is case-insensitive; they become `donor_code` and `donor_name`. The names match those `download_dac1()`, `download_dac2a()` and the CRS Parquet already use:

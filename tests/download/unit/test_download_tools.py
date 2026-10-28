@@ -13,6 +13,7 @@ import pytest
 import requests
 
 from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
+from oda_reader._cache.lease import release_lease, take_lease
 from oda_reader._cache.manager import CacheManager
 from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
@@ -2488,6 +2489,43 @@ class TestLazyIteratorCorruptionEviction:
 
         assert fetch_count["n"] == 2
         assert sum(len(c) for c in chunks) == 2
+
+    def test_corruption_keeps_a_leased_derived_file(self, tmp_path, mocker):
+        """The eviction drops the payload but leaves a file a reader leases."""
+        manager = CacheManager(base_dir=tmp_path)
+        mocker.patch(
+            "oda_reader.download.download_tools.bulk_cache_manager",
+            return_value=manager,
+        )
+        mocker.patch(
+            "oda_reader.download.download_tools._stream_to_file",
+            side_effect=lambda url_, headers, path: _write_tiny_parquet(path),
+        )
+        mocker.patch.object(
+            pq.ParquetFile,
+            "read_row_group",
+            side_effect=pyarrow.ArrowInvalid("simulated mid-file corruption"),
+        )
+        url = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
+
+        it = bulk_download_parquet(url=url, as_iterator=True, use_raw_cache=True)
+        [record] = manager.list_records()
+        payload = tmp_path / record["filename"]
+        leased, unleased = (
+            payload.with_name(f"{payload.stem}-{digest}.parquet")
+            for digest in ("0" * 16, "1" * 16)
+        )
+        leased.write_bytes(b"PAR1")
+        unleased.write_bytes(b"PAR1")
+        lock = take_lease(leased)
+        with pytest.raises(BulkPayloadCorruptError):
+            list(it)
+        release_lease(lock)
+
+        assert manager.list_records() == []
+        assert not payload.exists()
+        assert leased.exists()
+        assert not unleased.exists()
 
     def test_delimited_iterator_corruption_evicts_and_refetches(self, tmp_path, mocker):
         """CRS-per-year-style zip payload: zip CRC validates, a CSV row doesn't."""

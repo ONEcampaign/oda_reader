@@ -1,12 +1,14 @@
 """Tests for CacheManager's startup deletion of expired entries."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from oda_reader._cache.lease import release_lease, take_lease
 from oda_reader._cache.manager import CacheManager
 
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
@@ -140,3 +142,28 @@ def test_unlink_failure_keeps_record_for_retry(tmp_path: Path) -> None:
     CacheManager(base_dir=tmp_path)
     assert _manifest_keys(tmp_path) == {"fresh"}
     assert not (tmp_path / "old.zip").exists()
+
+
+def test_a_leased_derived_file_keeps_its_expired_entry_until_released(
+    tmp_path: Path,
+) -> None:
+    _populate(tmp_path, {"old": 120, "fresh": 1}, labels={"old": "CRS", "fresh": "CRS"})
+    derived = tmp_path / "old-0123456789abcdef.parquet"
+    derived.write_bytes(b"PAR1")
+    # Two newer releases, so only the lease keeps the old one. The offsets
+    # are whole seconds: NTFS stores mtimes in 100 ns ticks and FAT in 2 s.
+    for n, digest in enumerate(["1111111111111111", "2222222222222222"], start=1):
+        newer = tmp_path / f"fresh-{digest}.parquet"
+        newer.write_bytes(b"PAR1")
+        mtime = derived.stat().st_mtime + 10 * n
+        os.utime(newer, (mtime, mtime))
+    lock = take_lease(derived)
+
+    CacheManager(base_dir=tmp_path)
+    assert derived.exists()
+    assert _manifest_keys(tmp_path) == {"old", "fresh"}
+
+    release_lease(lock)
+    CacheManager(base_dir=tmp_path)
+    assert not derived.exists()
+    assert _manifest_keys(tmp_path) == {"fresh"}
