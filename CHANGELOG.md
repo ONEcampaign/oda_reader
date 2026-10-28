@@ -1,6 +1,6 @@
 # Changelog for oda_reader
 
-## 1.15.0 (unreleased)
+## 1.15.0 (2026-10-28)
 
 - **Adds `lease()`, which scans like `scan()` and keeps the Parquet file until the lease is
   closed.** It returns a `TableLease` with `table` (the `ScannedTable`) and `close()`, and works
