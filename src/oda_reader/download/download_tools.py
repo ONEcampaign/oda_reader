@@ -24,7 +24,12 @@ import requests
 import oda_reader.download._deflate64  # noqa: F401  # adds Deflate64 support
 from oda_reader._cache.config import _HOSTNAME
 from oda_reader._cache.dataframe import dataframe_cache
-from oda_reader._cache.manager import CacheEntry, CacheManager, bulk_cache_manager
+from oda_reader._cache.manager import (
+    CacheEntry,
+    CacheManager,
+    Delivered,
+    bulk_cache_manager,
+)
 from oda_reader._http_primitives import DEFAULT_HEADERS, _get_bulk_stream_session
 from oda_reader.common import (
     API_RATE_LIMITER,
@@ -993,9 +998,7 @@ def _throttle_wait(error: BulkDownloadHTTPError) -> float | None:
     return error.retry_after
 
 
-def _stream_to_file(
-    url: str, headers: dict, path: Path
-) -> tuple[str, ValidatorKind] | None:
+def _stream_to_file(url: str, headers: dict, path: Path) -> Delivered | None:
     """Stream a URL to the given file path and return the response's validator.
 
     Uses the shared bulk-stream session, browser-like compatibility headers,
@@ -1023,7 +1026,9 @@ def _stream_to_file(
 
     Returns:
         The ``_response_validator`` of the response whose bytes were kept,
-        so a cache records the version of the bytes it holds.
+        with that response's Last-Modified header, so a cache records the
+        version and publication date of the bytes it holds. ``None`` when
+        the response carried no validator.
     """
     request_headers = {**DEFAULT_HEADERS, **headers}
     session = _get_bulk_stream_session()
@@ -1060,7 +1065,10 @@ def _stream_to_file(
 
                     truncation = _check_truncated(r.headers, bytes_written)
                     if truncation is None:
-                        return _response_validator(r.headers)
+                        validator = _response_validator(r.headers)
+                        if validator is None:
+                            return None
+                        return Delivered(*validator, r.headers.get("Last-Modified"))
                     if is_last_attempt:
                         raise BulkDownloadHTTPError(
                             status_code=r.status_code,

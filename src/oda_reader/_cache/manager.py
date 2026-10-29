@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from filelock import FileLock
 
@@ -34,6 +34,23 @@ _TMP_MAX_AGE_SECONDS = 86_400  # 24 hours
 _SNAPSHOT_PREFIX = ".snapshot-"
 
 
+class Delivered(NamedTuple):
+    """The validator a fetch delivered, and the response's Last-Modified header.
+
+    Its first two fields are the ``(token, kind)`` pair a fetcher may return instead.
+
+    Attributes:
+        version: The version token of the bytes written.
+        version_kind: The validator ``version`` holds, such as ``"etag"``.
+        last_modified: The raw ``Last-Modified`` header of the response that
+            delivered the bytes, or ``None`` when it carried none.
+    """
+
+    version: str
+    version_kind: str
+    last_modified: str | None = None
+
+
 @dataclass(frozen=True)
 class CacheEntry:
     """Immutable descriptor for a cacheable bulk dataset.
@@ -45,6 +62,8 @@ class CacheEntry:
             returns the ``(token, kind)`` validator the download delivered,
             or ``None`` when the response carried none. The record stores
             this validator, so its version names the bytes it describes.
+            Returning a ``Delivered`` also records the response's
+            Last-Modified header.
         ttl_days: Time-to-live in days (default: 90)
         version: Optional version token read before the download, such as a
             revalidation probe's. It decides whether a cached copy is stale;
@@ -63,7 +82,7 @@ class CacheEntry:
 
     key: str
     filename: str
-    fetcher: Callable[[Path], tuple[str, str] | None]
+    fetcher: Callable[[Path], tuple[str, str] | Delivered | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
@@ -191,7 +210,10 @@ class CacheManager:
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
             delivered = self._install(path, entry.fetcher)
-            version, version_kind = delivered or (None, None)
+            version, version_kind = delivered[:2] if delivered else (None, None)
+            last_modified = (
+                delivered.last_modified if isinstance(delivered, Delivered) else None
+            )
             if entry.version is not None and version != entry.version:
                 logger.warning(
                     f"{entry.key}: the download carried version {version!r}, not "
@@ -207,6 +229,7 @@ class CacheManager:
                 "ttl_days": entry.ttl_days,
                 "version": version,
                 "version_kind": version_kind,
+                "last_modified": last_modified,
                 "source": "download",
                 "url": entry.url,
                 "flow_url": entry.flow_url,
@@ -568,6 +591,7 @@ class CacheManager:
                         "flow_url": record.get("flow_url"),
                         "label": record.get("label"),
                         "release": record.get("release"),
+                        "last_modified": record.get("last_modified"),
                         "content_hash": record.get("content_hash"),
                         "size_mb": size_mb,
                         "is_stale": not _is_registered(record)

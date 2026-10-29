@@ -5,6 +5,15 @@
 - **`scan()`, `lease()` and `release()` accept `"dac2b"`.** DAC2B is converted from its zipped CSV
   with the DAC2A column names, as its CSV has the same header.
 
+- **`ScannedTable` and `BulkFileInfo` gain `published`**, the UTC date of the `Last-Modified`
+  header of the response that delivered the bytes, for every dataset. It is `None` for a file
+  registered with `register_bulk_file`, a file cached by an earlier version and a response without
+  the header. For CRS it can differ from the date in `label_release`.
+
+- `oda_reader._cache` exports `Delivered`, which a `CacheEntry.fetcher` may return in place of its
+  `(token, kind)` pair, with the response's `Last-Modified` header as `last_modified`. Fetchers
+  that return a 2-tuple still work.
+
 ## 1.15.0 (2026-10-28)
 
 - **Adds `lease()`, which scans like `scan()` and keeps the Parquet file until the lease is

@@ -384,7 +384,7 @@ duckdb.sql(
 )
 ```
 
-`scan()` returns a frozen `ScannedTable` with five fields: `path`, `release`, `label_release`, `downloaded` (UTC) and `columns`. Read the file in place and leave it unmodified.
+`scan()` returns a frozen `ScannedTable` with six fields: `path`, `release`, `label_release`, `downloaded` (UTC), `columns` and `published`. Read the file in place and leave it unmodified.
 
 The returned path is named for its release, so its bytes stay the same after a later `scan()` downloads or converts a newer release. A DuckDB view built on it keeps reading the release it was built on. The files of the current and the previous release are kept until the cache is cleared, also after OECD moves a dataset to a new URL, and older ones are deleted.
 
@@ -423,6 +423,8 @@ Multisystem's CamelCase headers follow the CRS names: `Year` becomes `year`, `Do
 
 CRS also carries the readable id OECD appends to its dataflow annotation, such as `"v20260803"`. It is `ScannedTable.label_release`, kept apart from the token because OECD can rewrite the file without changing the label. It is `None` for DAC1, DAC2A, DAC2B and Multisystem, and for a CRS file whose host token could not be read.
 
+`ScannedTable.published` is the UTC date of the `Last-Modified` header on the response that delivered the cached bytes, for every dataset. It can differ from the date in CRS's `label_release`. It is `None` for a file registered with `register_bulk_file`, a file cached by an earlier version, and a response without the header.
+
 Online, `release()` reads the token of the file OECD publishes now and downloads nothing. With `offline=True` it returns the cached copy's token.
 
 ### Options
@@ -433,7 +435,7 @@ Online, `release()` reads the token of the file OECD publishes now and downloads
 - `refresh=True` downloads the bulk file again and bypasses the cached dataflow annotations. It cannot be combined with `offline=True`.
 - `cache_dir=` reads and writes the bulk file and its conversion under another cache root for this call only, leaving the process-wide root unchanged. The dataflow annotations are still looked up through the process-wide HTTP cache.
 
-`oda_reader.cache_info()` lists the cached bulk files as `BulkFileInfo` records: `dataset`, `release`, `label_release`, `downloaded`, `size_bytes`, `derived_bytes`, `stale` and `path`. `derived_bytes` is the disk space of the Parquet files `scan()` made from the bulk file; a CRS hard link counts as 0.
+`oda_reader.cache_info()` lists the cached bulk files as `BulkFileInfo` records: `dataset`, `release`, `label_release`, `downloaded`, `size_bytes`, `derived_bytes`, `stale`, `path` and `published`. `derived_bytes` is the disk space of the Parquet files `scan()` made from the bulk file; a CRS hard link counts as 0.
 
 ## Bulk files use the .Stat schema
 

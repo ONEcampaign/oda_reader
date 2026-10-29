@@ -4,7 +4,7 @@ import hashlib
 import json
 import shutil
 import socket
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -26,6 +26,7 @@ from oda_reader._cache.config import get_cache_dir
 from oda_reader._cache.manager import (
     ISO_FORMAT,
     CacheManager,
+    Delivered,
     _payload_id,
     bulk_cache_manager,
 )
@@ -197,6 +198,8 @@ class FakeHost:
         self.tokens = {dataset: f"etag-{dataset}-1" for dataset in _URLS}
         # The token a download delivers, when it differs from the probe's.
         self.delivered: dict[str, str | None] = {}
+        # The Last-Modified header a download's response carries.
+        self.last_modified: str | None = None
         self.label_release = "v20260803"
         self.urls = dict(_URLS)
         self.payloads = {**_ZIPS, "crs": crs_parquet}
@@ -229,7 +232,7 @@ class FakeHost:
         dataset = self._dataset(url)
         shutil.copyfile(self.payloads[dataset], path)
         token = self.delivered.get(dataset, self.tokens[dataset])
-        return None if token is None else (token, "etag")
+        return None if token is None else Delivered(token, "etag", self.last_modified)
 
 
 @pytest.fixture
@@ -354,6 +357,7 @@ class TestScan:
 
         assert table.release == "etag-crs-1"
         assert table.label_release == "v20260803"
+        assert table.published is None
         host.download.assert_not_called()
 
     def test_crs_refetched_under_the_same_label_gets_a_new_token(self, host):
@@ -393,6 +397,34 @@ class TestScan:
         assert table.release == (delivered or f"sha256:{digest}")
         assert release("dac1", offline=True) == table.release
         assert "etag-dac1-A" in caplog.text
+
+    @pytest.mark.parametrize(
+        "dataset", ["dac1", "dac2a", "dac2b", "crs", "multisystem"]
+    )
+    def test_published_is_the_last_modified_date_of_the_delivering_response(
+        self, host, dataset
+    ):
+        host.last_modified = "Tue, 07 Jul 2026 23:30:00 GMT"
+
+        table = scan(dataset)
+
+        assert table.published == date(2026, 7, 7)
+        assert [info.published for info in cache_info()] == [date(2026, 7, 7)]
+
+    def test_published_is_none_for_a_record_without_last_modified(self, host):
+        host.last_modified = "Tue, 07 Jul 2026 23:30:00 GMT"
+        scan("dac1")
+        manifest_path = bulk_cache_manager().manifest_path
+        manifest = json.loads(manifest_path.read_text())
+        for record in manifest.values():
+            del record["last_modified"]
+        manifest_path.write_text(json.dumps(manifest))
+
+        table = scan("dac1")
+
+        assert table.published is None
+        assert cache_info()[0].published is None
+        assert host.download.call_count == 1
 
     def test_crs_label_release_needs_the_delivered_token_to_match_the_probe(self, host):
         host.delivered["crs"] = "etag-crs-B"
