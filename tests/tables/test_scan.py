@@ -1,4 +1,4 @@
-"""Tests for `scan`, `lease`, `release` and `cache_info` on recorded bulk zip fixtures."""
+"""Tests for `scan`, `lease`, `release`, `label_release` and `cache_info` on recorded bulk zip fixtures."""
 
 import hashlib
 import json
@@ -17,6 +17,7 @@ import oda_reader
 from oda_reader import (
     BulkFileNotCachedError,
     cache_info,
+    label_release,
     lease,
     register_bulk_file,
     release,
@@ -200,13 +201,14 @@ class FakeHost:
         self.delivered: dict[str, str | None] = {}
         # The Last-Modified header a download's response carries.
         self.last_modified: str | None = None
-        self.label_release = "v20260803"
+        # The release id each annotation label carries; DAC labels carry none.
+        self.label_releases = {"crs": "v20260803", "multisystem": "v20261006-1"}
         self.urls = dict(_URLS)
         self.payloads = {**_ZIPS, "crs": crs_parquet}
         self.resolve = mocker.patch(
             "oda_reader._tables._resolve_bulk_file", side_effect=self._resolve
         )
-        mocker.patch(
+        self.probe = mocker.patch(
             "oda_reader._tables._fetch_revalidation_token", side_effect=self._token
         )
         self.download = mocker.patch(
@@ -223,7 +225,7 @@ class FakeHost:
             for name, annotation in oda_reader.download.download_tools.BULK_DATASETS.items()
             if annotation == (flow_url, label)
         )
-        return self.urls[dataset], (self.label_release if dataset == "crs" else None)
+        return self.urls[dataset], self.label_releases.get(dataset)
 
     def _token(self, url):
         return self.tokens[self._dataset(url)]
@@ -826,7 +828,29 @@ class TestRelease:
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("dataset", ["dac2a", "crs"])
+class TestLabelRelease:
+    @pytest.mark.parametrize(
+        "dataset", ["dac1", "dac2a", "dac2b", "crs", "multisystem"]
+    )
+    def test_is_the_annotation_labels_id_without_a_host_request(self, host, dataset):
+        assert label_release(dataset) == host.label_releases.get(dataset)
+        host.probe.assert_not_called()
+        host.download.assert_not_called()
+
+    @pytest.mark.parametrize("refresh", [False, True])
+    def test_refresh_bypasses_the_cached_annotations(self, host, refresh):
+        label_release("crs", refresh=refresh)
+
+        assert host.resolve.call_args.kwargs["bypass_annotation_cache"] is refresh
+
+    def test_unknown_dataset_raises(self, host):
+        with pytest.raises(ValueError):
+            label_release("crs-reduced")
+        host.resolve.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("dataset", ["dac2a", "crs", "multisystem"])
 def test_cache_info_lists_bulk_files(host, dataset):
     table = scan(dataset)
 
@@ -834,7 +858,7 @@ def test_cache_info_lists_bulk_files(host, dataset):
 
     assert info.dataset == dataset
     assert info.release == table.release
-    assert info.label_release == table.label_release
+    assert info.label_release == table.label_release == host.label_releases.get(dataset)
     assert info.downloaded == table.downloaded
     assert info.size_bytes == host.payloads[dataset].stat().st_size
     # A CRS hard link shares the cached file's disk space.
