@@ -1,5 +1,10 @@
 # Changelog for oda_reader
 
+## 1.16.0 (2026-10-29)
+
+- **`scan()`, `lease()` and `release()` accept `"dac2b"`.** DAC2B is converted from its zipped CSV
+  with the DAC2A column names, as its CSV has the same header.
+
 ## 1.15.0 (2026-10-28)
 
 - **Adds `lease()`, which scans like `scan()` and keeps the Parquet file until the lease is

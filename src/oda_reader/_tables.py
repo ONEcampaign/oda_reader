@@ -1,14 +1,14 @@
-"""Local Parquet tables for the DAC1, DAC2A, CRS and Multisystem bulk files.
+"""Local Parquet tables for the DAC1, DAC2A, DAC2B, CRS and Multisystem files.
 
 `scan` serves each bulk file as one Parquet file on disk that a query engine
 such as DuckDB reads in place. The file is ``{key}-{digest}.parquet`` beside
 the cached bulk file, where ``digest`` hashes the release token, so its bytes
 never change while it exists. CRS is published as Parquet, and its file is a
-hard link to the cached payload. DAC1, DAC2A and Multisystem are published as
-zipped CSVs, and are converted once per release. The files of the current and
-the previous release are kept until the cache is cleared, even when OECD moves
-the dataset to a new URL, and older ones are deleted unless a reader holds a
-lease on them.
+hard link to the cached payload. DAC1, DAC2A, DAC2B and Multisystem are
+published as zipped CSVs, and are converted once per release. The files of
+the current and the previous release are kept until the cache is cleared, even
+when OECD moves the dataset to a new URL, and older ones are deleted unless a
+reader holds a lease on them.
 
 `lease` scans like `scan` and holds the file until the lease is closed; see
 `oda_reader._cache.lease` for how a lease works.
@@ -62,7 +62,7 @@ from oda_reader.schemas.bulk_columns import (
 
 logger = logging.getLogger(__name__)
 
-type ScanDataset = typing.Literal["dac1", "dac2a", "crs", "multisystem"]
+type ScanDataset = typing.Literal["dac1", "dac2a", "dac2b", "crs", "multisystem"]
 
 # The converted file's row-group size. DuckDB writes row groups of 122,880
 # rows and skips any whose min/max statistics exclude a filter. The bulk CSVs
@@ -74,9 +74,10 @@ _ROW_GROUP_ROWS = 122_880
 _CONVERTED_COLUMNS: dict[str, Mapping[str, BulkColumn | None]] = {
     "dac1": DOTSTAT_TABLE_COLUMNS,
     "dac2a": DOTSTAT_TABLE_COLUMNS,
+    "dac2b": DOTSTAT_TABLE_COLUMNS,
     "multisystem": MULTISYSTEM_COLUMNS,
 }
-_SCAN_DATASETS = ("dac1", "dac2a", "crs", "multisystem")
+_SCAN_DATASETS = ("dac1", "dac2a", "dac2b", "crs", "multisystem")
 
 
 @dataclass(frozen=True)
@@ -187,7 +188,7 @@ def scan(
     """Return a bulk dataset as one local Parquet file, downloading it if needed.
 
     CRS is served as published, through a hard link to the cached file. DAC1,
-    DAC2A and Multisystem are converted from their zipped CSV to Parquet the
+    DAC2A, DAC2B and Multisystem are converted from their zipped CSV to Parquet the
     first time a release is scanned, and the converted file is reused until
     the release token changes. The returned path is named for its release, so
     a later download or conversion leaves its bytes unchanged. The files of
@@ -199,7 +200,8 @@ def scan(
     ``donor_name``), so DuckDB reads them without renaming.
 
     Args:
-        dataset: ``"dac1"``, ``"dac2a"``, ``"crs"`` or ``"multisystem"``.
+        dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
+            ``"multisystem"``.
         cache_dir: A cache root for this call only. The bulk file and its
             Parquet conversion are read from and written to it, and the
             process-wide cache root is left unchanged. The dataflow lookup
@@ -251,7 +253,8 @@ def lease(
     is read; see `TableLease`.
 
     Args:
-        dataset: ``"dac1"``, ``"dac2a"``, ``"crs"`` or ``"multisystem"``.
+        dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
+            ``"multisystem"``.
         cache_dir: A cache root for this call only, as in `scan`.
         refresh: If True, download the bulk file even when a current copy is
             cached, as in `scan`.
@@ -302,7 +305,8 @@ def release(
     copy's token is returned, as `scan` reports it.
 
     Args:
-        dataset: ``"dac1"``, ``"dac2a"``, ``"crs"`` or ``"multisystem"``.
+        dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
+            ``"multisystem"``.
         cache_dir: A cache root for this call only, as in `scan`.
         refresh: If True, bypass the cached dataflow annotations.
         offline: If True, make no network request and return the token of

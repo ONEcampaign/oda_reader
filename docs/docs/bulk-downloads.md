@@ -368,7 +368,7 @@ download_aiddata(save_to_path="./data/aiddata.parquet")
 
 ## Query bulk files in place with `scan()`
 
-`scan()` returns a bulk dataset as one Parquet file on disk, which DuckDB, Polars or PyArrow can query without loading it into pandas. It covers `"dac1"`, `"dac2a"`, `"crs"` and `"multisystem"`:
+`scan()` returns a bulk dataset as one Parquet file on disk, which DuckDB, Polars or PyArrow can query without loading it into pandas. It covers `"dac1"`, `"dac2a"`, `"dac2b"`, `"crs"` and `"multisystem"`:
 
 ```python
 import duckdb
@@ -399,21 +399,21 @@ The lease protects the file only while the `TableLease` object is kept open. A l
 
 A lease is a lock the operating system releases when its process exits, so a crashed reader holds no file. Its empty lease file stays until a later prune of that release removes it.
 
-CRS is published as Parquet, so `scan("crs")` returns a hard link to the cached bulk file, which takes no extra disk space. DAC1, DAC2A and Multisystem are published as zipped CSVs. The first `scan()` of a release streams the CSV into Parquet beside the cached zip, and later calls return that file until the release token changes. On a 2026 release the conversion took 0.6 s for DAC1 (1,046,691 rows), 6.3 s for DAC2A (10,115,276 rows, about 0.5 GB of memory) and 3.3 s for Multisystem (1,145,632 rows). Row groups hold 122,880 rows. The files are sorted by year, so a filter on year skips most groups; a filter on donor or recipient does not.
+CRS is published as Parquet, so `scan("crs")` returns a hard link to the cached bulk file, which takes no extra disk space. DAC1, DAC2A, DAC2B and Multisystem are published as zipped CSVs. The first `scan()` of a release streams the CSV into Parquet beside the cached zip, and later calls return that file until the release token changes. On a 2026 release the conversion took 0.6 s for DAC1 (1,046,691 rows), 6.3 s for DAC2A (10,115,276 rows, about 0.5 GB of memory) and 3.3 s for Multisystem (1,145,632 rows). Row groups hold 122,880 rows. The files are sorted by year, so a filter on year skips most groups; a filter on donor or recipient does not.
 
 Converted columns are snake_case and unique case-insensitively. The raw `DONOR` and `Donor` collide in DuckDB, which is case-insensitive; they become `donor_code` and `donor_name`. The names match those `download_dac1()`, `download_dac2a()` and the CRS Parquet already use:
 
-| Raw column (DAC1, DAC2A)                                | Converted                                           | Type             |
-| ------------------------------------------------------- | --------------------------------------------------- | ---------------- |
-| `DONOR` / `Donor`                                       | `donor_code` / `donor_name`                         | int32 / string   |
-| `RECIPIENT` / `Recipient` (DAC2A)                       | `recipient_code` / `recipient_name`                 | int32 / string   |
-| `PART` / `Part`                                         | `part_code` / `part_name`                           | int32 / string   |
-| `AIDTYPE` / `Aid type`                                  | `aidtype_code` / `aid_type`                         | int32 / string   |
-| `FLOWS` / `Fund flows` (DAC1)                           | `flows_code` / `fund_flows`                         | int32 / string   |
-| `AMOUNTTYPE` (DAC1), `DATATYPE` (DAC2A) / `Amount type` | `amounttype_code`, `data_type_code` / `amount_type` | string           |
-| `TIME`                                                  | `year`                                              | int32            |
-| `Year`                                                  | dropped, it repeats `TIME`                          |                  |
-| `Value` / `Flags`                                       | `value` / `flags`                                   | float64 / string |
+| Raw column (DAC1, DAC2A, DAC2B)                                | Converted                                           | Type             |
+| -------------------------------------------------------------- | --------------------------------------------------- | ---------------- |
+| `DONOR` / `Donor`                                              | `donor_code` / `donor_name`                         | int32 / string   |
+| `RECIPIENT` / `Recipient` (DAC2A, DAC2B)                       | `recipient_code` / `recipient_name`                 | int32 / string   |
+| `PART` / `Part`                                                | `part_code` / `part_name`                           | int32 / string   |
+| `AIDTYPE` / `Aid type`                                         | `aidtype_code` / `aid_type`                         | int32 / string   |
+| `FLOWS` / `Fund flows` (DAC1)                                  | `flows_code` / `fund_flows`                         | int32 / string   |
+| `AMOUNTTYPE` (DAC1), `DATATYPE` (DAC2A, DAC2B) / `Amount type` | `amounttype_code`, `data_type_code` / `amount_type` | string           |
+| `TIME`                                                         | `year`                                              | int32            |
+| `Year`                                                         | dropped, it repeats `TIME`                          |                  |
+| `Value` / `Flags`                                              | `value` / `flags`                                   | float64 / string |
 
 Multisystem's CamelCase headers follow the CRS names: `Year` becomes `year`, `DonorCode` `donor_code`, `AgencyNameE` `agency_name`, `ChannelCode` `channel_code`, `RecipientCode` `recipient_code`, `Purposecode` `purpose_code`, `FlowType` `flow_type`, `AmountType` `amount_type`, `AidToOrThru` `aid_to_or_thru` and `Amount` `amount`. A column OECD adds later is kept as a string under its snake_case name.
 
@@ -421,7 +421,7 @@ Multisystem's CamelCase headers follow the CRS names: `Year` becomes `year`, `Do
 
 `oda_reader.release(dataset)` returns the token that names a published file: the file host's ETag, else its Last-Modified date, for every dataset. Two copies of the same file carry the same token, whenever they were downloaded, and a file OECD rewrites gets a new one. A file cached without either, such as one registered while the host was unreachable, gets `"sha256:<digest of the file>"`. `scan()` reports the same token for the same cached file. A download records the token its own response carried, so the token names the cached bytes even when OECD republishes the file during the download.
 
-CRS also carries the readable id OECD appends to its dataflow annotation, such as `"v20260803"`. It is `ScannedTable.label_release`, kept apart from the token because OECD can rewrite the file without changing the label. It is `None` for DAC1, DAC2A and Multisystem, and for a CRS file whose host token could not be read.
+CRS also carries the readable id OECD appends to its dataflow annotation, such as `"v20260803"`. It is `ScannedTable.label_release`, kept apart from the token because OECD can rewrite the file without changing the label. It is `None` for DAC1, DAC2A, DAC2B and Multisystem, and for a CRS file whose host token could not be read.
 
 Online, `release()` reads the token of the file OECD publishes now and downloads nothing. With `offline=True` it returns the cached copy's token.
 

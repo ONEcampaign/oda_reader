@@ -1,8 +1,8 @@
 """Column names and Arrow types for the bulk files `oda_reader.scan` converts.
 
-The DAC1, DAC2A and Multisystem bulk files are zipped CSVs whose headers pair
-an upper-case code column with a label column (``DONOR`` and ``Donor``) or use
-CamelCase (``DonorCode``). Names that differ only by case collide in
+The DAC1, DAC2A, DAC2B and Multisystem bulk files are zipped CSVs whose headers
+pair an upper-case code column with a label column (``DONOR`` and ``Donor``) or
+use CamelCase (``DonorCode``). Names that differ only by case collide in
 case-insensitive engines such as DuckDB, so `scan` writes the snake_case names
 below. They reuse the names `download_dac1`, `download_dac2a` and the raw CRS
 Parquet already use (``donor_code``, ``aidtype_code``, ``purpose_code``).
@@ -28,7 +28,7 @@ _CODE = pa.int32()
 _TEXT = pa.string()
 _AMOUNT = pa.float64()
 
-# DAC1 and DAC2A share the legacy .Stat table layout. `Year` repeats `TIME`
+# DAC1, DAC2A and DAC2B share the legacy .Stat table layout. `Year` repeats `TIME`
 # on every row and is dropped (mapped to None).
 DOTSTAT_TABLE_COLUMNS: dict[str, BulkColumn | None] = {
     "DONOR": BulkColumn("donor_code", _CODE),
