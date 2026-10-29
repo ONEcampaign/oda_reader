@@ -421,9 +421,9 @@ Multisystem's CamelCase headers follow the CRS names: `Year` becomes `year`, `Do
 
 `oda_reader.release(dataset)` returns the token that names a published file: the file host's ETag, else its Last-Modified date, for every dataset. Two copies of the same file carry the same token, whenever they were downloaded, and a file OECD rewrites gets a new one. A file cached without either, such as one registered while the host was unreachable, gets `"sha256:<digest of the file>"`. `scan()` reports the same token for the same cached file. A download records the token its own response carried, so the token names the cached bytes even when OECD republishes the file during the download.
 
-CRS also carries the readable id OECD appends to its dataflow annotation, such as `"v20260803"`. It is `ScannedTable.label_release`, kept apart from the token because OECD can rewrite the file without changing the label. It is `None` for DAC1, DAC2A, DAC2B and Multisystem, and for a CRS file whose host token could not be read.
+CRS and Multisystem also carry the readable id OECD appends to their dataflow annotation label, such as `"v20260803"`. It is `ScannedTable.label_release`, kept apart from the token because OECD can rewrite the file without changing the label. It is `None` for DAC1, DAC2A and DAC2B, whose labels carry none, and for a file whose host token could not be read. `oda_reader.label_release(dataset)` returns the id OECD publishes now with one request for the dataflow annotations, and downloads nothing. `refresh=True` bypasses the cached annotations.
 
-`ScannedTable.published` is the UTC date of the `Last-Modified` header on the response that delivered the cached bytes, for every dataset. It can differ from the date in CRS's `label_release`. It is `None` for a file registered with `register_bulk_file`, a file cached by an earlier version, and a response without the header.
+`ScannedTable.published` is the UTC date of the `Last-Modified` header on the response that delivered the cached bytes, for every dataset. It can differ from the date in `label_release`. It is `None` for a file registered with `register_bulk_file`, a file cached by an earlier version, and a response without the header.
 
 Online, `release()` reads the token of the file OECD publishes now and downloads nothing. With `offline=True` it returns the cached copy's token.
 

@@ -92,16 +92,15 @@ class ScannedTable:
             A `TableLease` on it keeps it past newer releases while it is open.
         release: The release token of the bulk file it holds. See `release`.
         label_release: The readable release id OECD appends to the dataset's
-            annotation label, such as ``"v20260803"`` for CRS, or ``None``
-            when the label carries none or the host gave no token to confirm
-            it describes these bytes.
+            annotation label, such as ``"v20260803"``, or ``None`` when the
+            label carries none or the host gave no token to confirm it
+            describes these bytes. See `label_release`.
         downloaded: When the bulk file was downloaded or registered (UTC).
         columns: The Parquet file's column names, in file order.
         published: The file host's Last-Modified date (UTC) on the response
-            that delivered these bytes. For CRS it can differ from the date
-            in `label_release`, which OECD writes into the annotation label.
-            ``None`` for a registered file, a file cached before oda_reader
-            recorded the header, or a response without one.
+            that delivered these bytes. It can differ from the date in
+            `label_release`. ``None`` for a registered file, a file cached
+            before oda_reader recorded the header, or a response without one.
     """
 
     path: Path
@@ -306,8 +305,8 @@ def release(
     was unreachable) gets ``"sha256:<digest of the file>"``. A download
     records the token its own response carried, so a downloaded copy's token
     names the bytes it holds even if OECD republished during the download.
-    The readable CRS id, such as ``"v20260803"``, is
-    `ScannedTable.label_release`.
+    The readable id in the annotation label, such as ``"v20260803"``, is
+    `label_release`.
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
@@ -348,6 +347,33 @@ def release(
     if found is None:
         raise BulkFileNotCachedError(dataset=dataset, url=url)
     return _record_release(manager, *found)
+
+
+def label_release(dataset: ScanDataset, *, refresh: bool = False) -> str | None:
+    """Return the release id OECD appends to a bulk dataset's annotation label.
+
+    The id, such as ``"v20260803"`` or ``"v20260803-1"`` for a same-day
+    republish, is read with one request for the dataflow annotations. Nothing
+    is requested from the file host or downloaded. OECD can rewrite the file
+    without changing the label; `release` names the bytes.
+
+    Args:
+        dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
+            ``"multisystem"``.
+        refresh: If True, bypass the cached dataflow annotations.
+
+    Returns:
+        str | None: The id, or ``None`` when the label carries none.
+
+    Raises:
+        ValueError: If `dataset` is not one of the five names.
+    """
+    _check_dataset(dataset)
+    flow_url, label = BULK_DATASETS[dataset]
+    _url, release_id = _resolve_bulk_file(
+        flow_url, label, bypass_annotation_cache=refresh
+    )
+    return release_id
 
 
 def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
@@ -455,7 +481,7 @@ def _bulk_file(
             flow_url=flow_url,
             label=label,
             manager=manager,
-            release=label_release if dataset == "crs" else None,
+            release=label_release,
             refresh=refresh,
         )
         return _bulk_cache_key(url), path, record
