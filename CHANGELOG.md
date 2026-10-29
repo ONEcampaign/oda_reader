@@ -8,7 +8,13 @@
 - **`ScannedTable` and `BulkFileInfo` gain `published`**, the UTC date of the `Last-Modified`
   header of the response that delivered the bytes, for every dataset. It is `None` for a file
   registered with `register_bulk_file`, a file cached by an earlier version and a response without
-  the header. For CRS it can differ from the date in `label_release`.
+  the header. It can differ from the date in `label_release`.
+
+- **Adds `label_release()`, which returns the release id OECD appends to a bulk dataset's
+  annotation label**, such as `v20261006`, with one request for the dataflow annotations and no
+  download, or `None` for DAC1, DAC2A and DAC2B, whose labels carry none.
+  `ScannedTable.label_release` and `BulkFileInfo.label_release` carry Multisystem's id as well
+  as CRS's.
 
 - `oda_reader._cache` exports `Delivery`, which a `CacheEntry.fetcher` may return in place of its
   `(token, kind)` pair, with the response's `Last-Modified` header as `last_modified`. Fetchers

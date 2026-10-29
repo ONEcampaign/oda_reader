@@ -32,6 +32,7 @@ from oda_reader._tables import (
     ScannedTable,
     TableLease,
     cache_info,
+    label_release,
     lease,
     release,
     scan,
@@ -186,6 +187,7 @@ __all__ = [
     "scan",
     "lease",
     "release",
+    "label_release",
     "ScannedTable",
     "TableLease",
     # Cache configuration
