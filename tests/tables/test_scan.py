@@ -40,12 +40,15 @@ _BASE = "https://webfs-dcd.oecd.org/files/dotStat"
 _URLS = {
     "dac1": f"{_BASE}/DSD_DAC1/Table1_Data.zip",
     "dac2a": f"{_BASE}/DSD_DAC2/Table2a_Data.zip",
+    "dac2b": f"{_BASE}/DSD_DAC2/Table2b_Data.zip",
     "multisystem": f"{_BASE}/DSD_MULTI/MultiSystem%20entire%20dataset.zip",
     "crs": f"{_BASE}/DSD_CRS/CRS.parquet",
 }
 _ZIPS = {
     "dac1": _FIXTURES / "bulk" / "Table1_Data.zip",
     "dac2a": _FIXTURES / "bulk" / "Table2a_Data.zip",
+    # DAC2B's bulk CSV has the same header as DAC2A's.
+    "dac2b": _FIXTURES / "bulk" / "Table2a_Data.zip",
     "multisystem": _FIXTURES / "bulk" / "MultiSystem entire dataset.zip",
 }
 _CRS_FRAME = pd.DataFrame({"donor_code": [1, 2], "usd_disbursement": [1.5, 2.5]})
@@ -144,6 +147,7 @@ _PINNED_COLUMNS = {
         "project_number",
     ),
 }
+_PINNED_COLUMNS["dac2b"] = _PINNED_COLUMNS["dac2a"]
 # The first data row of each fixture, for the pinned Multisystem fields and
 # the DAC tables' codes and amounts.
 _FIRST_ROWS = {
@@ -268,7 +272,7 @@ def _assert_no_network(no_sockets):
 
 @pytest.mark.unit
 class TestConvertedColumns:
-    @pytest.mark.parametrize("dataset", ["dac1", "dac2a", "multisystem"])
+    @pytest.mark.parametrize("dataset", ["dac1", "dac2a", "dac2b", "multisystem"])
     def test_columns_are_pinned(self, host, dataset):
         table = scan(dataset)
 
@@ -277,7 +281,7 @@ class TestConvertedColumns:
         folded = [name.casefold() for name in table.columns]
         assert len(set(folded)) == len(folded)
 
-    @pytest.mark.parametrize("dataset", ["dac1", "dac2a"])
+    @pytest.mark.parametrize("dataset", ["dac1", "dac2a", "dac2b"])
     def test_dotstat_types(self, host, dataset):
         schema = pq.read_schema(scan(dataset).path)
 
@@ -722,7 +726,7 @@ class TestScan:
 
     @pytest.mark.parametrize(
         ("dataset", "kwargs"),
-        [("dac2b", {}), ("crs", {"refresh": True, "offline": True})],
+        [("crs-reduced", {}), ("crs", {"refresh": True, "offline": True})],
     )
     def test_bad_arguments_raise(self, dataset, kwargs):
         with pytest.raises(ValueError):
@@ -753,6 +757,10 @@ class TestRelease:
 
     def test_online_dac1_is_the_host_token(self, host):
         assert release("dac1") == "etag-dac1-1"
+        host.download.assert_not_called()
+
+    def test_online_dac2b_is_the_host_token(self, host):
+        assert release("dac2b") == "etag-dac2b-1"
         host.download.assert_not_called()
 
     def test_online_without_a_host_token_uses_the_cached_copy(self, host):

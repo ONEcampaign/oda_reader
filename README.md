@@ -752,8 +752,8 @@ full_multisystem = bulk_download_multisystem()
 
 ## Querying bulk files in place
 
-`scan()` returns DAC1, DAC2a, CRS or Multisystem as one local Parquet file that DuckDB, Polars or
-PyArrow can query without pandas. CRS is served as published. DAC1, DAC2a and Multisystem are
+`scan()` returns DAC1, DAC2a, DAC2b, CRS or Multisystem as one local Parquet file that DuckDB, Polars or
+PyArrow can query without pandas. CRS is served as published. DAC1, DAC2a, DAC2b and Multisystem are
 converted from their zipped CSV once per release, with snake_case column names that are unique
 case-insensitively (`DONOR` and `Donor` become `donor_code` and `donor_name`). The returned path
 is named for its release, so its bytes stay the same after a newer release is scanned.
