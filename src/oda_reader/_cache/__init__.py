@@ -50,7 +50,7 @@ from oda_reader._cache.legacy import (
 from oda_reader._cache.manager import (
     CacheEntry,
     CacheManager,
-    Delivered,
+    Delivery,
     bulk_cache_manager,
 )
 
@@ -65,7 +65,7 @@ __all__ = [
     # Bulk cache manager
     "CacheEntry",
     "CacheManager",
-    "Delivered",
+    "Delivery",
     "bulk_cache_manager",
     # DataFrame cache
     "DataFrameCache",

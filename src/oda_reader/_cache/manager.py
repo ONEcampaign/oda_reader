@@ -34,7 +34,7 @@ _TMP_MAX_AGE_SECONDS = 86_400  # 24 hours
 _SNAPSHOT_PREFIX = ".snapshot-"
 
 
-class Delivered(NamedTuple):
+class Delivery(NamedTuple):
     """The validator a fetch delivered, and the response's Last-Modified header.
 
     Its first two fields are the ``(token, kind)`` pair a fetcher may return instead.
@@ -62,7 +62,7 @@ class CacheEntry:
             returns the ``(token, kind)`` validator the download delivered,
             or ``None`` when the response carried none. The record stores
             this validator, so its version names the bytes it describes.
-            Returning a ``Delivered`` also records the response's
+            Returning a ``Delivery`` also records the response's
             Last-Modified header.
         ttl_days: Time-to-live in days (default: 90)
         version: Optional version token read before the download, such as a
@@ -82,7 +82,7 @@ class CacheEntry:
 
     key: str
     filename: str
-    fetcher: Callable[[Path], tuple[str, str] | Delivered | None]
+    fetcher: Callable[[Path], tuple[str, str] | Delivery | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
@@ -212,7 +212,7 @@ class CacheManager:
             delivered = self._install(path, entry.fetcher)
             version, version_kind = delivered[:2] if delivered else (None, None)
             last_modified = (
-                delivered.last_modified if isinstance(delivered, Delivered) else None
+                delivered.last_modified if isinstance(delivered, Delivery) else None
             )
             if entry.version is not None and version != entry.version:
                 logger.warning(

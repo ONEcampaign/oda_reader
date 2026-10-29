@@ -10,7 +10,7 @@
   registered with `register_bulk_file`, a file cached by an earlier version and a response without
   the header. For CRS it can differ from the date in `label_release`.
 
-- `oda_reader._cache` exports `Delivered`, which a `CacheEntry.fetcher` may return in place of its
+- `oda_reader._cache` exports `Delivery`, which a `CacheEntry.fetcher` may return in place of its
   `(token, kind)` pair, with the response's `Last-Modified` header as `last_modified`. Fetchers
   that return a 2-tuple still work.
 

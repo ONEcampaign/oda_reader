@@ -26,7 +26,7 @@ from oda_reader._cache.config import get_cache_dir
 from oda_reader._cache.manager import (
     ISO_FORMAT,
     CacheManager,
-    Delivered,
+    Delivery,
     _payload_id,
     bulk_cache_manager,
 )
@@ -232,7 +232,7 @@ class FakeHost:
         dataset = self._dataset(url)
         shutil.copyfile(self.payloads[dataset], path)
         token = self.delivered.get(dataset, self.tokens[dataset])
-        return None if token is None else Delivered(token, "etag", self.last_modified)
+        return None if token is None else Delivery(token, "etag", self.last_modified)
 
 
 @pytest.fixture
