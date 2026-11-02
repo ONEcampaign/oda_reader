@@ -474,8 +474,8 @@ def test_rows_carry_the_version_of_the_bytes_they_came_from(
             crdf.CacheEntry(
                 key=key,
                 filename=f"{key}.xlsx",
-                fetcher=lambda target: _host_serving(v2, ('"v2"', "etag"))(
-                    url, {}, target
+                fetcher=lambda target: crdf.Fetched(
+                    *_host_serving(v2, ('"v2"', "etag"))(url, {}, target)
                 ),
                 version='"v2"',
                 version_kind="etag",

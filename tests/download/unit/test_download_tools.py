@@ -14,12 +14,13 @@ import requests
 
 from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
 from oda_reader._cache.lease import release_lease, take_lease
-from oda_reader._cache.manager import CacheManager
+from oda_reader._cache.manager import CacheEntry, CacheManager, Fetched
 from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
 from oda_reader.download import download_tools as dt
 from oda_reader.download.download_tools import (
     _WARNED_REVALIDATION_URLS,
+    BulkProbe,
     _atomic_write,
     _check_truncated,
     _detect_delimiter,
@@ -898,14 +899,14 @@ class TestGetBulkFileUrl:
     def _no_revalidation_probe(self, mocker):
         """Several tests below resolve a bare `LABEL` (no `-vYYYYMMDD`
         suffix), which makes a successful resolution fall back to a live
-        `_fetch_revalidation_token` ranged GET. None of these fixtures
+        `_probe_bulk_file` ranged GET. None of these fixtures
         point at a real reachable host, so stub it out for the whole class
         rather than per-test. That keeps this test module offline and fast
         regardless of which label shape an individual test happens to use.
         """
         mocker.patch(
-            "oda_reader.download.download_tools._fetch_revalidation_token",
-            return_value=None,
+            "oda_reader.download.download_tools._probe_bulk_file",
+            return_value=BulkProbe(None),
         )
 
     def test_explicit_version_succeeds_immediately(self, mocker):
@@ -1052,8 +1053,10 @@ class TestGetBulkFileUrl:
             ),
         )
         probe = mocker.patch(
-            "oda_reader.download.download_tools._fetch_revalidation_token",
-            return_value=host_token,
+            "oda_reader.download.download_tools._probe_bulk_file",
+            return_value=BulkProbe(
+                None if host_token is None else (host_token, "etag")
+            ),
         )
 
         url, version = get_bulk_file_url_with_version(FLOW_URL, LABEL, latest_flow=1.6)
@@ -2116,8 +2119,8 @@ class TestStaleAnnotationRecovery:
             side_effect=fake_stream,
         )
         mock_resolve = mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
-            return_value=(fresh_url, "v20260804"),
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
+            return_value=(fresh_url, BulkProbe(("v20260804", "etag"))),
         )
         mocker.patch(
             "oda_reader.download.download_tools._consume_bulk_zip",
@@ -2146,8 +2149,8 @@ class TestStaleAnnotationRecovery:
             ),
         )
         mock_resolve = mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
-            return_value=("https://sdmx.oecd.org/still-dead.zip", None),
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
+            return_value=("https://sdmx.oecd.org/still-dead.zip", BulkProbe(None)),
         )
 
         with pytest.raises(BulkDownloadHTTPError):
@@ -2169,7 +2172,7 @@ class TestStaleAnnotationRecovery:
             ),
         )
         mock_resolve = mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
         )
 
         with pytest.raises(BulkDownloadHTTPError):
@@ -2187,7 +2190,7 @@ class TestStaleAnnotationRecovery:
             ),
         )
         mock_resolve = mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
         )
 
         with pytest.raises(BulkDownloadHTTPError) as exc_info:
@@ -2221,7 +2224,7 @@ class TestStaleAnnotationRecovery:
             "oda_reader.download.download_tools._stream_to_file", side_effect=error
         )
         mock_resolve = mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
         )
 
         with pytest.raises(BulkDownloadHTTPError):
@@ -2347,6 +2350,33 @@ class TestVersionThreadedInvalidation:
         bulk_download_parquet(url=url, version="v20260804", use_raw_cache=True)
         assert fetch_count["n"] == 2
 
+    @pytest.mark.parametrize(
+        ("delivered", "recorded"),
+        [
+            (("v1", "etag"), ("v1", "etag", "download")),
+            (Fetched("v1", "etag", "mirror"), ("v1", "etag", "mirror")),
+            (None, (None, None, "download")),
+        ],
+        ids=["plain-tuple", "fetched", "none"],
+    )
+    def test_ensure_record_accepts_every_fetcher_shape(
+        self, tmp_path, delivered, recorded
+    ):
+        """A fetcher may return the plain ``(token, kind)`` validator of 1.14.0."""
+        manager = CacheManager(base_dir=tmp_path)
+
+        def fetcher(path):
+            _write_tiny_parquet(path)
+            return delivered
+
+        _path, record = manager.ensure_record(
+            CacheEntry(key="k", filename="k.parquet", fetcher=fetcher)
+        )
+
+        assert (record["version"], record["version_kind"], record["source"]) == (
+            recorded
+        )
+
     def test_no_version_falls_back_to_ttl_only(self, tmp_path, mocker):
         """version=None (e.g. DAC2A when its ranged-GET revalidation also
         fails) must not error -- it degrades to the pre-existing TTL-only
@@ -2393,8 +2423,12 @@ class TestVersionThreadedInvalidation:
             ),
         )
         mocker.patch(
-            "oda_reader.download.download_tools._fetch_revalidation_token",
-            side_effect=["0x8DF2533665E7CB7", None, "0x8DF2533665E7CB7"],
+            "oda_reader.download.download_tools._probe_bulk_file",
+            side_effect=[
+                BulkProbe(("0x8DF2533665E7CB7", "etag")),
+                BulkProbe(None),
+                BulkProbe(("0x8DF2533665E7CB7", "etag")),
+            ],
         )
 
         fetch_count = {"n": 0}

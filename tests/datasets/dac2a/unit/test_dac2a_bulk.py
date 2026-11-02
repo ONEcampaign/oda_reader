@@ -10,6 +10,7 @@ from oda_reader.dac2a import (
     get_full_dac2a_parquet_id,
     get_full_dac2a_parquet_url,
 )
+from oda_reader.download.download_tools import BulkProbe
 
 _RESOLVED_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC2/Table2a_Data.zip"
 
@@ -49,11 +50,11 @@ class TestDAC2aBulkDownload:
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
         mocker.patch(
-            "oda_reader.dac2a.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac2a._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac2a.bulk_download_parquet",
+            "oda_reader.dac2a._bulk_download_parquet",
             return_value=mock_df,
         )
 
@@ -67,18 +68,18 @@ class TestDAC2aBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
     def test_bulk_download_dac2a_saves_to_path(self, mocker, tmp_path):
         """Test that bulk_download_dac2a passes save path to underlying function."""
         mocker.patch(
-            "oda_reader.dac2a.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac2a._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac2a.bulk_download_parquet",
+            "oda_reader.dac2a._bulk_download_parquet",
             return_value=None,
         )
 
@@ -92,7 +93,7 @@ class TestDAC2aBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
@@ -104,11 +105,11 @@ class TestDAC2aBulkDownload:
             yield pd.DataFrame({"col1": [2]})
 
         mocker.patch(
-            "oda_reader.dac2a.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac2a._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac2a.bulk_download_parquet",
+            "oda_reader.dac2a._bulk_download_parquet",
             return_value=mock_iterator(),
         )
 
@@ -123,6 +124,6 @@ class TestDAC2aBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2A_FLOW_URL,
             label=DAC2A_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )

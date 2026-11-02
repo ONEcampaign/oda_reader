@@ -9,6 +9,7 @@ from oda_reader.dac1 import (
     DAC1_FLOW_URL,
     bulk_download_dac1,
 )
+from oda_reader.download.download_tools import BulkProbe
 
 _RESOLVED_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_DAC1/Table1_Data.zip"
 
@@ -27,11 +28,11 @@ class TestDAC1BulkDownload:
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
         mocker.patch(
-            "oda_reader.dac1.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac1._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac1.bulk_download_parquet",
+            "oda_reader.dac1._bulk_download_parquet",
             return_value=mock_df,
         )
 
@@ -45,18 +46,18 @@ class TestDAC1BulkDownload:
             use_raw_cache=True,
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
     def test_bulk_download_dac1_saves_to_path(self, mocker, tmp_path):
         """Test that bulk_download_dac1 passes save path to underlying function."""
         mocker.patch(
-            "oda_reader.dac1.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac1._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac1.bulk_download_parquet",
+            "oda_reader.dac1._bulk_download_parquet",
             return_value=None,
         )
 
@@ -70,7 +71,7 @@ class TestDAC1BulkDownload:
             use_raw_cache=True,
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
@@ -82,11 +83,11 @@ class TestDAC1BulkDownload:
             yield pd.DataFrame({"col1": [2]})
 
         mocker.patch(
-            "oda_reader.dac1.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac1._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac1.bulk_download_parquet",
+            "oda_reader.dac1._bulk_download_parquet",
             return_value=mock_iterator(),
         )
 
@@ -101,18 +102,18 @@ class TestDAC1BulkDownload:
             use_raw_cache=True,
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
     def test_bulk_download_dac1_use_raw_cache_false(self, mocker):
         """Test that bulk_download_dac1 passes use_raw_cache through unchanged."""
         mocker.patch(
-            "oda_reader.dac1.get_bulk_file_url_with_version",
-            return_value=(_RESOLVED_URL, "etag-abc123"),
+            "oda_reader.dac1._resolve_and_probe_bulk_file",
+            return_value=(_RESOLVED_URL, BulkProbe(("etag-abc123", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.dac1.bulk_download_parquet",
+            "oda_reader.dac1._bulk_download_parquet",
             return_value=None,
         )
 
@@ -125,6 +126,6 @@ class TestDAC1BulkDownload:
             use_raw_cache=False,
             flow_url=DAC1_FLOW_URL,
             label=DAC1_BULK_LABEL,
-            version="etag-abc123",
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )

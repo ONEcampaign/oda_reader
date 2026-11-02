@@ -38,9 +38,10 @@ OECD may change bulk file names, for example by adding a timestamp. ODA Reader d
 them. On each online read it looks up the current file name in the SDMX dataflow annotations,
 and an offline read finds the cached copy by dataset, whatever name it was stored under.
 
-A scripted request can meet a Cloudflare challenge; see
-[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror). The supported route
-then is to download the file in a browser and pass it to `register_bulk_file`.
+A scripted request can meet a Cloudflare challenge, a 403 or a 429. ODA Reader then falls back to a
+[mirror of the bulk files](#bulk-file-mirror), and if the mirror cannot serve the file either, see
+[Cloudflare challenge](#cloudflare-challenge-bulkdownloadchallengeerror). The last route is to
+download the file in a browser and pass it to `register_bulk_file`.
 
 ## CRS bulk downloads
 
@@ -433,7 +434,7 @@ Online, `release()` reads the token of the file OECD publishes now and downloads
 - `refresh=True` downloads the bulk file again and bypasses the cached dataflow annotations. It cannot be combined with `offline=True`.
 - `cache_dir=` reads and writes the bulk file and its conversion under another cache root for this call only, leaving the process-wide root unchanged. The dataflow annotations are still looked up through the process-wide HTTP cache.
 
-`oda_reader.cache_info()` lists the cached bulk files as `BulkFileInfo` records: `dataset`, `release`, `label_release`, `downloaded`, `size_bytes`, `derived_bytes`, `stale` and `path`. `derived_bytes` is the disk space of the Parquet files `scan()` made from the bulk file; a CRS hard link counts as 0.
+`oda_reader.cache_info()` lists the cached bulk files as `BulkFileInfo` records: `dataset`, `release`, `label_release`, `downloaded`, `source`, `size_bytes`, `derived_bytes`, `stale` and `path`. `source` is `"download"` for a file from OECD, `"mirror"` for one from the [bulk-file mirror](#bulk-file-mirror) after OECD refused the download, or `"registered"` for one put in with `register_bulk_file`. `derived_bytes` is the disk space of the Parquet files `scan()` made from the bulk file; a CRS hard link counts as 0.
 
 ## Bulk files use the .Stat schema
 
@@ -532,13 +533,52 @@ dac2b_data["Aid type"]
 
 See [DAC2b bulk download](#dac2b-bulk-download) above for the full column list and usage details.
 
+## Bulk-file mirror
+
+ONE Campaign runs a mirror of the six bulk datasets (`crs`, `crs-reduced`, `dac1`, `dac2a`,
+`dac2b` and `multisystem`) at `https://bulk.developmentfinance.org/oecd/`. ODA Reader reads it
+only when OECD's file server refuses a download or a version request with a Cloudflare challenge,
+a 403 or a 429. A 429 counts once the retries described under
+[Troubleshooting](#troubleshooting) are spent or the server asks for a longer wait. A request OECD
+answers never touches the mirror, and CRS year files are not mirrored.
+
+The mirror holds byte-identical copies of OECD's files, so a file from the mirror passes the same
+payload checks as one from OECD. ODA Reader checks each download against the size and SHA-256
+in the mirror's manifest, and caches it under OECD's URL and OECD's release token. `scan()`,
+`release()` and the bulk readers then behave as if OECD had served the file, and
+`cache_info()` reports `source="mirror"` for it. Each use logs a warning that names
+the mirror and the time the mirror last saw the file on OECD.
+
+The mirror's refresher runs once a day, so a copy usually lags OECD by under a day, and a file
+OECD published since the last run is not there yet. A dataset the refresher cannot refresh keeps
+its last copy until a run succeeds, and ODA Reader sets no age limit on a mirror copy, so the
+time in the warning is the way to see how old a copy is. A cached copy newer than the mirror's
+stays in place, and the refetch raises OECD's refusal (`BulkDownloadChallengeError` for a
+challenge, `BulkDownloadHTTPError` for a 403 or a 429) with a note saying why the mirror was not
+used. The same happens when the mirror is unreachable, lacks the file, or serves bytes that fail the
+check. Nothing is cached in those cases. When OECD refuses a version request, ODA Reader reads the
+mirror's manifest, which downloads nothing, and the mirror's token stands in for OECD's. `release()`
+returns that token when the cache holds no newer copy, so it can name a release older than OECD's.
+
+Set `ODA_READER_BULK_MIRROR` to change the mirror:
+
+- Unset or empty uses `https://bulk.developmentfinance.org/oecd/`.
+- `off` disables it, so a refusal raises `BulkDownloadChallengeError` or `BulkDownloadHTTPError` as it would without a mirror.
+- An `https://` base URL points ODA Reader at another mirror. It must serve a `manifest.json` and
+  the objects the manifest names under that URL. A value that is not `https`, or that carries a query
+  or fragment, raises `ValueError` on every online read. Offline reads do not check it.
+
+```bash
+export ODA_READER_BULK_MIRROR=off
+```
+
 ## Troubleshooting
 
 **Out of memory errors**: `as_iterator=True` reduces peak memory on `bulk_download_crs()` and `bulk_download_multisystem()`, which stream parquet row groups. On `download_crs_file()`'s year-specific files, `bulk_download_dac1()`, and `bulk_download_dac2b()` it reads the whole file first and only bounds what you accumulate afterward. See the caveat under [Processing a year-specific file in chunks](#processing-a-year-specific-file-in-chunks).
 
 **Slow download**: Bulk downloads depend on OECD's file server speed. Try again later if slow. Once downloaded, files are cached. Each attempt has a 10-second connect / 60-second read timeout, so a stalled connection fails with an error.
 
-**HTTP 429 or 503**: When the file server answers with a `Retry-After` of 300 seconds or less, ODA Reader waits that long and tries again, up to three times. A longer wait, a missing `Retry-After`, or a fourth throttled response raises `BulkDownloadHTTPError`, and its `retry_after` attribute holds the wait the server asked for in seconds.
+**HTTP 429 or 503**: When the file server answers with a `Retry-After` of 300 seconds or less, ODA Reader waits that long and tries again, up to three times. A longer wait, a missing `Retry-After`, or a fourth throttled response raises `BulkDownloadHTTPError` unless the [mirror](#bulk-file-mirror) serves the file, and its `retry_after` attribute holds the wait the server asked for in seconds.
 
 ### Cloudflare challenge (`BulkDownloadChallengeError`)
 
@@ -547,7 +587,8 @@ including the ones ODA Reader makes, are not a service OECD has committed
 to, so OECD's file server can challenge them at any time. A pipeline that
 must run unattended should be ready to handle `BulkDownloadChallengeError`.
 
-When ODA Reader meets a challenge it raises `BulkDownloadChallengeError`. Its message names
+When OECD challenges a download and the [mirror](#bulk-file-mirror) cannot serve the file,
+ODA Reader raises `BulkDownloadChallengeError`. Its message names
 the file and prints the call that registers a copy downloaded in a browser:
 
 ```text

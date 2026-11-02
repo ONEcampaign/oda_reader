@@ -7,6 +7,7 @@ import pytest
 from oda_reader import _http_primitives, disable_http_cache, enable_http_cache
 from oda_reader._cache.config import reset_cache_dir
 from oda_reader.common import RateLimiter
+from oda_reader.download import mirror
 
 
 @pytest.fixture(autouse=True)
@@ -35,6 +36,20 @@ def isolated_bulk_cache(tmp_path_factory, monkeypatch):
     reset_cache_dir()
     yield
     reset_cache_dir()
+
+
+@pytest.fixture(autouse=True)
+def bulk_mirror_off(monkeypatch):
+    """Turn the bulk-file mirror off unless a test turns it back on.
+
+    With the mirror on, a challenged download or version probe reads the
+    mirror's manifest over the network. A test of the mirror sets
+    ``ODA_READER_BULK_MIRROR`` itself.
+    """
+    monkeypatch.setenv(mirror.MIRROR_ENV_VAR, "off")
+    mirror._clear_manifest_cache()
+    yield
+    mirror._clear_manifest_cache()
 
 
 @pytest.fixture

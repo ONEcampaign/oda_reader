@@ -8,10 +8,11 @@ import pandas as pd
 from oda_reader._cache import cache_info
 from oda_reader.download.download_tools import (
     CRS_FLOW_URL,
-    bulk_download_parquet,
+    BulkProbe,
+    _bulk_download_parquet,
+    _resolve_and_probe_bulk_file,
     download,
     get_bulk_file_url,
-    get_bulk_file_url_with_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,16 +107,16 @@ def download_crs_file(
     """
 
     label = f"CRS {year} (dotStat format)"
-    url, version = get_bulk_file_url_with_version(flow_url=CRS_FLOW_URL, label=label)
+    url, probe = _resolve_and_probe_bulk_file(flow_url=CRS_FLOW_URL, label=label)
 
-    return bulk_download_parquet(
+    return _bulk_download_parquet(
         url=url,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
         flow_url=CRS_FLOW_URL,
         label=label,
-        version=version,
+        probe=probe,
     )
 
 
@@ -148,20 +149,20 @@ def bulk_download_crs(
     """
 
     label = CRS_REDUCED_BULK_LABEL if reduced_version else CRS_BULK_LABEL
-    url, version = (
-        (None, None)
+    url, probe = (
+        (None, BulkProbe(None))
         if offline
-        else get_bulk_file_url_with_version(flow_url=CRS_FLOW_URL, label=label)
+        else _resolve_and_probe_bulk_file(flow_url=CRS_FLOW_URL, label=label)
     )
 
-    return bulk_download_parquet(
+    return _bulk_download_parquet(
         url=url,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
         flow_url=CRS_FLOW_URL,
         label=label,
-        version=version,
+        probe=probe,
         offline=offline,
     )
 

@@ -18,6 +18,7 @@ from oda_reader.crs import (
     get_year_crs_zip_id,
     get_year_crs_zip_url,
 )
+from oda_reader.download.download_tools import BulkProbe
 
 _YEAR_ZIP_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS 2022 data.zip"
 _FULL_PARQUET_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
@@ -89,11 +90,11 @@ class TestDownloadCrsFile:
 
     def test_resolves_url_and_dispatches_to_bulk_download_parquet(self, mocker):
         mocker.patch(
-            "oda_reader.crs.get_bulk_file_url_with_version",
-            return_value=(_YEAR_ZIP_URL, "v20260803"),
+            "oda_reader.crs._resolve_and_probe_bulk_file",
+            return_value=(_YEAR_ZIP_URL, BulkProbe(("v20260803", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.crs.bulk_download_parquet",
+            "oda_reader.crs._bulk_download_parquet",
             return_value=pd.DataFrame({"a": [1]}),
         )
 
@@ -107,16 +108,16 @@ class TestDownloadCrsFile:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS 2022 (dotStat format)",
-            version="v20260803",
+            probe=BulkProbe(("v20260803", "etag")),
         )
 
     def test_passes_save_to_path_iterator_and_cache_flags(self, mocker, tmp_path):
         mocker.patch(
-            "oda_reader.crs.get_bulk_file_url_with_version",
-            return_value=(_YEAR_ZIP_URL, "v20260803"),
+            "oda_reader.crs._resolve_and_probe_bulk_file",
+            return_value=(_YEAR_ZIP_URL, BulkProbe(("v20260803", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.crs.bulk_download_parquet", return_value=None
+            "oda_reader.crs._bulk_download_parquet", return_value=None
         )
 
         download_crs_file(
@@ -130,17 +131,17 @@ class TestDownloadCrsFile:
             use_raw_cache=False,
             flow_url=CRS_FLOW_URL,
             label="CRS 2022 (dotStat format)",
-            version="v20260803",
+            probe=BulkProbe(("v20260803", "etag")),
         )
 
     def test_year_accepts_string(self, mocker):
         """Year may be passed as a str (e.g. from user code building it dynamically)."""
         mocker.patch(
-            "oda_reader.crs.get_bulk_file_url_with_version",
-            return_value=(_YEAR_ZIP_URL, "v20260803"),
+            "oda_reader.crs._resolve_and_probe_bulk_file",
+            return_value=(_YEAR_ZIP_URL, BulkProbe(("v20260803", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.crs.bulk_download_parquet", return_value=None
+            "oda_reader.crs._bulk_download_parquet", return_value=None
         )
 
         download_crs_file("2022")
@@ -152,11 +153,11 @@ class TestDownloadCrsFile:
 class TestBulkDownloadCrs:
     def test_full_version_resolves_and_dispatches(self, mocker):
         mock_url = mocker.patch(
-            "oda_reader.crs.get_bulk_file_url_with_version",
-            return_value=(_FULL_PARQUET_URL, "v20260803"),
+            "oda_reader.crs._resolve_and_probe_bulk_file",
+            return_value=(_FULL_PARQUET_URL, BulkProbe(("v20260803", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.crs.bulk_download_parquet", return_value=None
+            "oda_reader.crs._bulk_download_parquet", return_value=None
         )
 
         bulk_download_crs()
@@ -169,17 +170,17 @@ class TestBulkDownloadCrs:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS-Parquet",
-            version="v20260803",
+            probe=BulkProbe(("v20260803", "etag")),
             offline=False,
         )
 
     def test_reduced_version_resolves_and_dispatches(self, mocker):
         mock_url = mocker.patch(
-            "oda_reader.crs.get_bulk_file_url_with_version",
-            return_value=(_REDUCED_PARQUET_URL, "v20260803"),
+            "oda_reader.crs._resolve_and_probe_bulk_file",
+            return_value=(_REDUCED_PARQUET_URL, BulkProbe(("v20260803", "etag"))),
         )
         mock_bulk = mocker.patch(
-            "oda_reader.crs.bulk_download_parquet", return_value=None
+            "oda_reader.crs._bulk_download_parquet", return_value=None
         )
 
         bulk_download_crs(reduced_version=True)
@@ -194,6 +195,6 @@ class TestBulkDownloadCrs:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS-reduced-parquet",
-            version="v20260803",
+            probe=BulkProbe(("v20260803", "etag")),
             offline=False,
         )

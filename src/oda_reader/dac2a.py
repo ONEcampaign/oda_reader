@@ -8,10 +8,11 @@ import pandas as pd
 from oda_reader._cache import cache_info
 from oda_reader.download.download_tools import (
     DAC2A_FLOW_URL,
-    bulk_download_parquet,
+    BulkProbe,
+    _bulk_download_parquet,
+    _resolve_and_probe_bulk_file,
     download,
     get_bulk_file_url,
-    get_bulk_file_url_with_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,21 +120,21 @@ def bulk_download_dac2a(
         pd.DataFrame | Iterator[pd.DataFrame] | None
 
     """
-    url, version = (
-        (None, None)
+    url, probe = (
+        (None, BulkProbe(None))
         if offline
-        else get_bulk_file_url_with_version(
+        else _resolve_and_probe_bulk_file(
             flow_url=DAC2A_FLOW_URL, label=DAC2A_BULK_LABEL
         )
     )
 
-    return bulk_download_parquet(
+    return _bulk_download_parquet(
         url=url,
         save_to_path=save_to_path,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
         flow_url=DAC2A_FLOW_URL,
         label=DAC2A_BULK_LABEL,
-        version=version,
+        probe=probe,
         offline=offline,
     )

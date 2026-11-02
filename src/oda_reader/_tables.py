@@ -37,6 +37,7 @@ from oda_reader._cache.lease import release_lease, take_lease
 from oda_reader._cache.manager import (
     ISO_FORMAT,
     CacheManager,
+    RecordSource,
     _payload_id,
     bulk_cache_manager,
     derived_files,
@@ -49,9 +50,12 @@ from oda_reader.download.download_tools import (
     _bulk_dataset_name,
     _detect_delimiter,
     _ensure_cached_bulk_file,
-    _fetch_revalidation_token,
+    _mirror_file,
+    _mirror_token_stands_in,
+    _probe_bulk_file,
     _resolve_bulk_file,
 )
+from oda_reader.download.mirror import mirror_base_url
 from oda_reader.exceptions import BulkDownloadHTTPError, BulkFileNotCachedError
 from oda_reader.schemas.bulk_columns import (
     DOTSTAT_TABLE_COLUMNS,
@@ -118,6 +122,9 @@ class BulkFileInfo:
         label_release: The readable release id of the annotation label, as
             in `ScannedTable`, or ``None``.
         downloaded: When the file was downloaded or registered (UTC).
+        source: ``"download"`` for a file from OECD, ``"mirror"`` for one
+            from the bulk-file mirror after OECD refused the download, or
+            ``"registered"`` for one put in with `register_bulk_file`.
         size_bytes: The file's size on disk, 0 if it is missing.
         derived_bytes: The disk space used by the Parquet files `scan`
             made from it, counting a hard link to the file as 0.
@@ -133,6 +140,7 @@ class BulkFileInfo:
     release: str | None
     label_release: str | None
     downloaded: datetime
+    source: RecordSource
     size_bytes: int
     derived_bytes: int
     stale: bool
@@ -217,12 +225,17 @@ def scan(
             release, download time and column names.
 
     Raises:
-        ValueError: If `dataset` is not one of the four names, or if both
-            `refresh` and `offline` are True.
+        ValueError: If `dataset` is not one of the four names, if both
+            `refresh` and `offline` are True, or, online, if
+            ``ODA_READER_BULK_MIRROR`` is not ``off`` or an https base URL.
         BulkFileNotCachedError: If `offline` is True and the cache holds no
             copy.
-        BulkDownloadChallengeError: If the file host challenges the download.
-            Register a browser download with `register_bulk_file`.
+        BulkDownloadChallengeError: If the file host challenges the download
+            and the bulk-file mirror cannot serve it. The error's notes say
+            why. Register a browser download with `register_bulk_file`.
+        BulkDownloadHTTPError: If the file host answers the download with a
+            403 or a 429 and the bulk-file mirror cannot serve it. The
+            error's notes say why.
         RuntimeError: If another process replaced or cleared the cached bulk
             file while it was being served. Scanning again serves the new file.
     """
@@ -301,8 +314,18 @@ def release(
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
-    host. Nothing is downloaded. When the host sends no token, the cached
-    copy's token is returned, as `scan` reports it.
+    host. Nothing is downloaded, but a cached copy with no recorded token or
+    hash is hashed once, which takes seconds for CRS. The cached copy online
+    is the copy of the file at the URL OECD publishes now, the one `scan`
+    would serve; a copy of a URL OECD has retired does not count. When the
+    host refuses the request with a Cloudflare challenge, a 403 or a 429,
+    the token from the bulk-file mirror's manifest, read without a download,
+    is returned if there is no cached copy, or if the cached copy is not the
+    mirror's copy and is no newer than it (the rule `scan` applies).
+    Otherwise, and whenever the host sends no token for another reason, the
+    cached copy's token is returned, as `scan` reports it. The mirror's
+    token is that of the last file it copied, which can be older than
+    OECD's. ``ODA_READER_BULK_MIRROR=off`` skips the mirror.
 
     Args:
         dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
@@ -316,28 +339,60 @@ def release(
         str: The release token.
 
     Raises:
-        ValueError: If `dataset` is not one of the four names, or if both
-            `refresh` and `offline` are True.
-        BulkFileNotCachedError: If the token comes from the cache (offline,
-            or online when the host sends none) and the cache holds no copy.
+        ValueError: If `dataset` is not one of the four names, if both
+            `refresh` and `offline` are True, or, online, if
+            ``ODA_READER_BULK_MIRROR`` is not ``off`` or an https base URL.
+            The setting is checked before any request.
+        BulkFileNotCachedError: If the token comes from the cache and the
+            cache holds no copy. Offline, any cached copy of the dataset
+            counts. Online, when neither the host nor the mirror sends a
+            token, only a copy of the file at the URL OECD publishes now
+            counts. A copy of a retired URL does not.
     """
     _check_dataset(dataset)
     _check_modes(refresh=refresh, offline=offline)
     manager = _manager(cache_dir)
     flow_url, label = BULK_DATASETS[dataset]
 
-    url = None
-    if not offline:
-        url, _label_release = _resolve_bulk_file(
-            flow_url, label, bypass_annotation_cache=refresh
-        )
-        if (version := _fetch_revalidation_token(url)) is not None:
-            return version
+    if offline:
+        found = manager.find_record(flow_url=flow_url, label=label)
+        return _cached_release(manager, found, dataset=dataset, url=None)
 
-    found = manager.find_record(flow_url=flow_url, label=label)
-    if found is None:
-        raise BulkFileNotCachedError(dataset=dataset, url=url)
-    return _record_release(manager, *found)
+    base = mirror_base_url()
+    url, _label_release = _resolve_bulk_file(
+        flow_url, label, bypass_annotation_cache=refresh
+    )
+    probe = _probe_bulk_file(url)
+    if probe.token is not None:
+        return probe.token
+    # `scan` reads the record under the current URL's key, so a copy of a
+    # URL OECD has since retired is not this dataset's cached copy here.
+    key = _bulk_cache_key(url)
+    if probe.refused and base is not None:
+        m = _mirror_file(url, base=base)
+        if m is not None and _mirror_token_stands_in(manager, key, m):
+            return m.token
+    found = manager.find_record(key=key)
+    return _cached_release(manager, found, dataset=dataset, url=url)
+
+
+def _cached_release(
+    manager: CacheManager,
+    found: tuple[str, Path, dict[str, typing.Any]] | None,
+    *,
+    dataset: str,
+    url: str | None,
+) -> str:
+    """The release token of the cached copy *found*.
+
+    Raises:
+        BulkFileNotCachedError: If *found* is None, or its file was removed
+            by another process before it could be hashed.
+    """
+    if found is not None:
+        with contextlib.suppress(FileNotFoundError):
+            return _record_release(manager, *found)
+    raise BulkFileNotCachedError(dataset=dataset, url=url)
 
 
 def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
@@ -364,6 +419,7 @@ def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
                 release=row["version"] or row["content_hash"],
                 label_release=row["release"],
                 downloaded=_downloaded_at(row),
+                source=row["source"],
                 size_bytes=stat.st_size if stat else 0,
                 derived_bytes=_derived_bytes(path, stat),
                 stale=row["is_stale"],
@@ -437,9 +493,10 @@ def _bulk_file(
         url, label_release = _resolve_bulk_file(
             flow_url, label, bypass_annotation_cache=bypass_annotation_cache
         )
+        probe = _probe_bulk_file(url)
         path, record = _ensure_cached_bulk_file(
             url,
-            _fetch_revalidation_token(url),
+            probe,
             flow_url=flow_url,
             label=label,
             manager=manager,

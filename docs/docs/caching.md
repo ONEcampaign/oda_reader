@@ -148,7 +148,9 @@ earlier versions stays on disk.
 The bulk file cache is used by `bulk_download_crs`, `download_crs_file`, `bulk_download_dac1`,
 `bulk_download_dac2a`, `bulk_download_dac2b`, `bulk_download_multisystem` and `download_crdf`.
 ODA Reader downloads each bulk file whole, keeps the copy here and answers queries from it. It
-never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge; see
+never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge, a 403 or a 429;
+ODA Reader then reads the [bulk-file mirror](bulk-downloads.md#bulk-file-mirror), and if that cannot
+serve the file either, see
 [Cloudflare challenge](bulk-downloads.md#cloudflare-challenge-bulkdownloadchallengeerror). A
 browser download registered with `register_bulk_file` then fills the cache (see
 [Registered files](#registered-files)).
@@ -194,9 +196,9 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   [Query bulk files in place](bulk-downloads.md#query-bulk-files-in-place-with-scan).
 
 `oda_reader.cache_info()` lists the cached bulk files with their dataset,
-release token, readable label release, download time, size, size of the
-scanned Parquet files, staleness and path. Pass `cache_dir=`
-to list another cache root.
+release token, readable label release, download time, source (`"download"`,
+`"mirror"`, or `"registered"`), size, size of the scanned Parquet files,
+staleness and path. Pass `cache_dir=` to list another cache root.
 
 #### Cache invalidation on republish
 
@@ -266,7 +268,8 @@ is replaced only by another registration, a completed
 download of the same file, or a cache clear such as
 `oda_data.cache.clear('raw')` or `bulk_cache_manager().clear()`.
 `bulk_cache_manager().list_records()` reports `source="registered"` for a
-registered entry and `source="download"` for the rest.
+registered entry, `source="mirror"` for a copy from the bulk-file mirror,
+and `source="download"` for the rest.
 
 #### Reading offline
 
