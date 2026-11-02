@@ -1821,8 +1821,9 @@ def _download_from_mirror(
         )
         raise challenge from e
     logger.warning(
-        f"OECD challenged the download, so {m.object} (version {m.token}) was "
-        f"fetched from the bulk-file mirror at {base} instead."
+        f"OECD challenged the download, so {m.object} (version {m.token}, last "
+        f"seen on OECD at {m.checked_at:%Y-%m-%d %H:%M} UTC) was fetched from "
+        f"the bulk-file mirror at {base} instead."
     )
 
 

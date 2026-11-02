@@ -545,14 +545,16 @@ payload checks as one from OECD. ODA Reader checks each download against the siz
 in the mirror's manifest, and caches it under OECD's URL and OECD's release token. `scan()`,
 `release()` and the bulk readers then behave as if OECD had served the file, and
 `cache_info()` reports `source="mirror"` for it. Each use logs a warning that names
-the mirror.
+the mirror and the time the mirror last saw the file on OECD.
 
-The mirror is refreshed once a day, so a copy can lag OECD by up to a day, and a file OECD
-published since then is not there yet. A cached copy newer than the mirror's stays in place, and
-the refetch raises `BulkDownloadChallengeError` with a note saying why the mirror was not used.
-The same happens when the mirror is unreachable, lacks the file, or serves bytes that fail the
+The mirror's refresher runs once a day, so a copy usually lags OECD by under a day, and a file
+OECD published since the last run is not there yet. A dataset the refresher cannot refresh keeps
+its last copy until a run succeeds, and ODA Reader sets no age limit on a mirror copy, so the
+time in the warning is the way to see how old a copy is. A cached copy newer than the mirror's
+stays in place, and the refetch raises `BulkDownloadChallengeError` with a note saying why the
+mirror was not used. The same happens when the mirror is unreachable, lacks the file, or serves bytes that fail the
 check. Nothing is cached in those cases. `release()` returns the mirror's token when OECD's file
-server challenges its version request, so it can name a release one refresh behind.
+server challenges its version request, so it can name a release older than OECD's.
 
 Set `ODA_READER_BULK_MIRROR` to change the mirror:
 

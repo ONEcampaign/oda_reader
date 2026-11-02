@@ -309,14 +309,16 @@ def release(
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
-    host. Nothing is downloaded. When the host answers with a Cloudflare
-    challenge, the bulk-file mirror's token for the file is returned if there
-    is no cached copy, or if the cached copy is not the mirror's copy and is
-    no newer than it (the rule `scan` applies). Otherwise, and whenever the
-    host sends no token for another reason, the cached copy's token is
-    returned, as `scan` reports it. The mirror's token can lag OECD's by up
-    to one refresh of the mirror. ``ODA_READER_BULK_MIRROR=off`` skips the
-    mirror.
+    host. Nothing is downloaded. The cached copy online is the copy of the
+    file at the URL OECD publishes now, the one `scan` would serve; a copy
+    of a URL OECD has retired does not count. When the host answers with a
+    Cloudflare challenge, the bulk-file mirror's token for the file is
+    returned if there is no cached copy, or if the cached copy is not the
+    mirror's copy and is no newer than it (the rule `scan` applies).
+    Otherwise, and whenever the host sends no token for another reason, the
+    cached copy's token is returned, as `scan` reports it. The mirror's
+    token is that of the last file it copied, which can be older than
+    OECD's. ``ODA_READER_BULK_MIRROR=off`` skips the mirror.
 
     Args:
         dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
@@ -334,29 +336,34 @@ def release(
             `refresh` and `offline` are True, or, online, if
             ``ODA_READER_BULK_MIRROR`` is not ``off`` or an https base URL.
             The setting is checked before any request.
-        BulkFileNotCachedError: If the token comes from the cache (offline,
-            or online when neither the host nor the mirror sends one) and the
-            cache holds no copy.
+        BulkFileNotCachedError: If the token comes from the cache and the
+            cache holds no copy. Offline, any cached copy of the dataset
+            counts. Online, when neither the host nor the mirror sends a
+            token, only a copy of the file at the URL OECD publishes now
+            counts. A copy of a retired URL does not.
     """
     _check_dataset(dataset)
     _check_modes(refresh=refresh, offline=offline)
     manager = _manager(cache_dir)
     flow_url, label = BULK_DATASETS[dataset]
-    base = None if offline else mirror_base_url()
 
-    url = None
-    challenged = False
-    if not offline:
-        url, _label_release = _resolve_bulk_file(
-            flow_url, label, bypass_annotation_cache=refresh
-        )
-        probe = _probe_bulk_file(url)
-        if probe.token is not None:
-            return probe.token
-        challenged = probe.challenged
+    if offline:
+        found = manager.find_record(flow_url=flow_url, label=label)
+        if found is None:
+            raise BulkFileNotCachedError(dataset=dataset, url=None)
+        return _record_release(manager, *found)
 
-    found = manager.find_record(flow_url=flow_url, label=label)
-    if url is not None and challenged and base is not None:
+    base = mirror_base_url()
+    url, _label_release = _resolve_bulk_file(
+        flow_url, label, bypass_annotation_cache=refresh
+    )
+    probe = _probe_bulk_file(url)
+    if probe.token is not None:
+        return probe.token
+    # `scan` reads the record under the current URL's key, so a copy of a
+    # URL OECD has since retired is not this dataset's cached copy here.
+    found = manager.find_record(key=_bulk_cache_key(url))
+    if probe.challenged and base is not None:
         m = _mirror_file(url, base=base)
         if m is not None and mirror_token_stands(
             None if found is None else found[2], m

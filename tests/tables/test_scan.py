@@ -866,6 +866,20 @@ class TestRelease:
         assert token == expected
         assert scan("dac1").release == token
 
+    def test_challenged_release_agrees_with_scan_after_a_url_change(
+        self, host, mirror_copy
+    ):
+        scan("dac1")  # a copy newer than the mirror's, at the retired URL
+        new_url = host.urls["dac1"].replace("/files/", "/files/v2/")
+        host.urls["dac1"] = new_url
+        download_tools.fetch_manifest.return_value.files[new_url] = mirror_copy
+        host.challenged.add("dac1")
+
+        token = release("dac1")
+
+        assert token == mirror_copy.token
+        assert scan("dac1").release == token
+
     def test_unchallenged_probe_failure_leaves_the_mirror_alone(
         self, host, mirror_copy
     ):

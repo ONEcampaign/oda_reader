@@ -31,6 +31,8 @@ uv run --group mirror python -m scripts.mirror.refresh_oecd_mirror [--dry-run] [
 
 A run probes each file's version token and downloads only files whose token changed. It exits 1 if any dataset failed, after refreshing the others. A failed dataset keeps its previous manifest entry.
 
+One run at a time holds the lease `locks/oecd-refresh.json` in the bucket, which records the run's owner id, host, start time, and expiry six hours later. A second run that finds a live lease exits 1 with the holder and expiry in its message and writes nothing. A run publishes the manifest only if no other process changed it since the run read it, and otherwise exits 1 without publishing or deleting anything. A run that crashes leaves its lease live until it expires. If you are sure no refresh is running, clear it from `mirror/worker` with `npx wrangler r2 object delete developmentfinance-bulk/locks/oecd-refresh.json --remote`.
+
 To run the same wrapper the daily job uses, which reads the Keychain and writes the log:
 
 ```bash
@@ -79,4 +81,4 @@ The Worker allows 30 file requests and 120 other requests (the manifest and ever
 
 ## Bucket layout
 
-Objects are `oecd/<dataset>/<sha256><extension>`, immutable and cached for a year. The manifest, `oecd/manifest.json`, is cached for five minutes and written last in each run, so a reader never sees an entry whose object is missing. The bucket keeps each dataset's current and previous object. The bucket is private, and only the Worker serves it publicly.
+Objects are `oecd/<dataset>/<sha256><extension>`, immutable and cached for a year. The manifest, `oecd/manifest.json`, is cached for five minutes and written last in each run, so a reader never sees an entry whose object is missing. The bucket keeps each dataset's current and previous object, and any object written in the last 24 hours. The bucket is private, and only the Worker serves it publicly.

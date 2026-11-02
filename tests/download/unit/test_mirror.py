@@ -176,6 +176,7 @@ class TestManifestModel:
             "not json",
             "[]",
             json.dumps({**_MANIFEST, "files": {"http://x.oecd.org/f": {}}}),
+            json.dumps({**_MANIFEST, "files": {"https://[": {}}}),
         ],
     )
     def test_rejects_malformed_document(self, text):
@@ -318,6 +319,9 @@ class TestFetchManifest:
             _FakeResponse(404, b"missing"),
             _FakeResponse(302, headers={"Location": "https://elsewhere.org/m.json"}),
             _FakeResponse(200, b"{not json"),
+            _FakeResponse(
+                200, json.dumps({**_MANIFEST, "files": {"https://[": {}}}).encode()
+            ),
             requests.ConnectionError("down"),
         ],
     )

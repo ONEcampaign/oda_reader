@@ -140,9 +140,12 @@ class BulkDownloadChallengeError(BulkDownloadHTTPError):
 
 
 class BulkFileNotCachedError(Exception):
-    """Raised when an offline bulk read finds no cached or registered file.
+    """Raised when a bulk read or `release` needs a cached file and finds none.
 
-    No request is made, so there is no HTTP response and no status code.
+    Offline reads raise it with no request made. Online, `release` raises it
+    when neither the file host nor the mirror sends a token and the cache
+    holds no copy of the file OECD publishes now. There is no HTTP response
+    or status code to report either way.
 
     Attributes:
         dataset: The ``register_bulk_file`` dataset name, when the read came
@@ -161,8 +164,8 @@ class BulkFileNotCachedError(Exception):
         call = _register_call(path=path, dataset=dataset, url=url, version=None)
         target = f"dataset {dataset!r}" if dataset else (url or "this file")
         super().__init__(
-            f"offline=True, but the bulk file cache holds no copy of {target}. "
-            "Read it once online, or download it in a browser and register "
+            f"The bulk file cache holds no copy of {target}. Read it once "
+            "online, or download it in a browser and register "
             f"it:\n\n    import oda_reader\n    {call}"
         )
 

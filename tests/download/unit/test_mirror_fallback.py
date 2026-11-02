@@ -193,7 +193,7 @@ class TestChallengedDownload:
         ("announced", "challenged"), [(None, True), (_MIRROR_TOKEN, False)]
     )
     def test_mirror_serves_under_oecds_token(self, net, caplog, announced, challenged):
-        net.publish()
+        net.publish(checked_at=datetime(2026, 11, 1, 9, 30, tzinfo=UTC))
 
         with caplog.at_level(logging.WARNING):
             path, record = _ensure(announced, challenged=challenged)
@@ -204,6 +204,7 @@ class TestChallengedDownload:
         assert record["release"] == "v20261006"
         assert record["source"] == "mirror"
         assert _BASE in caplog.text
+        assert "2026-11-01 09:30" in caplog.text
 
     @pytest.mark.parametrize(
         "served",

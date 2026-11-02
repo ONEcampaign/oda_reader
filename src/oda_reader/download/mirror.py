@@ -302,8 +302,12 @@ def _field[T](data: dict, name: str, kind: type[T], *, where: str) -> T:
 
 
 def _check_url_key(url: str) -> str:
-    parsed = urlsplit(url)
-    if parsed.scheme != "https" or not parsed.hostname:
+    try:
+        parsed = urlsplit(url)
+        valid = parsed.scheme == "https" and bool(parsed.hostname)
+    except ValueError as e:
+        raise MirrorManifestError(f"Manifest key {url!r} is not a URL: {e}") from e
+    if not valid:
         raise MirrorManifestError(f"Manifest key {url!r} is not an https URL.")
     return url
 

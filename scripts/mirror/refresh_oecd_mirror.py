@@ -5,7 +5,16 @@ URL and probes its version token. When the token matches the manifest entry,
 it stamps the entry's ``checked_at``. Otherwise it downloads the file from
 OECD, uploads it to ``oecd/<dataset>/<sha256><ext>`` and replaces the entry.
 It writes the manifest last, then deletes each replaced dataset's objects
-other than the current and the previous one.
+other than those the manifest names, the previous one, and any written in the
+last 24 hours.
+
+One run at a time holds the lease ``locks/oecd-refresh.json``, outside the
+prefix the Worker serves. A run takes it with a conditional write and exits 1
+without touching the bucket while another run's lease is live. A lease expires
+six hours after it was taken, and a run that finds an expired or released
+lease takes it over. The manifest is published only if it still has the ETag
+read at the start of the run; otherwise the run exits 1 without publishing or
+pruning.
 
 A dataset OECD challenges, or that fails for any other reason, keeps its
 entry unchanged, ``checked_at`` included. The script refreshes the other
@@ -30,13 +39,16 @@ Environment:
 
 import argparse
 import dataclasses
+import json
 import logging
 import os
 import re
+import socket
 import sys
 import tempfile
 import typing
-from datetime import UTC, datetime
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -65,6 +77,10 @@ ATTRIBUTION = (
     "OECD does not endorse this copy."
 )
 DEFAULT_BUCKET = "developmentfinance-bulk"
+LOCK_KEY = "locks/oecd-refresh.json"
+LOCK_TTL = timedelta(hours=6)
+# An object written this recently may belong to a run still in progress.
+PRUNE_MIN_AGE = timedelta(hours=24)
 
 _OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable"
 _MANIFEST_CACHE_CONTROL = "public, max-age=300"
@@ -77,6 +93,10 @@ _EXTENSION_RE = re.compile(r"\.[a-z0-9]+")
 # The headers `download_tools._ensure_cached_bulk_file` sends, so the mirror
 # holds the bytes a reader would have cached.
 _DOWNLOAD_HEADERS = {"Accept-Encoding": "gzip"}
+# The error codes R2 and S3 answer a failed If-Match or If-None-Match with:
+# 412 when the condition is false, 409 when a concurrent conditional write won.
+_CONDITION_FAILED_CODES = {"PreconditionFailed", "ConditionalRequestConflict"}
+_CONDITION_FAILED_STATUSES = {409, 412}
 
 # A boto3 S3 client. boto3 ships no type information, so the alias only
 # documents intent.
@@ -85,6 +105,51 @@ type S3Client = typing.Any
 
 class RefreshError(Exception):
     """OECD's response or the stored object cannot back a manifest entry."""
+
+
+class RefreshConflictError(Exception):
+    """Another run holds the lease or changed the manifest during this run."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Lease:
+    """The body of the lease object at `LOCK_KEY`."""
+
+    owner: str
+    host: str
+    started_at: datetime
+    expires_at: datetime
+    released: bool = False
+
+    def dump(self) -> bytes:
+        return json.dumps(
+            {
+                "owner": self.owner,
+                "host": self.host,
+                "started_at": self.started_at.isoformat(),
+                "expires_at": self.expires_at.isoformat(),
+                "released": self.released,
+            }
+        ).encode()
+
+    @classmethod
+    def parse(cls, body: bytes) -> typing.Self:
+        data = json.loads(body)
+        return cls(
+            owner=data["owner"],
+            host=data["host"],
+            started_at=datetime.fromisoformat(data["started_at"]),
+            expires_at=datetime.fromisoformat(data["expires_at"]),
+            released=data["released"],
+        )
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Held:
+    """A lease this run holds, with the ETag its last write returned."""
+
+    lease: _Lease
+    etag: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -123,10 +188,31 @@ def refresh_mirror(
         The datasets that failed, in run order. Their entries are unchanged.
 
     Raises:
+        RefreshConflictError: If another run holds a live lease, in which
+            case nothing is written, or the manifest changed during this run,
+            in which case nothing is published or pruned.
         MirrorManifestError: If the bucket's manifest exists but is invalid.
-            Nothing is written.
+            Nothing but the lease is written.
     """
-    current = _read_manifest(client, bucket=bucket)
+    if dry_run:
+        return _refresh(client, bucket=bucket, datasets=datasets, dry_run=True)
+
+    held = _acquire_lease(client, bucket=bucket)
+    try:
+        return _refresh(client, bucket=bucket, datasets=datasets, dry_run=False)
+    finally:
+        _release_lease(client, bucket=bucket, held=held)
+
+
+def _refresh(
+    client: S3Client,
+    *,
+    bucket: str,
+    datasets: typing.Sequence[str],
+    dry_run: bool,
+) -> list[str]:
+    """`refresh_mirror` without the lease."""
+    current, manifest_etag = _read_manifest(client, bucket=bucket)
     files = dict(current.files) if current is not None else {}
     replacements: list[_Replacement] = []
     failed: list[str] = []
@@ -150,17 +236,39 @@ def refresh_mirror(
         return failed
 
     manifest = MirrorManifest(generated_at=_now(), attribution=ATTRIBUTION, files=files)
-    client.put_object(
-        Bucket=bucket,
-        Key=MANIFEST_KEY,
-        Body=dump_manifest(manifest).encode(),
-        ContentType="application/json",
-        CacheControl=_MANIFEST_CACHE_CONTROL,
+    # Publish only over the manifest this run started from, so a concurrent
+    # write is never lost and the prune below matches what readers see.
+    condition = (
+        {"IfMatch": manifest_etag}
+        if manifest_etag is not None
+        else {"IfNoneMatch": "*"}
     )
+    try:
+        client.put_object(
+            Bucket=bucket,
+            Key=MANIFEST_KEY,
+            Body=dump_manifest(manifest).encode(),
+            ContentType="application/json",
+            CacheControl=_MANIFEST_CACHE_CONTROL,
+            **condition,
+        )
+    except client.exceptions.ClientError as e:
+        if not _condition_failed(e):
+            raise
+        raise RefreshConflictError(
+            f"{MANIFEST_KEY} changed during this run, so the run published and "
+            "pruned nothing. Run the refresher again."
+        ) from e
     logger.info(f"Wrote {MANIFEST_KEY} with {len(files)} entries.")
 
+    published = {entry.object for entry in files.values()}
     for replacement in replacements:
-        _prune(client, bucket=bucket, replacement=replacement)
+        _prune(
+            client,
+            bucket=bucket,
+            dataset=replacement.dataset,
+            keep=published | replacement.keep,
+        )
     return failed
 
 
@@ -286,29 +394,141 @@ def _extension(url: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _read_manifest(client: S3Client, *, bucket: str) -> MirrorManifest | None:
-    """The bucket's manifest, or None when the bucket has none yet."""
+def _read_manifest(
+    client: S3Client, *, bucket: str
+) -> tuple[MirrorManifest | None, str | None]:
+    """The bucket's manifest and its ETag, or two Nones when it has none yet."""
     try:
         response = client.get_object(Bucket=bucket, Key=MANIFEST_KEY)
     except client.exceptions.NoSuchKey:
         logger.info(f"No {MANIFEST_KEY} in {bucket}; starting an empty manifest.")
-        return None
-    return parse_manifest(response["Body"].read())
+        return None, None
+    return parse_manifest(response["Body"].read()), response["ETag"]
 
 
-def _prune(client: S3Client, *, bucket: str, replacement: _Replacement) -> None:
-    """Delete the dataset's objects other than those *replacement* keeps."""
-    prefix = f"{OBJECT_PREFIX}{replacement.dataset}/"
+def _prune(client: S3Client, *, bucket: str, dataset: str, keep: set[str]) -> None:
+    """Delete *dataset*'s objects outside *keep* that are old enough to be stale."""
+    prefix = f"{OBJECT_PREFIX}{dataset}/"
+    cutoff = _now() - PRUNE_MIN_AGE
     paginator = client.get_paginator("list_objects_v2")
     stale = [
         item["Key"]
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix)
         for item in page.get("Contents", [])
-        if item["Key"] not in replacement.keep
+        if item["Key"] not in keep and item["LastModified"] < cutoff
     ]
     for key in stale:
         client.delete_object(Bucket=bucket, Key=key)
-        logger.info(f"{replacement.dataset}: deleted {key}.")
+        logger.info(f"{dataset}: deleted {key}.")
+
+
+def _acquire_lease(client: S3Client, *, bucket: str) -> _Held:
+    """Take the refresh lease, or take over an expired or released one.
+
+    Raises:
+        RefreshConflictError: If another run holds a live lease, or won a
+            race for it. Nothing is written.
+    """
+    now = _now()
+    lease = _Lease(
+        owner=uuid.uuid4().hex,
+        host=socket.gethostname(),
+        started_at=now,
+        expires_at=now + LOCK_TTL,
+    )
+    try:
+        return _write_lease(
+            client, bucket=bucket, lease=lease, condition={"IfNoneMatch": "*"}
+        )
+    except client.exceptions.ClientError as e:
+        if not _condition_failed(e):
+            raise
+
+    try:
+        response = client.get_object(Bucket=bucket, Key=LOCK_KEY)
+    except client.exceptions.NoSuchKey as e:
+        raise RefreshConflictError(
+            f"{LOCK_KEY} was deleted while this run tried to take it. "
+            "Run the refresher again."
+        ) from e
+    try:
+        current = _Lease.parse(response["Body"].read())
+    except (ValueError, KeyError, TypeError) as e:
+        raise RefreshConflictError(
+            f"{LOCK_KEY} in {bucket} is not a lease this script wrote. "
+            "Delete it by hand if no refresh is running."
+        ) from e
+    if not current.released and current.expires_at > now:
+        raise RefreshConflictError(
+            f"Another refresh holds {LOCK_KEY}: owner {current.owner} on "
+            f"{current.host}, started {current.started_at.isoformat()}, expires "
+            f"{current.expires_at.isoformat()}. This run touched nothing."
+        )
+
+    state = "released" if current.released else "expired"
+    logger.info(f"Taking over the {state} lease of {current.owner} on {current.host}.")
+    try:
+        return _write_lease(
+            client, bucket=bucket, lease=lease, condition={"IfMatch": response["ETag"]}
+        )
+    except client.exceptions.ClientError as e:
+        if not _condition_failed(e):
+            raise
+        raise RefreshConflictError(
+            f"Another run took over {LOCK_KEY} first. This run touched nothing."
+        ) from e
+
+
+def _release_lease(client: S3Client, *, bucket: str, held: _Held) -> None:
+    """Mark *held* released, unless another run has taken the lease since.
+
+    The release overwrites the lease with If-Match on this run's ETag rather
+    than deleting it, so a stale release can never remove a newer holder's
+    lease.
+    """
+    released = dataclasses.replace(held.lease, expires_at=_now(), released=True)
+    try:
+        _write_lease(
+            client, bucket=bucket, lease=released, condition={"IfMatch": held.etag}
+        )
+    except client.exceptions.ClientError as e:
+        if not _condition_failed(e):
+            raise
+        logger.warning(
+            f"Another run took over {LOCK_KEY} during this run; left it in place."
+        )
+        return
+    logger.info(f"Released {LOCK_KEY}.")
+
+
+def _write_lease(
+    client: S3Client,
+    *,
+    bucket: str,
+    lease: _Lease,
+    condition: dict[str, str],
+) -> _Held:
+    """Write *lease* with *condition*, an `IfMatch` or `IfNoneMatch` argument.
+
+    Returns:
+        *lease* with the ETag the write returned.
+    """
+    response = client.put_object(
+        Bucket=bucket,
+        Key=LOCK_KEY,
+        Body=lease.dump(),
+        ContentType="application/json",
+        **condition,
+    )
+    return _Held(lease=lease, etag=response["ETag"])
+
+
+def _condition_failed(error: Exception) -> bool:
+    """Whether *error* is R2's answer to a failed If-Match or If-None-Match."""
+    response = getattr(error, "response", {})
+    code = response.get("Error", {}).get("Code")
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in _CONDITION_FAILED_CODES or status in _CONDITION_FAILED_STATUSES
 
 
 def _client_from_env() -> S3Client:
@@ -366,12 +586,16 @@ def main(argv: list[str] | None = None) -> int:
     # The refresher reads OECD itself, bypassing its own mirror.
     os.environ[MIRROR_ENV_VAR] = "off"
 
-    failed = refresh_mirror(
-        _client_from_env(),
-        bucket=os.environ.get("R2_BUCKET") or DEFAULT_BUCKET,
-        datasets=args.dataset or list(BULK_DATASETS),
-        dry_run=args.dry_run,
-    )
+    try:
+        failed = refresh_mirror(
+            _client_from_env(),
+            bucket=os.environ.get("R2_BUCKET") or DEFAULT_BUCKET,
+            datasets=args.dataset or list(BULK_DATASETS),
+            dry_run=args.dry_run,
+        )
+    except RefreshConflictError as e:
+        logger.error(str(e))
+        return 1
     if failed:
         logger.error(f"Failed datasets: {', '.join(failed)}.")
         return 1
