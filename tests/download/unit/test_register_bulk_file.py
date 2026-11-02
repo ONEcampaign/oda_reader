@@ -540,19 +540,18 @@ def test_offline_reader_skips_resolution(mocker, module, reader, flow_url, label
         ("multisystem", "bulk_download_multisystem", ()),
     ],
 )
-def test_reader_passes_a_challenged_probe_on(mocker, module, reader, args):
-    """The mirror may refresh an older cached copy only if it hears of the challenge."""
+def test_reader_passes_a_refused_probe_on(mocker, module, reader, args):
+    """The mirror may refresh an older cached copy only if it hears of the refusal."""
     import importlib
 
     mod = importlib.import_module(f"oda_reader.{module}")
     mocker.patch.object(
         mod,
         "_resolve_and_probe_bulk_file",
-        return_value=(_CRS_URL, BulkProbe(None, challenged=True)),
+        return_value=(_CRS_URL, BulkProbe(None, refused=True)),
     )
     bulk = mocker.patch.object(mod, "_bulk_download_parquet", return_value=None)
 
     getattr(mod, reader)(*args)
 
-    kwargs = bulk.call_args.kwargs
-    assert (kwargs["version"], kwargs["challenged"]) == (None, True)
+    assert bulk.call_args.kwargs["probe"] == BulkProbe(None, refused=True)

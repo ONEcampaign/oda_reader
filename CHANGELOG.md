@@ -2,21 +2,23 @@
 
 ## 1.17.0 (2026-11-02)
 
-- **Falls back to a mirror of the bulk files when OECD's file server challenges a download.** The
-  mirror at `https://bulk.developmentfinance.org/oecd/` holds byte-identical copies of the `crs`,
-  `crs-reduced`, `dac1`, `dac2a`, `dac2b` and `multisystem` files, refreshed once a day. A
-  download from it is checked against the size and SHA-256 in the mirror's manifest and cached
-  under OECD's URL and release token, so `scan()`, `lease()`, `release()` and the bulk readers
-  treat it as OECD's file. A download OECD lets through never reads the mirror. A cached copy
-  newer than the mirror's stays in place, and when the mirror cannot serve the file the call
-  raises `BulkDownloadChallengeError` with a note saying why. A mirror copy usually lags OECD by
-  under a day, but a dataset the refresher cannot refresh keeps its last copy until it can, and
-  ODA Reader sets no age limit. The warning logged on each mirror download gives the time the
-  mirror last saw the file on OECD. `ODA_READER_BULK_MIRROR=off` disables the mirror, and an
-  `https` base URL points it elsewhere.
+- **Falls back to a mirror of the bulk files when OECD's file server refuses a download.** A
+  Cloudflare challenge, a 403 or a 429 (once the retries are spent) on a download or a version
+  request sends the call to the mirror. The mirror at `https://bulk.developmentfinance.org/oecd/`
+  holds byte-identical copies of the `crs`, `crs-reduced`, `dac1`, `dac2a`, `dac2b` and
+  `multisystem` files, refreshed once a day. A download from it is checked against the size and
+  SHA-256 in the mirror's manifest and cached under OECD's URL and release token, so `scan()`,
+  `lease()`, `release()` and the bulk readers treat it as OECD's file. A request OECD answers
+  never reads the mirror. A cached copy newer than the mirror's stays in place, and when the
+  mirror cannot serve the file the call raises OECD's refusal, `BulkDownloadChallengeError` or
+  `BulkDownloadHTTPError`, with a note saying why. A mirror copy usually lags OECD by under a
+  day, but a dataset the refresher cannot refresh keeps its last copy until it can, and ODA
+  Reader sets no age limit. The warning logged on each mirror download gives the time the mirror
+  last saw the file on OECD. `ODA_READER_BULK_MIRROR=off` disables the mirror, and an `https`
+  base URL points it elsewhere. Any other value raises `ValueError` on an online read.
 - **`cache_info()` reports where each file came from.** `BulkFileInfo` gains `source`, one of
   `"download"`, `"mirror"` and `"registered"`.
-- **`release()` returns the mirror's token when OECD's file server challenges its version
+- **`release()` returns the mirror's token when OECD's file server refuses its version
   request** and the cache holds neither a newer copy nor the mirror's own bytes. With nothing
   cached, it no longer raises `BulkFileNotCachedError` when the mirror holds the file. Online,
   a copy cached under a URL OECD has retired no longer stands in for the current file, so

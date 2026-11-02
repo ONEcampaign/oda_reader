@@ -9,7 +9,9 @@ module, and the S3 client is an in-memory bucket.
 
 import dataclasses
 import hashlib
+import io
 import os
+import zipfile
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -203,7 +205,10 @@ def oecd(monkeypatch):
     """Fake OECD for every dataset, with a log of the downloads it served."""
     files = {
         name: FakeFile(
-            url=_url(name), release="v20261006", probe=f'"{name}-1"', body=name.encode()
+            url=_url(name),
+            release="v20261006",
+            probe=f'"{name}-1"',
+            body=_zip(name.encode()),
         )
         for name in BULK_DATASETS
     }
@@ -237,6 +242,14 @@ def oecd(monkeypatch):
     return FakeOecd(files=files, downloads=downloads)
 
 
+def _zip(content: bytes) -> bytes:
+    """A zip holding *content*, the same bytes for the same content."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr(zipfile.ZipInfo("data.csv"), content)
+    return buffer.getvalue()
+
+
 def _entry(dataset: str, body: bytes, *, token: str, checked_at=_T0) -> MirrorFile:
     sha = hashlib.sha256(body).hexdigest()
     return MirrorFile(
@@ -266,20 +279,20 @@ def test_new_file_is_uploaded_then_listed_under_its_oecd_url(oecd):
     manifest = s3.manifest()
     assert list(manifest.files) == [_encode_url_path(url)]
     entry = manifest.files[url]
-    sha = hashlib.sha256(b"crs").hexdigest()
+    sha = hashlib.sha256(_zip(b"crs")).hexdigest()
     assert entry == MirrorFile(
         token='"crs-1"',
         token_kind="etag",
         label_release="v20261006",
         object=f"oecd/crs/{sha}.zip",
-        size=3,
+        size=len(_zip(b"crs")),
         sha256=sha,
         # The first clock reading takes the lease, the second starts the
         # download.
         checked_at=_T0 + timedelta(hours=2),
     )
     assert manifest.attribution == refresher.ATTRIBUTION
-    assert s3.objects[entry.object] == b"crs"
+    assert s3.objects[entry.object] == _zip(b"crs")
     assert s3.meta[entry.object] == {
         "ContentType": "application/zip",
         "CacheControl": "public, max-age=31536000, immutable",
@@ -289,17 +302,18 @@ def test_new_file_is_uploaded_then_listed_under_its_oecd_url(oecd):
     assert s3.lease().released
 
 
-def test_unchanged_token_only_stamps_checked_at(oecd):
+def test_unchanged_token_stamps_checked_at_and_label_release(oecd):
     s3 = FakeS3()
     url = oecd.files["dac1"].url
-    old = _entry("dac1", b"dac1", token='"dac1-1"')
+    old = _entry("dac1", _zip(b"dac1"), token='"dac1-1"')
     s3.write_manifest({url: old})
+    s3.objects[old.object] = _zip(b"dac1")
 
     assert _run(s3, "dac1") == []
 
     assert oecd.downloads == []
     assert s3.manifest().files[url] == dataclasses.replace(
-        old, checked_at=_T0 + timedelta(hours=2)
+        old, label_release="v20261006", checked_at=_T0 + timedelta(hours=2)
     )
     assert s3.ops == [_LEASE, ("put", MANIFEST_KEY), _LEASE]
 
@@ -332,38 +346,43 @@ def test_missing_validator_refuses_the_entry(oecd, missing):
     assert not any(k.startswith("oecd/dac2b/") for k in s3.objects)
 
 
-def test_challenge_leaves_entry_untouched_and_processes_the_rest(oecd):
-    oecd.files["crs"].challenge = True
+@pytest.mark.parametrize("fault", ["challenge", "corrupt payload"])
+def test_failed_download_leaves_entry_untouched_and_processes_the_rest(oecd, fault):
+    if fault == "challenge":
+        oecd.files["crs"].challenge = True
+    else:
+        oecd.files["crs"].body = b"<html>Just a moment...</html>"
     oecd.files["crs"].probe = '"crs-2"'
     s3 = FakeS3()
     crs_url = oecd.files["crs"].url
-    old = _entry("crs", b"old crs", token='"crs-1"')
+    old = _entry("crs", _zip(b"old crs"), token='"crs-1"')
     s3.write_manifest({crs_url: old})
-    s3.objects[old.object] = b"old crs"
+    s3.objects[old.object] = _zip(b"old crs")
 
     assert _run(s3, "crs", "multisystem") == ["crs"]
 
     files = s3.manifest().files
     assert files[crs_url] == old
     assert oecd.files["multisystem"].url in files
-    assert s3.objects[old.object] == b"old crs"
+    assert [k for k in s3.objects if k.startswith("oecd/crs/")] == [old.object]
+    assert s3.objects[old.object] == _zip(b"old crs")
 
 
 def test_replacement_prunes_old_objects_beyond_the_previous_one(oecd):
     oecd.files["crs"].probe = '"crs-3"'
     s3 = FakeS3()
     url = oecd.files["crs"].url
-    previous = _entry("crs", b"crs v2", token='"crs-2"')
-    older = _entry("crs", b"crs v1", token='"crs-1"')
+    previous = _entry("crs", _zip(b"crs v2"), token='"crs-2"')
+    older = _entry("crs", _zip(b"crs v1"), token='"crs-1"')
     # Uploaded an hour before this run, perhaps by a run still in progress.
-    recent = _entry("crs", b"crs v4", token='"crs-4"')
-    sibling = _entry("crs-reduced", b"reduced", token='"r-1"')
+    recent = _entry("crs", _zip(b"crs v4"), token='"crs-4"')
+    sibling = _entry("crs-reduced", _zip(b"reduced"), token='"r-1"')
     s3.write_manifest({url: previous, oecd.files["crs-reduced"].url: sibling})
     for e, body in [
-        (previous, b"crs v2"),
-        (older, b"crs v1"),
-        (recent, b"crs v4"),
-        (sibling, b"reduced"),
+        (previous, _zip(b"crs v2")),
+        (older, _zip(b"crs v1")),
+        (recent, _zip(b"crs v4")),
+        (sibling, _zip(b"reduced")),
     ]:
         s3.objects[e.object] = body
     s3.modified[recent.object] = _T0 - timedelta(hours=1)
@@ -392,9 +411,9 @@ def test_replacement_prunes_old_objects_beyond_the_previous_one(oecd):
 def test_moved_url_replaces_the_old_entry_and_keeps_its_object(oecd):
     s3 = FakeS3()
     retired = _url("dac1-old")
-    old = _entry("dac1", b"old dac1", token='"dac1-0"')
+    old = _entry("dac1", _zip(b"old dac1"), token='"dac1-0"')
     s3.write_manifest({retired: old})
-    s3.objects[old.object] = b"old dac1"
+    s3.objects[old.object] = _zip(b"old dac1")
 
     _run(s3, "dac1")
 
@@ -406,7 +425,7 @@ def test_moved_url_replaces_the_old_entry_and_keeps_its_object(oecd):
 def test_dry_run_writes_and_downloads_nothing(oecd):
     s3 = FakeS3()
     url = oecd.files["dac1"].url
-    s3.write_manifest({url: _entry("dac1", b"dac1", token='"dac1-1"')})
+    s3.write_manifest({url: _entry("dac1", _zip(b"dac1"), token='"dac1-1"')})
     before = dict(s3.objects)
 
     assert _run(s3, "dac1", "crs", dry_run=True) == []
@@ -430,24 +449,52 @@ def test_main_turns_mirror_off_and_exits_non_zero_on_failure(oecd, monkeypatch):
     assert refresher.main(["--dataset", "dac2a"]) == 0
 
 
-@pytest.mark.parametrize("fault", ["short-upload", "object-deleted"])
-def test_entry_waits_for_its_object_in_the_bucket(oecd, fault):
+def test_entry_waits_for_its_object_in_the_bucket(oecd):
     oecd.files["dac1"].probe = '"dac1-2"'
+    oecd.files["dac1"].body = _zip(b"dac1 v2")
     s3 = FakeS3()
     url = oecd.files["dac1"].url
-    old = _entry("dac1", b"dac1", token='"dac1-1"')
+    old = _entry("dac1", _zip(b"dac1"), token='"dac1-1"')
     s3.write_manifest({url: old})
-    if fault == "short-upload":
-        oecd.files["dac1"].body = b"dac1 v2"
-        s3.truncate = "oecd/dac1/"
-    # Otherwise OECD serves the same bytes under a new token, so the upload
-    # is skipped, but the object was deleted from the bucket by hand.
+    s3.truncate = "oecd/dac1/"
 
     assert _run(s3, "dac1", "multisystem") == ["dac1"]
 
     files = s3.manifest().files
     assert files[url] == old
     assert oecd.files["multisystem"].url in files
+
+
+@pytest.mark.parametrize(
+    ("probe", "stored"),
+    [
+        ('"dac1-1"', None),
+        ('"dac1-1"', _zip(b"dac1")[:-1]),
+        # OECD serves the same bytes under a new token.
+        ('"dac1-2"', None),
+    ],
+    ids=["unchanged token, missing", "unchanged token, short", "new token, missing"],
+)
+def test_object_the_bucket_lost_is_uploaded_again(oecd, probe, stored):
+    oecd.files["dac1"].probe = probe
+    s3 = FakeS3()
+    url = oecd.files["dac1"].url
+    old = _entry("dac1", _zip(b"dac1"), token='"dac1-1"')
+    s3.write_manifest({url: old})
+    if stored is not None:
+        s3.objects[old.object] = stored
+
+    assert _run(s3, "dac1") == []
+
+    assert oecd.downloads == [url]
+    assert s3.objects[old.object] == _zip(b"dac1")
+    assert ("upload", old.object) in s3.ops
+    assert s3.manifest().files[url] == dataclasses.replace(
+        old,
+        token=probe,
+        label_release="v20261006",
+        checked_at=_T0 + timedelta(hours=2),
+    )
 
 
 def test_live_lease_blocks_a_run_before_any_write(oecd):
@@ -486,11 +533,13 @@ def test_manifest_changed_during_the_run_aborts_publish_and_prune(oecd, start):
     oecd.files["crs"].probe = '"crs-3"'
     s3 = FakeS3()
     url = oecd.files["crs"].url
-    older = _entry("crs", b"crs v1", token='"crs-1"')
-    s3.objects[older.object] = b"crs v1"
+    older = _entry("crs", _zip(b"crs v1"), token='"crs-1"')
+    s3.objects[older.object] = _zip(b"crs v1")
     if start == "manifest":
-        s3.write_manifest({url: _entry("crs", b"crs v2", token='"crs-2"')})
-    concurrent = {oecd.files["dac1"].url: _entry("dac1", b"dac1", token='"dac1-1"')}
+        s3.write_manifest({url: _entry("crs", _zip(b"crs v2"), token='"crs-2"')})
+    concurrent = {
+        oecd.files["dac1"].url: _entry("dac1", _zip(b"dac1"), token='"dac1-1"')
+    }
     s3.on_upload = lambda: s3.write_manifest(concurrent)
 
     with pytest.raises(refresher.RefreshConflictError):

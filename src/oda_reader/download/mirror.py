@@ -338,18 +338,25 @@ def _format_timestamp(value: datetime) -> str:
 # ---------------------------------------------------------------------------
 
 _manifest_cache: dict[str, tuple[float, MirrorManifest | None]] = {}
-_manifest_lock = threading.Lock()
+# One lock per base URL, so threads asking for the same manifest wait for one
+# fetch while a fetch from another base goes ahead. `_manifest_locks_lock`
+# guards only the creation of those locks and is never held over a request.
+_manifest_locks: dict[str, threading.Lock] = {}
+_manifest_locks_lock = threading.Lock()
 
 
 def fetch_manifest(*, base: str) -> MirrorManifest | None:
     """Return the manifest at *base*, or None if it cannot be read.
 
     A result, failure included, is reused for five minutes within the
-    process. A failure is logged once per window as a warning and returned
-    as None, and the function does not raise. The fetch uses the plain bulk-stream session,
-    follows no redirects and reads at most 4 MiB.
+    process, and threads asking for the same *base* share one fetch. A
+    failure is logged once per window as a warning and returned as None, and
+    the function does not raise. The fetch uses the plain bulk-stream
+    session, follows no redirects and reads at most 4 MiB.
     """
-    with _manifest_lock:
+    with _manifest_locks_lock:
+        base_lock = _manifest_locks.setdefault(base, threading.Lock())
+    with base_lock:
         cached = _manifest_cache.get(base)
         if cached is not None and time.monotonic() - cached[0] < _MANIFEST_TTL_SECONDS:
             return cached[1]
@@ -384,8 +391,7 @@ def _get_manifest_bytes(url: str) -> bytes:
 
 def _clear_manifest_cache() -> None:
     """Forget every cached manifest fetch (for tests)."""
-    with _manifest_lock:
-        _manifest_cache.clear()
+    _manifest_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -431,8 +437,12 @@ def mirror_may_replace(
 def holds_mirror_copy(record: dict, m: MirrorFile) -> bool:
     """Return whether the cached *record*'s payload is the mirror's copy *m*.
 
-    It is when the record carries *m*'s token, or when ``scan`` recorded
-    *m*'s SHA-256 as its content hash.
+    It is when the record carries *m*'s token or *m*'s SHA-256 as its
+    content hash. A mirror download records the manifest's SHA-256, ``scan``
+    records the hash of a file with no token, and
+    ``download_tools._identified_record`` hashes a cached copy of *m*'s size
+    before the mirror is consulted, so a record that lacks a content hash
+    here differs from *m* in size.
     """
     return (
         record.get("version") == m.token
@@ -460,20 +470,18 @@ def file_sha256(path: Path) -> str:
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
-def verify_mirror_file(path: Path, m: MirrorFile) -> None:
-    """Check that the file at *path* has *m*'s size and SHA-256.
+def verify_mirror_copy(m: MirrorFile, *, size: int, sha256: str) -> None:
+    """Check that a download of *m* came to *size* bytes with digest *sha256*.
 
     Raises:
-        MirrorIntegrityError: If the size or the digest differs.
+        MirrorIntegrityError: If the size or the digest differs from *m*'s.
     """
-    size = path.stat().st_size
     if size != m.size:
         raise MirrorIntegrityError(
             f"Mirror object {m.object} is {size} bytes; the manifest says {m.size}."
         )
-    digest = file_sha256(path)
-    if digest != m.sha256:
+    if sha256 != m.sha256:
         raise MirrorIntegrityError(
-            f"Mirror object {m.object} has SHA-256 {digest}; the manifest says "
+            f"Mirror object {m.object} has SHA-256 {sha256}; the manifest says "
             f"{m.sha256}."
         )

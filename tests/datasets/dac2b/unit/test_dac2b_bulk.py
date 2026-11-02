@@ -40,8 +40,7 @@ class TestDAC2bBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2B_FLOW_URL,
             label=DAC2B_BULK_LABEL,
-            version="etag-abc123",
-            challenged=False,
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
@@ -66,8 +65,7 @@ class TestDAC2bBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2B_FLOW_URL,
             label=DAC2B_BULK_LABEL,
-            version="etag-abc123",
-            challenged=False,
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )
 
@@ -98,7 +96,6 @@ class TestDAC2bBulkDownload:
             use_raw_cache=True,
             flow_url=DAC2B_FLOW_URL,
             label=DAC2B_BULK_LABEL,
-            version="etag-abc123",
-            challenged=False,
+            probe=BulkProbe(("etag-abc123", "etag")),
             offline=False,
         )

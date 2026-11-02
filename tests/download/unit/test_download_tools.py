@@ -14,7 +14,7 @@ import requests
 
 from oda_reader import BulkDownloadChallengeError as PublicBulkDownloadChallengeError
 from oda_reader._cache.lease import release_lease, take_lease
-from oda_reader._cache.manager import CacheManager
+from oda_reader._cache.manager import CacheEntry, CacheManager, Fetched
 from oda_reader._logging import _warn_once
 from oda_reader.common import get_data_from_api
 from oda_reader.download import download_tools as dt
@@ -2349,6 +2349,33 @@ class TestVersionThreadedInvalidation:
         served["version"] = "v20260804"
         bulk_download_parquet(url=url, version="v20260804", use_raw_cache=True)
         assert fetch_count["n"] == 2
+
+    @pytest.mark.parametrize(
+        ("delivered", "recorded"),
+        [
+            (("v1", "etag"), ("v1", "etag", "download")),
+            (Fetched("v1", "etag", "mirror"), ("v1", "etag", "mirror")),
+            (None, (None, None, "download")),
+        ],
+        ids=["plain-tuple", "fetched", "none"],
+    )
+    def test_ensure_record_accepts_every_fetcher_shape(
+        self, tmp_path, delivered, recorded
+    ):
+        """A fetcher may return the plain ``(token, kind)`` validator of 1.14.0."""
+        manager = CacheManager(base_dir=tmp_path)
+
+        def fetcher(path):
+            _write_tiny_parquet(path)
+            return delivered
+
+        _path, record = manager.ensure_record(
+            CacheEntry(key="k", filename="k.parquet", fetcher=fetcher)
+        )
+
+        assert (record["version"], record["version_kind"], record["source"]) == (
+            recorded
+        )
 
     def test_no_version_falls_back_to_ttl_only(self, tmp_path, mocker):
         """version=None (e.g. DAC2A when its ranged-GET revalidation also

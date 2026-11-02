@@ -110,7 +110,6 @@ def bulk_download_dac2b(
         use_raw_cache=use_raw_cache,
         flow_url=DAC2B_FLOW_URL,
         label=DAC2B_BULK_LABEL,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
         offline=offline,
     )

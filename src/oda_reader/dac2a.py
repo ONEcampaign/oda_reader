@@ -135,7 +135,6 @@ def bulk_download_dac2a(
         use_raw_cache=use_raw_cache,
         flow_url=DAC2A_FLOW_URL,
         label=DAC2A_BULK_LABEL,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
         offline=offline,
     )

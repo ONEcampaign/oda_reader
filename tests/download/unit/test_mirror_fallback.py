@@ -14,17 +14,18 @@ import pandas as pd
 import pytest
 import requests
 
-from oda_reader import bulk_download_crs, release
+from oda_reader import bulk_download_crs, register_bulk_file, release
 from oda_reader._cache.manager import ISO_FORMAT, CacheManager, bulk_cache_manager
 from oda_reader.crs import CRS_BULK_LABEL
 from oda_reader.download import download_tools
 from oda_reader.download.download_tools import (
     CRS_FLOW_URL,
+    BulkProbe,
     _ensure_cached_bulk_file,
     bulk_download_parquet,
 )
 from oda_reader.download.mirror import MIRROR_ENV_VAR
-from oda_reader.exceptions import BulkDownloadChallengeError
+from oda_reader.exceptions import BulkDownloadChallengeError, BulkDownloadHTTPError
 
 _OECD_URL = "https://webfs-dcd.oecd.org/files/dotStat/DSD_CRS/CRS.parquet"
 _BASE = "https://mirror.example.org/oecd/"
@@ -61,8 +62,9 @@ class _Response:
 class FakeNet:
     """OECD's file host and the mirror, behind the shared bulk session.
 
-    OECD challenges every request unless `oecd_token` is set, in which case
-    it serves `oecd_body` under that token. `probe_failure`, when set, is
+    OECD refuses every request with `refusal`, a Cloudflare challenge by
+    default, unless `oecd_token` is set, in which case it serves `oecd_body`
+    under that token. `probe_failure`, when set, is
     the HTTP status or exception OECD answers the ranged version probe with
     instead. The mirror serves `manifest` and the bodies in `objects`, keyed
     by URL; anything else is a 404.
@@ -71,6 +73,10 @@ class FakeNet:
     def __init__(self, mocker) -> None:
         self.requested: list[str] = []
         self.oecd_token: str | None = None
+        self.refusal: tuple[int, dict] = (
+            403,
+            {"cf-mitigated": "challenge", "cf-ray": "ray-1"},
+        )
         self.probe_failure: int | Exception | None = None
         self.oecd_body = _OLD
         self.manifest: dict | None = None
@@ -82,7 +88,9 @@ class FakeNet:
                 f"oda_reader.download.{module}._get_bulk_stream_session",
                 return_value=session,
             )
-        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+        self.wait = mocker.patch(
+            "oda_reader.download.download_tools.API_RATE_LIMITER.wait"
+        )
 
     def mirror_requests(self) -> list[str]:
         return [url for url in self.requested if url.startswith(_BASE)]
@@ -130,9 +138,8 @@ class FakeNet:
                 return _Response(self.probe_failure, b"Service unavailable")
         if url == _OECD_URL:
             if self.oecd_token is None:
-                return _Response(
-                    403, b"<html>", {"cf-mitigated": "challenge", "cf-ray": "ray-1"}
-                )
+                status, headers = self.refusal
+                return _Response(status, b"<html>", headers)
             return _Response(200, self.oecd_body, {"ETag": self.oecd_token})
         if url == f"{_BASE}manifest.json" and self.manifest is not None:
             return _Response(200, json.dumps(self.manifest).encode())
@@ -148,15 +155,17 @@ def net(mocker, monkeypatch):
     return FakeNet(mocker)
 
 
-def _ensure(version: str | None, *, challenged: bool = False):
+def _ensure(
+    version: str | None, *, refused: bool = False, release: str | None = "v20261007"
+):
+    """Serve the CRS file as `scan` does, with the annotation's label *release*."""
     return _ensure_cached_bulk_file(
         _OECD_URL,
-        version,
+        BulkProbe(None if version is None else (version, "etag"), refused=refused),
         flow_url=CRS_FLOW_URL,
         label=CRS_BULK_LABEL,
         manager=bulk_cache_manager(),
-        release="v20261006" if version is not None else None,
-        challenged=challenged,
+        release=release,
     )
 
 
@@ -190,21 +199,77 @@ def _cached_files() -> list[str]:
 @pytest.mark.unit
 class TestChallengedDownload:
     @pytest.mark.parametrize(
-        ("announced", "challenged"), [(None, True), (_MIRROR_TOKEN, False)]
+        ("announced", "refused", "label_release"),
+        [
+            # The manifest's label names the mirror's copy.
+            (None, True, "v20261006"),
+            # OECD announced the mirror's token, so the annotation's label
+            # names it.
+            (_MIRROR_TOKEN, False, "v20261007"),
+        ],
     )
-    def test_mirror_serves_under_oecds_token(self, net, caplog, announced, challenged):
+    def test_mirror_serves_under_oecds_token(
+        self, net, caplog, announced, refused, label_release
+    ):
         net.publish(checked_at=datetime(2026, 11, 1, 9, 30, tzinfo=UTC))
 
         with caplog.at_level(logging.WARNING):
-            path, record = _ensure(announced, challenged=challenged)
+            path, record = _ensure(announced, refused=refused)
 
         assert path.read_bytes() == _NEW
         assert record["version"] == _MIRROR_TOKEN
         assert record["version_kind"] == "etag"
-        assert record["release"] == "v20261006"
+        assert record["release"] == label_release
         assert record["source"] == "mirror"
+        assert record["content_hash"] == f"sha256:{hashlib.sha256(_NEW).hexdigest()}"
         assert _BASE in caplog.text
         assert "2026-11-01 09:30" in caplog.text
+        # Only OECD's request waits on OECD's rate limiter.
+        assert net.wait.call_count == net.requested.count(_OECD_URL) == 1
+
+    def test_dataset_without_a_label_release_gets_none_from_the_mirror(self, net):
+        net.publish()
+
+        _path, record = _ensure(None, refused=True, release=None)
+
+        assert record["version"] == _MIRROR_TOKEN
+        assert record["release"] is None
+
+    @pytest.mark.parametrize(
+        "refusal",
+        [(403, {}), (429, {}), (429, {"Retry-After": "3600"})],
+        ids=["403", "429", "429-long-wait"],
+    )
+    def test_mirror_serves_after_a_plain_refusal(self, net, refusal):
+        net.refusal = refusal
+        net.publish()
+
+        path, record = _ensure('"oecd-2"')
+
+        assert path.read_bytes() == _NEW
+        assert (record["version"], record["source"]) == (_MIRROR_TOKEN, "mirror")
+
+    def test_other_http_errors_leave_the_mirror_alone(self, net):
+        net.refusal = (500, {})
+        net.publish()
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _ensure('"oecd-2"')
+
+        assert exc_info.value.status_code == 500
+        assert net.mirror_requests() == []
+
+    def test_mirror_failure_raises_oecds_refusal_with_a_note(self, net):
+        net.refusal = (429, {})
+        net.publish(served=_OLD)
+
+        with pytest.raises(BulkDownloadHTTPError) as exc_info:
+            _ensure('"oecd-2"')
+
+        assert not isinstance(exc_info.value, BulkDownloadChallengeError)
+        assert exc_info.value.status_code == 429
+        assert "manifest says" in "\n".join(exc_info.value.__notes__)
+        assert bulk_cache_manager().list_records() == []
 
     @pytest.mark.parametrize(
         "served",
@@ -284,7 +349,7 @@ class TestChallengedProbe:
         _cache_from_oecd(net, '"oecd-1"', days_ago=2)
         net.publish(checked_at=datetime.now(UTC) - timedelta(days=1))
 
-        path, record = _ensure(None, challenged=True)
+        path, record = _ensure(None, refused=True)
 
         assert path.read_bytes() == _NEW
         assert (record["version"], record["source"]) == (_MIRROR_TOKEN, "mirror")
@@ -294,7 +359,7 @@ class TestChallengedProbe:
         _cache_from_oecd(net, '"oecd-3"', days_ago=0)
         net.publish(checked_at=datetime.now(UTC) - timedelta(days=1))
 
-        path, record = _ensure(None, challenged=True)
+        path, record = _ensure(None, refused=True)
 
         assert path.read_bytes() == _OLD
         assert (record["version"], record["source"]) == ('"oecd-3"', "download")
@@ -312,9 +377,52 @@ class TestChallengedProbe:
             key, f"sha256:{digest}", payload_id=record["payload_id"]
         )
 
-        _path, record = _ensure(None, challenged=True)
+        _path, record = _ensure(None, refused=True)
 
         assert record["version"] == '"oecd-1"'
+        assert net.object_requests() == []
+
+    @pytest.mark.parametrize("source", ["download", "registered"])
+    def test_cache_holding_the_mirror_bytes_unhashed_is_kept(
+        self, net, tmp_path, source
+    ):
+        """A copy of the mirror's bytes under another token or none is hashed once."""
+        if source == "download":
+            net.oecd_body = _NEW
+            _cache_from_oecd(net, '"oecd-1"', days_ago=2)
+        else:
+            path = tmp_path / "CRS.parquet"
+            path.write_bytes(_NEW)
+            register_bulk_file(path, url=_OECD_URL, version=None)
+            _rewrite_records(days_ago=2)
+            net.requested.clear()
+        net.publish(_NEW, checked_at=datetime.now(UTC) - timedelta(days=1))
+
+        path, record = _ensure(None, refused=True)
+
+        assert path.read_bytes() == _NEW
+        assert record["source"] == source
+        assert record["version"] != _MIRROR_TOKEN
+        assert net.object_requests() == []
+        [listed] = bulk_cache_manager().list_records()
+        assert listed["content_hash"] == f"sha256:{hashlib.sha256(_NEW).hexdigest()}"
+
+    def test_expired_copy_of_the_mirror_bytes_is_kept_without_a_download(self, net):
+        net.oecd_body = _NEW
+        _cache_from_oecd(net, '"oecd-1"', days_ago=100)
+        _key, _path, before = bulk_cache_manager().find_record(
+            key=download_tools._bulk_cache_key(_OECD_URL)
+        )
+        net.publish(_NEW, checked_at=datetime.now(UTC) - timedelta(days=1))
+
+        path, record = _ensure(None, refused=True)
+
+        assert path.read_bytes() == _NEW
+        assert (record["version"], record["source"]) == ('"oecd-1"', "download")
+        assert record["payload_id"] == before["payload_id"]
+        downloaded = datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+        assert datetime.now(UTC) - downloaded < timedelta(hours=1)
+        assert net.requested.count(_OECD_URL) == 1
         assert net.object_requests() == []
 
     @pytest.mark.parametrize("cached", [False, True])
@@ -367,9 +475,17 @@ def test_lagging_mirror_holding_the_cached_copy_downloads_nothing(net):
 @pytest.mark.unit
 class TestUncachedRead:
     @pytest.mark.parametrize(
-        ("announced", "warns"), [(_MIRROR_TOKEN, False), ('"oecd-3"', True)]
+        ("announced", "warns", "refusal"),
+        [
+            (_MIRROR_TOKEN, False, None),
+            ('"oecd-3"', True, None),
+            (_MIRROR_TOKEN, False, (403, {})),
+        ],
+        ids=["current", "lagging", "plain-403"],
     )
-    def test_any_mirror_copy_serves(self, net, caplog, announced, warns):
+    def test_any_mirror_copy_serves(self, net, caplog, announced, warns, refusal):
+        if refusal is not None:
+            net.refusal = refusal
         net.publish()
 
         with caplog.at_level(logging.WARNING):
@@ -383,8 +499,8 @@ class TestUncachedRead:
 
 
 @pytest.mark.unit
-def test_re_resolve_after_a_404_passes_its_challenged_probe_on(net, mocker):
-    """A retired URL's re-resolve probes the new URL; its challenge reaches the cache."""
+def test_re_resolve_after_a_404_passes_its_refused_probe_on(net, mocker):
+    """A retired URL's re-resolve probes the new URL; its refusal reaches the cache."""
     mocker.patch.object(
         download_tools, "_resolve_bulk_file_url", return_value=_OECD_URL
     )
@@ -400,6 +516,35 @@ def test_re_resolve_after_a_404_passes_its_challenged_probe_on(net, mocker):
     record = bulk_cache_manager().find_record(
         key=download_tools._bulk_cache_key(_OECD_URL)
     )[2]
+    assert (record["version"], record["source"]) == (_MIRROR_TOKEN, "mirror")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("status", "refused"), [(403, True), (429, True), (503, False)]
+)
+def test_probe_refused_with_403_or_429_counts_as_refused(net, status, refused):
+    net.probe_failure = status
+
+    probe = download_tools._probe_bulk_file(_OECD_URL)
+
+    assert (probe.token, probe.refused) == (None, refused)
+
+
+@pytest.mark.unit
+def test_legacy_reader_reads_the_mirror_copy_after_plain_403s(net, mocker):
+    mocker.patch.object(
+        download_tools, "_resolve_bulk_file_url", return_value=_OECD_URL
+    )
+    _cache_from_oecd(net, '"oecd-1"', days_ago=2)
+    net.publish()
+    net.probe_failure = 403
+    net.refusal = (403, {})
+
+    result = bulk_download_crs()
+
+    pd.testing.assert_frame_equal(result, pd.read_parquet(io.BytesIO(_NEW)))
+    [record] = bulk_cache_manager().list_records()
     assert (record["version"], record["source"]) == (_MIRROR_TOKEN, "mirror")
 
 

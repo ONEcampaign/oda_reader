@@ -103,7 +103,6 @@ def bulk_download_dac1(
         use_raw_cache=use_raw_cache,
         flow_url=DAC1_FLOW_URL,
         label=DAC1_BULK_LABEL,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
         offline=offline,
     )

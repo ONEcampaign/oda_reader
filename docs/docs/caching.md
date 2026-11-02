@@ -148,7 +148,9 @@ earlier versions stays on disk.
 The bulk file cache is used by `bulk_download_crs`, `download_crs_file`, `bulk_download_dac1`,
 `bulk_download_dac2a`, `bulk_download_dac2b`, `bulk_download_multisystem` and `download_crdf`.
 ODA Reader downloads each bulk file whole, keeps the copy here and answers queries from it. It
-never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge; see
+never reads a bulk file remotely. A scripted request can meet a Cloudflare challenge, a 403 or a 429;
+ODA Reader then reads the [bulk-file mirror](bulk-downloads.md#bulk-file-mirror), and if that cannot
+serve the file either, see
 [Cloudflare challenge](bulk-downloads.md#cloudflare-challenge-bulkdownloadchallengeerror). A
 browser download registered with `register_bulk_file` then fills the cache (see
 [Registered files](#registered-files)).

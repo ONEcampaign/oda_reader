@@ -5,6 +5,7 @@ import dataclasses
 import hashlib
 import json
 import logging
+import threading
 from datetime import UTC, datetime
 
 import pytest
@@ -23,7 +24,6 @@ from oda_reader.download.mirror import (
     mirror_url_validator,
     object_url,
     parse_manifest,
-    verify_mirror_file,
 )
 
 _BASE = "https://bulk.example.org/oecd/"
@@ -345,19 +345,81 @@ class TestFetchManifest:
 
 
 @pytest.mark.unit
-class TestVerifyMirrorFile:
-    def test_accepts_matching_file(self, tmp_path):
-        path = tmp_path / "f.zip"
-        path.write_bytes(_PAYLOAD)
+class TestStreamToFileVerify:
+    """`_stream_to_file(verify=...)` checks the bytes as they are written."""
 
-        verify_mirror_file(path, _entry())
+    @pytest.fixture(autouse=True)
+    def _no_rate_limit(self, mocker):
+        mocker.patch("oda_reader.download.download_tools.API_RATE_LIMITER.wait")
+
+    def test_verify_gets_the_streamed_size_and_digest(self, mocker, tmp_path):
+        _patch_session(
+            mocker, "oda_reader.download.download_tools", _FakeResponse(200, _PAYLOAD)
+        )
+        verify = mocker.Mock()
+
+        _stream_to_file(_OECD_URL, {}, tmp_path / "f.zip", verify=verify)
+
+        verify.assert_called_once_with(len(_PAYLOAD), _SHA)
 
     @pytest.mark.parametrize(
         "payload", [_PAYLOAD + b"!", b"X" + _PAYLOAD[1:]], ids=["size", "sha256"]
     )
-    def test_rejects_mismatch(self, tmp_path, payload):
-        path = tmp_path / "f.zip"
-        path.write_bytes(payload)
+    def test_mismatch_raises_without_retrying(self, mocker, tmp_path, payload):
+        session = _patch_session(
+            mocker, "oda_reader.download.download_tools", _FakeResponse(200, payload)
+        )
 
         with pytest.raises(MirrorIntegrityError):
-            verify_mirror_file(path, _entry())
+            _stream_to_file(
+                _OECD_URL,
+                {},
+                tmp_path / "f.zip",
+                verify=lambda size, sha256: mirror.verify_mirror_copy(
+                    _entry(), size=size, sha256=sha256
+                ),
+            )
+        session.get.assert_called_once()
+
+
+@pytest.mark.unit
+class TestFetchManifestConcurrency:
+    """A manifest fetch blocks only threads waiting for the same base."""
+
+    _OTHER_BASE = "https://other.example.org/oecd/"
+
+    def test_slow_base_does_not_block_another(self, mocker):
+        release_slow = threading.Event()
+        calls: list[str] = []
+
+        def get(url, **_kwargs):
+            calls.append(url)
+            if url.startswith(_BASE):
+                release_slow.wait(timeout=10)
+            return _FakeResponse(200, json.dumps(_MANIFEST).encode())
+
+        session = mocker.Mock()
+        session.get.side_effect = get
+        mocker.patch(
+            "oda_reader.download.mirror._get_bulk_stream_session", return_value=session
+        )
+        slow = [
+            threading.Thread(target=fetch_manifest, kwargs={"base": _BASE})
+            for _ in range(2)
+        ]
+        for thread in slow:
+            thread.start()
+
+        other = threading.Thread(
+            target=fetch_manifest, kwargs={"base": self._OTHER_BASE}
+        )
+        other.start()
+        other.join(timeout=5)
+        finished_while_slow_fetch_ran = not other.is_alive()
+        release_slow.set()
+        for thread in slow:
+            thread.join(timeout=5)
+
+        assert finished_while_slow_fetch_ran
+        # The two threads asking for the slow base shared one fetch.
+        assert calls.count(f"{_BASE}manifest.json") == 1

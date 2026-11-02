@@ -83,8 +83,7 @@ def bulk_download_multisystem(
         use_raw_cache=use_raw_cache,
         flow_url=MULTI_FLOW_URL,
         label=MULTISYSTEM_BULK_LABEL,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
         offline=offline,
     )
 

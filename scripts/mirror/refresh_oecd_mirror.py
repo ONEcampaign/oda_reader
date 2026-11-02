@@ -1,9 +1,12 @@
 """Refresh the R2 mirror of OECD bulk files behind bulk.developmentfinance.org.
 
 For each dataset in ``BULK_DATASETS`` the script resolves OECD's bulk-file
-URL and probes its version token. When the token matches the manifest entry,
-it stamps the entry's ``checked_at``. Otherwise it downloads the file from
-OECD, uploads it to ``oecd/<dataset>/<sha256><ext>`` and replaces the entry.
+URL and probes its version token. When the token matches the manifest entry
+and the bucket holds the entry's object at its recorded size, it stamps the
+entry's ``checked_at`` and ``label_release``. Otherwise it downloads the file
+from OECD, checks that it is a whole zip or parquet file, uploads it to
+``oecd/<dataset>/<sha256><ext>`` unless the bucket already holds it, and
+replaces the entry.
 It writes the manifest last, then deletes each replaced dataset's objects
 other than those the manifest names, the previous one, and any written in the
 last 24 hours.
@@ -68,6 +71,7 @@ from oda_reader.download.mirror import (
     file_sha256,
     parse_manifest,
 )
+from oda_reader.exceptions import validate_payload_or_raise
 
 logger = logging.getLogger("refresh_oecd_mirror")
 
@@ -288,6 +292,8 @@ def _refresh_dataset(
     Raises:
         RefreshError: If OECD answers without a version token, or the
             bucket does not hold the entry's object at the downloaded size.
+        BulkPayloadCorruptError: If the download is not a whole zip or
+            parquet file.
     """
     flow_url, label = BULK_DATASETS[dataset]
     url, label_release = _resolve_bulk_file(
@@ -300,9 +306,18 @@ def _refresh_dataset(
         raise RefreshError(f"OECD sent no version token for {url}.")
 
     if current is not None and current.token == probed:
-        files[url] = dataclasses.replace(current, checked_at=_now())
-        logger.info(f"{dataset}: unchanged at {probed}; stamped checked_at.")
-        return None
+        stored = _stored_size(client, bucket=bucket, key=current.object)
+        if stored == current.size:
+            files[url] = dataclasses.replace(
+                current, label_release=label_release, checked_at=_now()
+            )
+            logger.info(f"{dataset}: unchanged at {probed}; stamped checked_at.")
+            return None
+        logger.warning(
+            f"{dataset}: unchanged at {probed}, but {bucket} holds "
+            f"{current.object} at {stored} bytes, not {current.size}; "
+            "downloading again."
+        )
 
     if dry_run:
         held = current.token if current is not None else "nothing"
@@ -319,11 +334,14 @@ def _refresh_dataset(
                 f"OECD served {url} with neither ETag nor Last-Modified."
             )
         token, token_kind = validator
+        validate_payload_or_raise(path)
         sha256 = file_sha256(path)
         size = path.stat().st_size
         key = f"{OBJECT_PREFIX}{dataset}/{sha256}{extension}"
-        if current is not None and current.object == key:
-            logger.info(f"{dataset}: same bytes under a new token; skipping upload.")
+        # The key names the bytes, so an object already stored at the
+        # download's size holds them.
+        if _stored_size(client, bucket=bucket, key=key) == size:
+            logger.info(f"{dataset}: {bucket} already holds {key}; skipping upload.")
         else:
             client.upload_file(
                 str(path),
@@ -337,7 +355,7 @@ def _refresh_dataset(
                 },
             )
             logger.info(f"{dataset}: uploaded {key} ({size} bytes).")
-        _confirm_object(client, bucket=bucket, key=key, size=size)
+            _confirm_object(client, bucket=bucket, key=key, size=size)
 
     # Entries for this dataset at another URL are left over from a URL OECD
     # retired. The new entry replaces them, and their objects count as the
@@ -366,21 +384,27 @@ def _refresh_dataset(
 def _confirm_object(client: S3Client, *, bucket: str, key: str, size: int) -> None:
     """Check that *bucket* holds *key* at *size* bytes before an entry names it.
 
-    The upload sends no checksum, and a skipped upload assumes the object is
-    still there, so the stored object is read back here.
+    The upload sends no checksum, so the stored object is read back here.
 
     Raises:
         RefreshError: If the object is missing or has another size.
     """
+    stored = _stored_size(client, bucket=bucket, key=key)
+    if stored != size:
+        raise RefreshError(
+            f"{bucket} holds {key} at {stored} bytes; the download was {size}."
+        )
+
+
+def _stored_size(client: S3Client, *, bucket: str, key: str) -> int | None:
+    """The size of *key* in *bucket*, or None when the bucket does not hold it."""
     try:
         head = client.head_object(Bucket=bucket, Key=key)
     except client.exceptions.ClientError as e:
-        raise RefreshError(f"{bucket} does not hold {key}: {e}") from e
-    if head["ContentLength"] != size:
-        raise RefreshError(
-            f"{bucket} holds {key} at {head['ContentLength']} bytes; "
-            f"the download was {size}."
-        )
+        if e.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404:
+            return None
+        raise
+    return head["ContentLength"]
 
 
 def _extension(url: str) -> str:

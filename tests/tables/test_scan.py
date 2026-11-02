@@ -236,13 +236,17 @@ class FakeHost:
     def _probe(self, url):
         dataset = self._dataset(url)
         if dataset in self.challenged:
-            return BulkProbe(None, challenged=True)
+            return BulkProbe(None, refused=True)
         token = self.tokens[dataset]
         return BulkProbe(None if token is None else (token, "etag"))
 
-    def _download(self, url, headers, path, validate=None):
+    def _download(self, url, headers, path, validate=None, verify=None, **_kwargs):
         if url in self.mirror_objects:
             shutil.copyfile(self.mirror_objects[url], path)
+            if verify is not None:
+                verify(
+                    path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest()
+                )
             return '"r2-etag"', "etag"
         dataset = self._dataset(url)
         if dataset in self.challenged:
@@ -741,6 +745,32 @@ class TestScan:
         [info] = cache_info()
         assert (info.release, info.source) == (mirror_copy.token, "mirror")
 
+    @pytest.mark.parametrize("source", ["registered", "download"])
+    def test_refused_refresh_of_the_mirror_bytes_keeps_the_copy(
+        self, host, mirror_copy, mocker, source
+    ):
+        """A copy already holding the mirror's bytes keeps its token and Parquet."""
+        if source == "registered":
+            mocker.patch(
+                "oda_reader.download.download_tools._fetch_revalidation_token",
+                return_value=None,
+            )
+            register_bulk_file(_ZIPS["dac1"], dataset="dac1", url=_URLS["dac1"])
+            first = scan("dac1", offline=True)
+        else:
+            first = scan("dac1")
+        host.challenged.add("dac1")
+        spy = mocker.spy(oda_reader._tables, "_write_parquet")
+
+        table = scan("dac1", refresh=True)
+
+        assert (table.release, table.path) == (first.release, first.path)
+        spy.assert_not_called()
+        [info] = cache_info()
+        assert (info.release, info.source) == (first.release, source)
+        assert release("dac1") == first.release
+        assert host.download.call_count == (1 if source == "registered" else 2)
+
     def test_cache_dir_scopes_the_call(self, host, tmp_path):
         root = get_cache_dir()
         scoped = tmp_path / "scoped"
@@ -834,6 +864,7 @@ class TestRelease:
             (None, "etag-dac1-mirror"),
             ("downloaded-before-check", "etag-dac1-mirror"),
             ("downloaded-after-check", "etag-dac1-1"),
+            ("mirror-bytes-downloaded-before-check", "etag-dac1-1"),
             (
                 "registered-mirror-bytes",
                 f"sha256:{hashlib.sha256(_ZIPS['dac1'].read_bytes()).hexdigest()}",
@@ -843,6 +874,7 @@ class TestRelease:
             "no-copy",
             "copy-older-than-check",
             "copy-newer-than-check",
+            "mirror-bytes-older-than-check",
             "registered-mirror-bytes",
         ],
     )
@@ -857,8 +889,11 @@ class TestRelease:
             register_bulk_file(_ZIPS["dac1"], dataset="dac1", url=_URLS["dac1"])
             scan("dac1", offline=True)  # records the content hash
         elif cache is not None:
+            if cache == "downloaded-before-check":
+                # Bytes other than the mirror's, so only its token can match.
+                host.payloads = {**host.payloads, "dac1": _ZIPS["dac2a"]}
             scan("dac1")
-            _age_records(days=2 if cache == "downloaded-before-check" else 0)
+            _age_records(days=0 if cache == "downloaded-after-check" else 2)
         host.challenged.add("dac1")
 
         token = release("dac1")
@@ -896,6 +931,35 @@ class TestRelease:
 
         with pytest.raises(BulkFileNotCachedError):
             release("dac1")
+
+    @pytest.mark.parametrize("challenged", [False, True])
+    def test_copy_removed_while_release_reads_it(
+        self, host, mirror_copy, mocker, challenged
+    ):
+        """Another process clears the file after its record is read."""
+        mocker.patch(
+            "oda_reader.download.download_tools._fetch_revalidation_token",
+            return_value=None,
+        )
+        register_bulk_file(_ZIPS["dac1"], dataset="dac1", url=_URLS["dac1"])
+        host.tokens["dac1"] = None
+        if challenged:
+            host.challenged.add("dac1")
+        find_record = CacheManager.find_record
+
+        def find_then_clear(manager, **kwargs):
+            found = find_record(manager, **kwargs)
+            if found is not None:
+                found[1].unlink()
+            return found
+
+        mocker.patch.object(CacheManager, "find_record", find_then_clear)
+
+        if challenged:
+            assert release("dac1") == mirror_copy.token
+        else:
+            with pytest.raises(BulkFileNotCachedError):
+                release("dac1")
 
     def test_file_without_a_token_is_hashed_once(self, mocker):
         mocker.patch(

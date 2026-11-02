@@ -108,8 +108,7 @@ class TestDownloadCrsFile:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS 2022 (dotStat format)",
-            version="v20260803",
-            challenged=False,
+            probe=BulkProbe(("v20260803", "etag")),
         )
 
     def test_passes_save_to_path_iterator_and_cache_flags(self, mocker, tmp_path):
@@ -132,8 +131,7 @@ class TestDownloadCrsFile:
             use_raw_cache=False,
             flow_url=CRS_FLOW_URL,
             label="CRS 2022 (dotStat format)",
-            version="v20260803",
-            challenged=False,
+            probe=BulkProbe(("v20260803", "etag")),
         )
 
     def test_year_accepts_string(self, mocker):
@@ -172,8 +170,7 @@ class TestBulkDownloadCrs:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS-Parquet",
-            version="v20260803",
-            challenged=False,
+            probe=BulkProbe(("v20260803", "etag")),
             offline=False,
         )
 
@@ -198,7 +195,6 @@ class TestBulkDownloadCrs:
             use_raw_cache=True,
             flow_url=CRS_FLOW_URL,
             label="CRS-reduced-parquet",
-            version="v20260803",
-            challenged=False,
+            probe=BulkProbe(("v20260803", "etag")),
             offline=False,
         )

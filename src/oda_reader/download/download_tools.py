@@ -29,6 +29,8 @@ from oda_reader._cache.manager import (
     CacheEntry,
     CacheManager,
     Fetched,
+    Kept,
+    _payload_id,
     bulk_cache_manager,
 )
 from oda_reader._http_primitives import DEFAULT_HEADERS, _get_bulk_stream_session
@@ -43,6 +45,7 @@ from oda_reader.download.mirror import (
     MirrorIntegrityError,
     TokenKind,
     fetch_manifest,
+    file_sha256,
     holds_mirror_copy,
     manifest_url,
     mirror_base_url,
@@ -50,7 +53,7 @@ from oda_reader.download.mirror import (
     mirror_token_stands,
     mirror_url_validator,
     object_url,
-    verify_mirror_file,
+    verify_mirror_copy,
 )
 from oda_reader.download.query_builder import QueryBuilder
 from oda_reader.download.version_discovery import (
@@ -802,6 +805,7 @@ def _get_with_validated_redirects(
     *,
     timeout: tuple[int, int],
     validate: typing.Callable[[str], None] = _validate_allowed_host,
+    rate_limit: bool = True,
 ) -> requests.Response:
     """Stream-GET *url*, following redirects manually and re-validating each hop.
 
@@ -815,7 +819,7 @@ def _get_with_validated_redirects(
 
     Callers wait on `API_RATE_LIMITER` once before calling this helper, which
     covers the first hop. Each extra hop a redirect chain adds takes its own
-    rate-limiter slot.
+    rate-limiter slot, unless *rate_limit* is False.
 
     Args:
         session: The session to issue the request(s) through.
@@ -825,6 +829,8 @@ def _get_with_validated_redirects(
         validate: Raises ``ValueError`` for a URL that must not be fetched.
             Applied to the first URL and every redirect hop. Defaults to the
             OECD allowlist, `_validate_allowed_host`.
+        rate_limit: Whether extra hops wait on `API_RATE_LIMITER`, which
+            paces requests to OECD. A request to another host passes False.
 
     Returns:
         requests.Response: The terminal (non-redirect) response, still open
@@ -836,7 +842,7 @@ def _get_with_validated_redirects(
             or the chain exceeds `_MAX_REDIRECT_HOPS`.
     """
     for hop in range(_MAX_REDIRECT_HOPS + 1):
-        if hop > 0:
+        if hop > 0 and rate_limit:
             API_RATE_LIMITER.wait()
         validate(url)
         response = session.get(
@@ -1020,6 +1026,8 @@ def _stream_to_file(
     path: Path,
     *,
     validate: typing.Callable[[str], None] = _validate_allowed_host,
+    rate_limit: bool = True,
+    verify: typing.Callable[[int, str], None] | None = None,
 ) -> tuple[str, TokenKind] | None:
     """Stream a URL to the given file path and return the response's validator.
 
@@ -1045,7 +1053,13 @@ def _stream_to_file(
     annotation. Other HTTP errors and challenges leave the annotation cache
     untouched. Permanent request-format errors, such as ``MissingSchema``,
     also propagate on the first attempt. Each attempt reopens ``path`` with
-    ``wb`` and calls ``API_RATE_LIMITER.wait()``.
+    ``wb`` and, when *rate_limit* is True, calls ``API_RATE_LIMITER.wait()``,
+    which paces requests to OECD. A mirror fetch passes False.
+
+    *verify*, when given, is called once a transfer is complete with the
+    number of bytes written and their SHA-256 in lowercase hex, computed
+    while the bytes are written. What it raises propagates and is not
+    retried.
 
     Returns:
         The ``_response_validator`` of the response whose bytes were kept,
@@ -1057,14 +1071,20 @@ def _stream_to_file(
 
     for attempt in range(1, max_attempts + 1):
         logger.info(f"Streaming download from {url} (attempt {attempt}/{max_attempts})")
-        API_RATE_LIMITER.wait()
+        if rate_limit:
+            API_RATE_LIMITER.wait()
         is_last_attempt = attempt == max_attempts
         wait: float = (
             0 if is_last_attempt else _STREAM_RETRY_BACKOFF_SECONDS[attempt - 1]
         )
         try:
             with _get_with_validated_redirects(
-                session, url, request_headers, timeout=(10, 60), validate=validate
+                session,
+                url,
+                request_headers,
+                timeout=(10, 60),
+                validate=validate,
+                rate_limit=rate_limit,
             ) as r:
                 response_error = _classify_bulk_download_response(r, url=url)
                 if response_error is not None:
@@ -1078,14 +1098,19 @@ def _stream_to_file(
                     wait = throttle_wait
                 else:
                     bytes_written = 0
+                    digest = hashlib.sha256() if verify is not None else None
                     with path.open("wb") as f:
                         for chunk in r.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
                                 bytes_written += len(chunk)
+                                if digest is not None:
+                                    digest.update(chunk)
 
                     truncation = _check_truncated(r.headers, bytes_written)
                     if truncation is None:
+                        if verify is not None and digest is not None:
+                            verify(bytes_written, digest.hexdigest())
                         return _response_validator(r.headers)
                     if is_last_attempt:
                         raise BulkDownloadHTTPError(
@@ -1108,21 +1133,21 @@ def _stream_to_file(
         time.sleep(wait)
 
 
-def _stream_to_tempfile(url: str, headers: dict) -> Path:
-    """Download content to a temporary file using streaming.
+def _write_to_tempfile[T](write: typing.Callable[[Path], T]) -> tuple[Path, T]:
+    """Call *write* on a new temporary file; return the file and what *write* returned.
 
-    On stream failure the partial temp file is removed so callers don't have
-    to track a partial download to clean up.
+    When *write* raises, the partial temp file is removed so callers don't
+    have to track a partial download to clean up.
     """
     fd, name = tempfile.mkstemp()
     os.close(fd)
     path = Path(name)
     try:
-        _stream_to_file(url, headers, path)
+        written = write(path)
     except BaseException:
         path.unlink(missing_ok=True)
         raise
-    return path
+    return path, written
 
 
 def _drain_then_unlink(
@@ -1361,6 +1386,27 @@ def _consume_bulk_zip(
     return None
 
 
+@dataclass(frozen=True, slots=True)
+class BulkProbe:
+    """What `_probe_bulk_file` learnt about a bulk file.
+
+    Attributes:
+        validator: ``(token, kind)`` from the file host's ETag, else its
+            Last-Modified, or None when the probe got neither.
+        refused: True when the host refused the client with a Cloudflare
+            challenge, a 403 or a 429 (`_refused`). Only then may the
+            bulk-file mirror stand in for the host's token.
+    """
+
+    validator: tuple[str, TokenKind] | None
+    refused: bool = False
+
+    @property
+    def token(self) -> str | None:
+        """The validator's token, or None."""
+        return None if self.validator is None else self.validator[0]
+
+
 def bulk_download_parquet(
     url: str | None = None,
     save_to_path: Path | str | None = None,
@@ -1439,13 +1485,20 @@ def bulk_download_parquet(
             copy.
         ValueError: If neither `url` nor the deprecated `file_id` is given
             (outside offline mode, where `flow_url` and `label` can stand in),
-            if both are, or if `offline` is combined with
-            `use_raw_cache=False`.
+            if both are, if `offline` is combined with `use_raw_cache=False`,
+            or, online, if ``ODA_READER_BULK_MIRROR`` is not ``off`` or an
+            https base URL.
+        BulkDownloadChallengeError: If OECD's file host challenges the
+            download and the bulk-file mirror cannot serve the file.
+        BulkDownloadHTTPError: If the file host answers with a 403 or a 429
+            and the mirror cannot serve the file, or with another HTTP error.
 
     Note:
         If the resolved URL returns 404, the reader re-resolves the dataflow
-        annotation once. Challenges and other 403 responses are reported
-        immediately.
+        annotation once. A Cloudflare challenge, a 403 or a 429 sends the
+        reader to the bulk-file mirror; when the mirror cannot serve the file
+        the error is raised at once, with no re-resolution. Other HTTP errors
+        are also raised at once.
     """
     if is_txt is not None:
         warnings.warn(
@@ -1473,11 +1526,11 @@ def bulk_download_parquet(
         flow_url=flow_url,
         label=label,
         latest_flow=latest_flow,
-        version=version,
         as_iterator=as_iterator,
         use_raw_cache=use_raw_cache,
         offline=offline,
-        challenged=False,
+        # The caller's token has no recorded kind; only the token is read.
+        probe=BulkProbe(None if version is None else (version, "etag")),
     )
 
 
@@ -1488,18 +1541,18 @@ def _bulk_download_parquet(
     flow_url: str | None = None,
     label: str | None = None,
     latest_flow: float | None = None,
-    version: str | None = None,
     as_iterator: bool = False,
     use_raw_cache: bool = True,
     offline: bool = False,
-    challenged: bool = False,
+    probe: BulkProbe,
 ) -> pd.DataFrame | None | typing.Iterator[pd.DataFrame]:
     """Download and read a bulk file; `bulk_download_parquet` documents the rest.
 
     Args:
-        challenged: True when OECD challenged the version probe that would
-            have produced `version`, so the mirror's token may stand in for
-            it and refresh an older cached copy.
+        probe: The version probe of `url`. Its token is the cache-invalidation
+            version `bulk_download_parquet` calls `version`. When OECD refused
+            the probe, the mirror's token may stand in for it and refresh an
+            older cached copy.
     """
     if offline:
         return _read_cached_bulk_file(
@@ -1514,15 +1567,13 @@ def _bulk_download_parquet(
     if url is None:
         raise ValueError("bulk_download_parquet() requires a 'url' argument.")
 
-    headers = {"Accept-Encoding": "gzip"}
-
     if save_to_path:
         logger.info(f"The file will be saved to {save_to_path}.")
     else:
         logger.info("The file will be returned as a DataFrame.")
 
     def _fetch(
-        target_url: str, target_version: str | None, *, target_challenged: bool
+        target_url: str, target_probe: BulkProbe
     ) -> tuple[typing.Any, Path, str]:
         """Resolve one URL to a validated local path, cached or not."""
         target_url = _encode_url_path(target_url)
@@ -1532,31 +1583,37 @@ def _bulk_download_parquet(
             fetch_manager = bulk_cache_manager()
             fetched_path, _record = _ensure_cached_bulk_file(
                 target_url,
-                target_version,
+                target_probe,
                 flow_url=flow_url,
                 label=label,
                 manager=fetch_manager,
-                challenged=target_challenged,
             )
             return fetch_manager, fetched_path, target_key
 
+        target_version = target_probe.token
         base = mirror_base_url()
         try:
-            fetched_path = _stream_to_tempfile(target_url, headers)
+            fetched_path, fetched = _write_to_tempfile(
+                lambda path: _fetch_bulk_file(target_url, path, base=base)
+            )
         except BulkDownloadChallengeError as e:
             _complete_challenge_error(e, flow_url, label, target_version)
-            if base is None:
-                raise
-            fetched_path = _mirror_to_tempfile(
-                e, url=target_url, version=target_version, base=base, headers=headers
+            raise
+        if (
+            isinstance(fetched, Fetched)
+            and fetched.source == "mirror"
+            and target_version not in (None, fetched.token)
+        ):
+            logger.warning(
+                f"The bulk-file mirror's copy of {target_url} is version "
+                f"{fetched.token}, not the {target_version} OECD announced; the "
+                "mirror has not caught up yet."
             )
         validate_payload_or_raise(fetched_path)
         return None, fetched_path, target_key
 
     try:
-        manager, payload_path, url_key = _fetch(
-            url, version, target_challenged=challenged
-        )
+        manager, payload_path, url_key = _fetch(url, probe)
     except BulkDownloadHTTPError as e:
         if e.status_code != 404 or flow_url is None or label is None:
             raise
@@ -1567,9 +1624,7 @@ def _bulk_download_parquet(
         url, probe = _resolve_and_probe_bulk_file(
             flow_url, label, latest_flow, bypass_annotation_cache=True
         )
-        manager, payload_path, url_key = _fetch(
-            url, probe.token, target_challenged=probe.challenged
-        )
+        manager, payload_path, url_key = _fetch(url, probe)
 
     return _consume_bulk_zip(
         zip_path=payload_path,
@@ -1580,40 +1635,6 @@ def _bulk_download_parquet(
         manager=manager,
         url_key=url_key,
     )
-
-
-def _mirror_to_tempfile(
-    challenge: BulkDownloadChallengeError,
-    *,
-    url: str,
-    version: str | None,
-    base: str,
-    headers: dict,
-) -> Path:
-    """Download the mirror's copy of challenged *url* to a temporary file.
-
-    With no cache to protect, any copy the mirror holds will do. A copy
-    whose token differs from the announced *version* logs a warning.
-
-    Raises:
-        BulkDownloadChallengeError: *challenge*, with a note, when the mirror
-            cannot serve *url*. The temporary file is removed.
-    """
-    m = _mirror_copy(challenge, url=url, base=base)
-    fd, name = tempfile.mkstemp()
-    os.close(fd)
-    path = Path(name)
-    try:
-        _download_from_mirror(challenge, m, path, base=base, headers=headers)
-    except BaseException:
-        path.unlink(missing_ok=True)
-        raise
-    if version is not None and m.token != version:
-        logger.warning(
-            f"The bulk-file mirror's copy of {url} is version {m.token}, not the "
-            f"{version} OECD announced; the mirror has not caught up yet."
-        )
-    return path
 
 
 def _complete_challenge_error(
@@ -1633,56 +1654,53 @@ def _complete_challenge_error(
 
 def _ensure_cached_bulk_file(
     url: str,
-    version: str | None,
+    probe: BulkProbe,
     *,
     flow_url: str | None,
     label: str | None,
     manager: CacheManager,
     release: str | None = None,
     refresh: bool = False,
-    challenged: bool = False,
 ) -> tuple[Path, dict[str, typing.Any]]:
     """Serve *url* from *manager*'s cache, downloading it when missing or stale.
 
     Unless ``ODA_READER_BULK_MIRROR`` is ``off``, the bulk-file mirror
-    stands in for OECD after OECD challenges a request, in two places:
+    stands in for OECD after OECD's file host refuses a request with a
+    Cloudflare challenge, a 403 or a 429, in two places:
 
-    - When the version probe was *challenged*, the mirror's token for *url*
-      becomes the version the cache is checked against, and its label
-      release the release, if `mirror_token_stands` for the cached record.
-      An older cached copy is then downloaded again.
-    - When OECD challenges the download, the file is fetched from the mirror
-      if `mirror_may_replace` holds for the cached record at that moment,
-      checked against the manifest's size and SHA-256, and recorded under
-      OECD's token with source ``"mirror"``. When OECD announced a newer
-      version and the cache already holds the mirror's copy, the mirror has
-      nothing newer, and the challenge is raised.
+    - When OECD refused the version *probe*, the mirror's token for *url*
+      becomes the version the cache is checked against, if
+      `mirror_token_stands` for the cached record. An older cached copy is
+      then downloaded again. A *release* passed in is replaced by the
+      manifest's label release, so it names the mirror's copy.
+    - When OECD refuses the download, `_fetch_bulk_file` decides whether the
+      mirror's copy may replace the cached one.
+
+    Before either decision, a cached copy the size of the mirror's that
+    carries neither the mirror's token nor a content hash is hashed once and
+    its hash recorded, so a copy holding the mirror's bytes is recognised
+    whatever its token (`_identified_record`).
 
     A probe that fails for any other reason leaves the mirror alone.
 
-    A cached mirror copy past its time-to-live is fetched again, from the
-    mirror once, as an expired OECD download is fetched again from OECD.
-
     Args:
         url: The resolved bulk-file URL.
-        version: The file host's version token, or ``None`` if unknown.
+        probe: The version probe of *url*. Its token, if any, is the
+            version the cache is checked against.
         flow_url: The dataflow URL *url* was resolved from.
         label: The annotation label *url* was resolved from.
         manager: The bulk cache to use.
         release: The annotation label's readable release id, if recorded.
         refresh: If True, download even when a current copy is cached.
-        challenged: True when OECD challenged the version probe that
-            produced *version*.
 
     Returns:
         ``(path, record)`` of the cached payload.
 
     Raises:
-        BulkDownloadChallengeError: With ``dataset`` and ``version`` filled
-            in, when OECD challenges the download and the mirror cannot
-            serve it. A note says why: its manifest is unreadable or lacks
-            the file, its copy may be older than the cached one or is the
-            cached one, or its download failed. Nothing is cached then.
+        BulkDownloadHTTPError: OECD's refusal, when the mirror cannot serve
+            the file, with a note saying why (see `_fetch_bulk_file`). A
+            `BulkDownloadChallengeError` has ``dataset`` and ``version``
+            filled in. Nothing is cached then.
         BulkPayloadCorruptError: If the downloaded payload fails validation.
         ValueError: If ``ODA_READER_BULK_MIRROR`` is not ``off`` or an https
             base URL.
@@ -1690,58 +1708,28 @@ def _ensure_cached_bulk_file(
     url = _encode_url_path(url)
     key = _bulk_cache_key(url)
     extension = Path(urlsplit(url).path).suffix or ".zip"
-    headers = {"Accept-Encoding": "gzip"}
-    announced = version
+    version = announced = probe.token
     base = mirror_base_url()
-
-    def cached_record() -> dict[str, typing.Any] | None:
-        found = manager.find_record(key=key)
-        return None if found is None else found[2]
 
     if (
         base is not None
-        and challenged
+        and probe.refused
         and version is None
         and (m := _mirror_file(url, base=base)) is not None
-        and mirror_token_stands(cached_record(), m)
+        and _mirror_token_stands_in(manager, key, m)
     ):
-        version, release = m.token, m.label_release
-
-    def fetch(path: Path) -> Fetched | None:
-        try:
-            validator = _stream_to_file(url, headers, path)
-        except BulkDownloadChallengeError as challenge:
-            if base is None:
-                raise
-            m = _mirror_copy(challenge, url=url, base=base)
-            # `ensure_record` calls this under the cache lock, which is
-            # re-entrant, so this is the record the mirror copy would replace.
-            record = cached_record()
-            if not mirror_may_replace(record, m, announced):
-                challenge.add_note(
-                    f"The bulk-file mirror's copy (version {m.token}, last seen "
-                    f"on OECD at {m.checked_at:%Y-%m-%d %H:%M} UTC) may be older "
-                    "than the cached copy, so it was not used."
-                )
-                raise
-            if (
-                announced not in (None, m.token)
-                and record is not None
-                and holds_mirror_copy(record, m)
-            ):
-                challenge.add_note(
-                    f"The bulk-file mirror holds version {m.token}, which is the "
-                    f"copy already cached; OECD now announces {announced}."
-                )
-                raise
-            _download_from_mirror(challenge, m, path, base=base, headers=headers)
-            return Fetched(m.token, m.token_kind, "mirror")
-        return None if validator is None else Fetched(*validator)
+        version = m.token
+        # The manifest's label names the mirror's copy. A caller that
+        # records no label for this dataset gets none from the mirror.
+        if release is not None:
+            release = m.label_release
 
     entry = CacheEntry(
         key=key,
         filename=f"{key}{extension}",
-        fetcher=fetch,
+        fetcher=lambda path: _fetch_bulk_file(
+            url, path, base=base, announced=announced, cache=(manager, key)
+        ),
         version=version,
         url=url,
         flow_url=flow_url,
@@ -1755,75 +1743,220 @@ def _ensure_cached_bulk_file(
         raise
 
 
+# The statuses with which OECD's bulk-file host refuses a client, beside a
+# Cloudflare challenge. `_stream_to_file` raises a 429 once its retries are
+# spent or the host asks for a longer wait than it will make.
+_REFUSED_STATUS_CODES = (403, 429)
+
+
+def _refused(error: BulkDownloadHTTPError) -> bool:
+    """Whether OECD's file host refused this client, so the mirror may stand in."""
+    return (
+        isinstance(error, BulkDownloadChallengeError)
+        or error.status_code in _REFUSED_STATUS_CODES
+    )
+
+
+def _fetch_bulk_file(
+    url: str,
+    path: Path,
+    *,
+    base: str | None,
+    announced: str | None = None,
+    cache: tuple[CacheManager, str] | None = None,
+) -> Fetched | Kept | None:
+    """Stream bulk file *url* into *path*, from the mirror if OECD refuses it.
+
+    When OECD's file host refuses the download (`_refused`) and the mirror
+    at *base* lists *url*, the mirror's copy is written to *path* instead.
+
+    With *cache*, a ``(manager, key)`` pair, the mirror's copy is used only
+    if `mirror_may_replace` holds for the record under *key* at that moment.
+    When that record already holds the mirror's bytes, they are linked into
+    *path* and nothing is downloaded, unless OECD announced a newer version,
+    since the mirror then has nothing newer to give. The record then keeps
+    its own version, source and TTL (`Kept`), as `_mirror_token_stands_in`
+    has it, unless OECD announced the mirror's token, which the record then
+    takes. Without a cache, any copy the mirror holds will do.
+
+    Args:
+        url: The percent-encoded OECD URL.
+        path: Where to write the bytes.
+        base: The mirror's base URL, or None when the mirror is off.
+        announced: The version OECD announced for *url*, or None.
+        cache: The cache and key the bytes are for, or None for a read that
+            caches nothing.
+
+    Returns:
+        A `Fetched` for the bytes written, ``None`` for an OECD download
+        that carried no validator, or `Kept` for the cached copy kept. Bytes
+        from the mirror carry its token and SHA-256 and source ``"mirror"``.
+
+    Raises:
+        BulkDownloadHTTPError: Any error OECD answered with. A refusal the
+            mirror could not stand in for carries a note saying why: the
+            manifest is unreadable or lacks *url*, its copy may be older
+            than the cached one or is the cached one, or its download
+            failed.
+    """
+    try:
+        validator = _stream_to_file(url, {"Accept-Encoding": "gzip"}, path)
+    except BulkDownloadHTTPError as refusal:
+        if base is None or not _refused(refusal):
+            raise
+        m = _mirror_copy(refusal, url=url, base=base)
+        fetched = Fetched(m.token, m.token_kind, "mirror", f"sha256:{m.sha256}")
+        if cache is not None:
+            found = _identified_record(*cache, m)
+            record = None if found is None else found[1]
+            if not mirror_may_replace(record, m, announced):
+                refusal.add_note(
+                    f"The bulk-file mirror's copy (version {m.token}, last seen "
+                    f"on OECD at {m.checked_at:%Y-%m-%d %H:%M} UTC) may be older "
+                    "than the cached copy, so it was not used."
+                )
+                raise
+            if found is not None and holds_mirror_copy(found[1], m):
+                if announced not in (None, m.token):
+                    refusal.add_note(
+                        f"The bulk-file mirror holds version {m.token}, which is "
+                        f"the copy already cached; OECD now announces {announced}."
+                    )
+                    raise
+                _link_or_copy(found[0], path)
+                logger.info(
+                    f"OECD refused the download of {url}; the cached copy is the "
+                    f"bulk-file mirror's version {m.token}, so it was kept."
+                )
+                return fetched if announced == m.token else Kept(found[1])
+        _download_from_mirror(refusal, m, path, base=base)
+        return fetched
+    return None if validator is None else Fetched(*validator)
+
+
+def _mirror_token_stands_in(manager: CacheManager, key: str, m: MirrorFile) -> bool:
+    """Whether *m*'s token stands as the version of the file cached under *key*.
+
+    `mirror_token_stands` decides, on the record `_identified_record`
+    returns, so a cached copy of *m*'s bytes keeps its own token. When
+    OECD then refuses the download too, `_fetch_bulk_file` keeps that copy
+    and its record as they are. ``scan`` and ``release`` both decide here
+    after a refused version probe, so they report the same token for the
+    same file.
+    """
+    found = _identified_record(manager, key, m)
+    return mirror_token_stands(None if found is None else found[1], m)
+
+
+def _identified_record(
+    manager: CacheManager, key: str, m: MirrorFile
+) -> tuple[Path, dict[str, typing.Any]] | None:
+    """The cached payload under *key* and its record, hashed when it could be *m*.
+
+    A record that carries neither *m*'s token nor a content hash, and whose
+    file is *m*'s size, has its file hashed once and the hash recorded, so
+    `holds_mirror_copy` decides on the record alone. A file of another size
+    cannot hold *m*'s bytes and is not read.
+
+    Outside the cache lock another process can remove the file after its
+    record is read; that counts as no cached file.
+
+    Returns:
+        ``(path, record)``, or None when *key* has no cached file.
+    """
+    found = manager.find_record(key=key)
+    if found is None:
+        return None
+    _key, path, record = found
+    if record.get("version") == m.token or record.get("content_hash") is not None:
+        return path, record
+    try:
+        if path.stat().st_size != m.size:
+            return path, record
+        content_hash = f"sha256:{file_sha256(path)}"
+    except FileNotFoundError:
+        return None
+    manager.set_content_hash(key, content_hash, payload_id=_payload_id(record))
+    return path, {**record, "content_hash": content_hash}
+
+
+def _link_or_copy(source: Path, dest: Path) -> None:
+    """Hard-link *source* to *dest*, or copy it where the filesystem refuses links."""
+    dest.unlink(missing_ok=True)
+    try:
+        os.link(source, dest)
+    except OSError:
+        shutil.copyfile(source, dest)
+
+
 def _mirror_file(url: str, *, base: str) -> MirrorFile | None:
     """The mirror manifest's entry for *url*, or None if it has none or is unreadable."""
     manifest = fetch_manifest(base=base)
     return None if manifest is None else manifest.files.get(_encode_url_path(url))
 
 
-def _mirror_copy(
-    challenge: BulkDownloadChallengeError, *, url: str, base: str
-) -> MirrorFile:
-    """The mirror's entry for challenged *url*, or *challenge* re-raised with a note.
+def _mirror_copy(refusal: BulkDownloadHTTPError, *, url: str, base: str) -> MirrorFile:
+    """The mirror's entry for refused *url*, or *refusal* re-raised with a note.
 
     Raises:
-        BulkDownloadChallengeError: *challenge*, when the manifest is
-            unreadable or lists no copy of *url*.
+        BulkDownloadHTTPError: *refusal*, when the manifest is unreadable or
+            lists no copy of *url*.
     """
     manifest = fetch_manifest(base=base)
     if manifest is None:
-        challenge.add_note(
+        refusal.add_note(
             f"The bulk-file mirror's manifest {manifest_url(base=base)} could not "
             "be read, so the mirror was not used."
         )
-        raise challenge
+        raise refusal
     m = manifest.files.get(_encode_url_path(url))
     if m is None:
-        challenge.add_note(f"The bulk-file mirror at {base} has no copy of {url}.")
-        raise challenge
+        refusal.add_note(f"The bulk-file mirror at {base} has no copy of {url}.")
+        raise refusal
     return m
 
 
 def _download_from_mirror(
-    challenge: BulkDownloadChallengeError,
-    m: MirrorFile,
-    path: Path,
-    *,
-    base: str,
-    headers: dict,
+    refusal: BulkDownloadHTTPError, m: MirrorFile, path: Path, *, base: str
 ) -> None:
-    """Stream *m* from the mirror at *base* into *path* and check it.
+    """Stream *m* from the mirror at *base* into *path*, checking it on the way.
+
+    The size and SHA-256 are checked against *m* as the bytes are written.
+    The mirror is not OECD, so the download does not wait on OECD's rate
+    limiter.
 
     Raises:
-        BulkDownloadChallengeError: *challenge*, with a note, when the mirror
+        BulkDownloadHTTPError: *refusal*, with a note, when the mirror
             download fails for any reason (an HTTP error such as 404, a
             transport error, a redirect off the mirror, or a size or SHA-256
-            mismatch). A mirror 404 is raised as this error because bulk
+            mismatch). A mirror 404 is raised as OECD's refusal because bulk
             readers answer a 404 by re-resolving OECD's annotation.
     """
     try:
         _stream_to_file(
             object_url(m, base=base),
-            headers,
+            {"Accept-Encoding": "gzip"},
             path,
             validate=mirror_url_validator(base=base),
+            rate_limit=False,
+            verify=lambda size, sha256: verify_mirror_copy(m, size=size, sha256=sha256),
         )
-        verify_mirror_file(path, m)
     except (MirrorIntegrityError, OSError, ValueError) as e:
         reason = (
             _describe_bulk_download_error(e)
             if isinstance(e, BulkDownloadHTTPError)
             else str(e)
         )
-        challenge.add_note(
+        refusal.add_note(
             f"The bulk-file mirror at {base} could not serve its copy "
             f"(version {m.token}): {reason}"
         )
-        raise challenge from e
+        raise refusal from e
     logger.warning(
-        f"OECD challenged the download, so {m.object} (version {m.token}, last "
-        f"seen on OECD at {m.checked_at:%Y-%m-%d %H:%M} UTC) was fetched from "
-        f"the bulk-file mirror at {base} instead."
+        f"OECD refused the download ({_describe_bulk_download_error(refusal)}), "
+        f"so {m.object} (version {m.token}, last seen on OECD at "
+        f"{m.checked_at:%Y-%m-%d %H:%M} UTC) was fetched from the bulk-file "
+        f"mirror at {base} instead."
     )
 
 
@@ -2137,26 +2270,6 @@ def _fetch_revalidation_token(url: str) -> str | None:
     return _probe_bulk_file(url).token
 
 
-@dataclass(frozen=True, slots=True)
-class BulkProbe:
-    """What `_probe_bulk_file` learnt about a bulk file.
-
-    Attributes:
-        validator: ``(token, kind)`` from the file host's ETag, else its
-            Last-Modified, or None when the probe got neither.
-        challenged: True when the host answered with a Cloudflare challenge.
-            Only then may the bulk-file mirror stand in for the host's token.
-    """
-
-    validator: tuple[str, TokenKind] | None
-    challenged: bool = False
-
-    @property
-    def token(self) -> str | None:
-        """The validator's token, or None."""
-        return None if self.validator is None else self.validator[0]
-
-
 def _response_validator(
     headers: typing.Mapping[str, str],
 ) -> tuple[str, TokenKind] | None:
@@ -2211,8 +2324,8 @@ def _probe_bulk_file(url: str) -> BulkProbe:
     Returns:
         A `BulkProbe` whose validator is `(token, "etag")` for an `ETag`
         header, else `(token, "last_modified")` for a `Last-Modified` header,
-        else `None`, and whose `challenged` flag is set only for a Cloudflare
-        challenge.
+        else `None`, and whose `refused` flag is set only when the host
+        refused the client (`_refused`).
     """
     headers = {**DEFAULT_HEADERS, "Range": "bytes=0-0"}
     try:
@@ -2226,9 +2339,7 @@ def _probe_bulk_file(url: str) -> BulkProbe:
             )
             if error is not None:
                 _warn_revalidation_failure(url, _describe_bulk_download_error(error))
-                return BulkProbe(
-                    None, challenged=isinstance(error, BulkDownloadChallengeError)
-                )
+                return BulkProbe(None, refused=_refused(error))
 
             if response.status_code not in (200, 206):
                 _warn_revalidation_failure(
@@ -2438,7 +2549,7 @@ def _resolve_and_probe_bulk_file(
 
     As `get_bulk_file_url_with_version`, which wraps it, but returns the
     whole `BulkProbe`, so a bulk reader can tell `bulk_download_parquet`
-    whether OECD challenged the probe.
+    whether OECD refused the probe.
 
     Raises:
         RuntimeError: If no URL for *label* can be found even after version

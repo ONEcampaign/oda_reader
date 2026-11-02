@@ -116,8 +116,7 @@ def download_crs_file(
         use_raw_cache=use_raw_cache,
         flow_url=CRS_FLOW_URL,
         label=label,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
     )
 
 
@@ -163,8 +162,7 @@ def bulk_download_crs(
         use_raw_cache=use_raw_cache,
         flow_url=CRS_FLOW_URL,
         label=label,
-        version=probe.token,
-        challenged=probe.challenged,
+        probe=probe,
         offline=offline,
     )
 

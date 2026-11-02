@@ -48,11 +48,30 @@ class Fetched(NamedTuple):
             ``"last_modified"``, or ``None``.
         source: ``"download"`` for bytes from the file's own host,
             ``"mirror"`` for bytes from the bulk-file mirror.
+        content_hash: The ``sha256:<hex>`` digest of the bytes, when the
+            fetcher knows it, or ``None``.
     """
 
     token: str | None
     kind: str | None
     source: Literal["download", "mirror"] = "download"
+    content_hash: str | None = None
+
+
+@dataclass(frozen=True)
+class Kept:
+    """A fetcher's answer that the payload cached under its key is already current.
+
+    The fetcher writes that payload's bytes to its path, and
+    ``ensure_record`` keeps the record with its version, source, content
+    hash, TTL and payload id, restarting only its download time.
+
+    Attributes:
+        record: The manifest record of the cached payload, read under the
+            cache lock.
+    """
+
+    record: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -64,9 +83,11 @@ class CacheEntry:
         filename: Storage filename (e.g., "crs_full.parquet", "aiddata.parquet")
         fetcher: Callable that downloads and writes data to a given path and
             returns a `Fetched` naming the validator the bytes came with and
-            their source, or ``None`` for a download from the file's own
-            host that carried no validator. The record stores the validator,
-            so its version names the bytes it describes.
+            their source, a plain ``(token, kind)`` validator for a download
+            from the file's own host, ``None`` for such a download that
+            carried no validator, or `Kept` when the cached payload is
+            already current. The record stores the validator, so its
+            version names the bytes it describes.
         ttl_days: Time-to-live in days (default: 90)
         version: Optional version token read before the download, such as a
             revalidation probe's. It decides whether a cached copy is stale;
@@ -85,7 +106,7 @@ class CacheEntry:
 
     key: str
     filename: str
-    fetcher: Callable[[Path], Fetched | None]
+    fetcher: Callable[[Path], Fetched | Kept | tuple[str, str] | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
@@ -174,7 +195,8 @@ class CacheManager:
         The record describes the payload at the returned path, so a cache hit
         reports the version stored with that payload, not ``entry.version``,
         and a fetch records the version and source the fetcher returned for
-        the bytes it wrote. A fetch that delivers a version other than
+        the bytes it wrote. A fetcher that returns `Kept` leaves the record
+        as it was, apart from its download time. A fetch that delivers a version other than
         ``entry.version`` logs a warning.
         A hit fills in any of ``url``, ``flow_url`` and ``label`` the record
         lacks from ``entry``, so a record written before those were recorded
@@ -212,7 +234,20 @@ class CacheManager:
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            delivered = self._install(path, entry.fetcher) or Fetched(None, None)
+            fetched = self._install(path, entry.fetcher)
+            now = datetime.now(UTC).strftime(ISO_FORMAT)
+            if isinstance(fetched, Kept):
+                record = {
+                    **fetched.record,
+                    "filename": entry.filename,
+                    "payload_id": _payload_id(fetched.record),
+                    "downloaded_at": now,
+                }
+                manifest[entry.key] = record
+                self._save_manifest(manifest)
+                return path, record
+
+            delivered = _as_fetched(fetched)
             version = delivered.token
             if entry.version is not None and version != entry.version:
                 origin = (
@@ -230,7 +265,7 @@ class CacheManager:
                 "filename": entry.filename,
                 "seq": _next_seq(manifest),
                 "payload_id": uuid.uuid4().hex,
-                "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
+                "downloaded_at": now,
                 "ttl_days": entry.ttl_days,
                 "version": version,
                 "version_kind": delivered.kind,
@@ -240,6 +275,8 @@ class CacheManager:
                 "label": entry.label,
                 "release": _confirmed_release(entry, version),
             }
+            if delivered.content_hash is not None:
+                record["content_hash"] = delivered.content_hash
             manifest[entry.key] = record
             self._save_manifest(manifest)
 
@@ -860,6 +897,21 @@ def _mtime_ns(path: Path) -> int:
         return path.stat().st_mtime_ns
     except OSError:
         return 0
+
+
+def _as_fetched(delivered: Fetched | tuple[str, str] | None) -> Fetched:
+    """What a fetcher returned, as a `Fetched`.
+
+    A fetcher may return a plain ``(token, kind)`` validator, the shape
+    fetchers returned before `Fetched`, which describes a download from the
+    file's own host.
+    """
+    if delivered is None:
+        return Fetched(None, None)
+    if isinstance(delivered, Fetched):
+        return delivered
+    token, kind = delivered
+    return Fetched(token, kind)
 
 
 def _confirmed_release(entry: CacheEntry, version: str | None) -> str | None:
