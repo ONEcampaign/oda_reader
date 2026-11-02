@@ -37,6 +37,7 @@ from oda_reader._cache.lease import release_lease, take_lease
 from oda_reader._cache.manager import (
     ISO_FORMAT,
     CacheManager,
+    RecordSource,
     _payload_id,
     bulk_cache_manager,
     derived_files,
@@ -49,9 +50,11 @@ from oda_reader.download.download_tools import (
     _bulk_dataset_name,
     _detect_delimiter,
     _ensure_cached_bulk_file,
-    _fetch_revalidation_token,
+    _mirror_file,
+    _probe_bulk_file,
     _resolve_bulk_file,
 )
+from oda_reader.download.mirror import mirror_base_url, mirror_token_stands
 from oda_reader.exceptions import BulkDownloadHTTPError, BulkFileNotCachedError
 from oda_reader.schemas.bulk_columns import (
     DOTSTAT_TABLE_COLUMNS,
@@ -118,6 +121,9 @@ class BulkFileInfo:
         label_release: The readable release id of the annotation label, as
             in `ScannedTable`, or ``None``.
         downloaded: When the file was downloaded or registered (UTC).
+        source: ``"download"`` for a file from OECD, ``"mirror"`` for one
+            from the bulk-file mirror after OECD challenged the download, or
+            ``"registered"`` for one put in with `register_bulk_file`.
         size_bytes: The file's size on disk, 0 if it is missing.
         derived_bytes: The disk space used by the Parquet files `scan`
             made from it, counting a hard link to the file as 0.
@@ -133,6 +139,7 @@ class BulkFileInfo:
     release: str | None
     label_release: str | None
     downloaded: datetime
+    source: RecordSource
     size_bytes: int
     derived_bytes: int
     stale: bool
@@ -221,8 +228,9 @@ def scan(
             `refresh` and `offline` are True.
         BulkFileNotCachedError: If `offline` is True and the cache holds no
             copy.
-        BulkDownloadChallengeError: If the file host challenges the download.
-            Register a browser download with `register_bulk_file`.
+        BulkDownloadChallengeError: If the file host challenges the download
+            and the bulk-file mirror cannot serve it. The error's notes say
+            why. Register a browser download with `register_bulk_file`.
         RuntimeError: If another process replaced or cleared the cached bulk
             file while it was being served. Scanning again serves the new file.
     """
@@ -301,8 +309,14 @@ def release(
 
     Online, the token describes the file OECD publishes now, read with one
     request for the dataflow annotations and a one-byte request to the file
-    host. Nothing is downloaded. When the host sends no token, the cached
-    copy's token is returned, as `scan` reports it.
+    host. Nothing is downloaded. When the host answers with a Cloudflare
+    challenge, the bulk-file mirror's token for the file is returned if there
+    is no cached copy, or if the cached copy is not the mirror's copy and is
+    no newer than it (the rule `scan` applies). Otherwise, and whenever the
+    host sends no token for another reason, the cached copy's token is
+    returned, as `scan` reports it. The mirror's token can lag OECD's by up
+    to one refresh of the mirror. ``ODA_READER_BULK_MIRROR=off`` skips the
+    mirror.
 
     Args:
         dataset: ``"dac1"``, ``"dac2a"``, ``"dac2b"``, ``"crs"`` or
@@ -316,25 +330,38 @@ def release(
         str: The release token.
 
     Raises:
-        ValueError: If `dataset` is not one of the four names, or if both
-            `refresh` and `offline` are True.
+        ValueError: If `dataset` is not one of the four names, if both
+            `refresh` and `offline` are True, or, online, if
+            ``ODA_READER_BULK_MIRROR`` is not ``off`` or an https base URL.
+            The setting is checked before any request.
         BulkFileNotCachedError: If the token comes from the cache (offline,
-            or online when the host sends none) and the cache holds no copy.
+            or online when neither the host nor the mirror sends one) and the
+            cache holds no copy.
     """
     _check_dataset(dataset)
     _check_modes(refresh=refresh, offline=offline)
     manager = _manager(cache_dir)
     flow_url, label = BULK_DATASETS[dataset]
+    base = None if offline else mirror_base_url()
 
     url = None
+    challenged = False
     if not offline:
         url, _label_release = _resolve_bulk_file(
             flow_url, label, bypass_annotation_cache=refresh
         )
-        if (version := _fetch_revalidation_token(url)) is not None:
-            return version
+        probe = _probe_bulk_file(url)
+        if probe.token is not None:
+            return probe.token
+        challenged = probe.challenged
 
     found = manager.find_record(flow_url=flow_url, label=label)
+    if url is not None and challenged and base is not None:
+        m = _mirror_file(url, base=base)
+        if m is not None and mirror_token_stands(
+            None if found is None else found[2], m
+        ):
+            return m.token
     if found is None:
         raise BulkFileNotCachedError(dataset=dataset, url=url)
     return _record_release(manager, *found)
@@ -364,6 +391,7 @@ def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
                 release=row["version"] or row["content_hash"],
                 label_release=row["release"],
                 downloaded=_downloaded_at(row),
+                source=row["source"],
                 size_bytes=stat.st_size if stat else 0,
                 derived_bytes=_derived_bytes(path, stat),
                 stale=row["is_stale"],
@@ -437,14 +465,16 @@ def _bulk_file(
         url, label_release = _resolve_bulk_file(
             flow_url, label, bypass_annotation_cache=bypass_annotation_cache
         )
+        probe = _probe_bulk_file(url)
         path, record = _ensure_cached_bulk_file(
             url,
-            _fetch_revalidation_token(url),
+            probe.token,
             flow_url=flow_url,
             label=label,
             manager=manager,
             release=label_release if dataset == "crs" else None,
             refresh=refresh,
+            challenged=probe.challenged,
         )
         return _bulk_cache_key(url), path, record
 

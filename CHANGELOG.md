@@ -1,5 +1,23 @@
 # Changelog for oda_reader
 
+## 1.17.0 (2026-11-02)
+
+- **Falls back to a mirror of the bulk files when OECD's file server challenges a download.** The
+  mirror at `https://bulk.developmentfinance.org/oecd/` holds byte-identical copies of the `crs`,
+  `crs-reduced`, `dac1`, `dac2a`, `dac2b` and `multisystem` files, refreshed once a day. A
+  download from it is checked against the size and SHA-256 in the mirror's manifest and cached
+  under OECD's URL and release token, so `scan()`, `lease()`, `release()` and the bulk readers
+  treat it as OECD's file. A download OECD lets through never reads the mirror. A cached copy
+  newer than the mirror's stays in place, and when the mirror cannot serve the file the call
+  raises `BulkDownloadChallengeError` with a note saying why. A mirror copy can lag OECD by up to
+  a day. `ODA_READER_BULK_MIRROR=off` disables the mirror, and an `https` base URL points it
+  elsewhere.
+- **`cache_info()` reports where each file came from.** `BulkFileInfo` gains `source`, one of
+  `"download"`, `"mirror"` and `"registered"`.
+- **`release()` returns the mirror's token when OECD's file server challenges its version
+  request** and the cache holds neither a newer copy nor the mirror's own bytes. With nothing
+  cached, it no longer raises `BulkFileNotCachedError` when the mirror holds the file.
+
 ## 1.16.0 (2026-10-29)
 
 - **`scan()`, `lease()` and `release()` accept `"dac2b"`.** DAC2B is converted from its zipped CSV

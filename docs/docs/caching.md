@@ -194,9 +194,9 @@ The cache is governed separately because the files are large (up to 1.18 GB each
   [Query bulk files in place](bulk-downloads.md#query-bulk-files-in-place-with-scan).
 
 `oda_reader.cache_info()` lists the cached bulk files with their dataset,
-release token, readable label release, download time, size, size of the
-scanned Parquet files, staleness and path. Pass `cache_dir=`
-to list another cache root.
+release token, readable label release, download time, source (`"download"`,
+`"mirror"`, or `"registered"`), size, size of the scanned Parquet files,
+staleness and path. Pass `cache_dir=` to list another cache root.
 
 #### Cache invalidation on republish
 
@@ -266,7 +266,8 @@ is replaced only by another registration, a completed
 download of the same file, or a cache clear such as
 `oda_data.cache.clear('raw')` or `bulk_cache_manager().clear()`.
 `bulk_cache_manager().list_records()` reports `source="registered"` for a
-registered entry and `source="download"` for the rest.
+registered entry, `source="mirror"` for a copy from the bulk-file mirror,
+and `source="download"` for the rest.
 
 #### Reading offline
 

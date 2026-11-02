@@ -26,7 +26,7 @@ import requests
 from openpyxl import load_workbook
 
 from oda_reader import _http_primitives
-from oda_reader._cache.manager import CacheEntry, bulk_cache_manager
+from oda_reader._cache.manager import CacheEntry, Fetched, bulk_cache_manager
 from oda_reader._http_primitives import (
     API_RATE_LIMITER,
     DEFAULT_HEADERS,
@@ -192,10 +192,15 @@ def _fetch(url: str) -> Iterator[tuple[Path, str | None, str | None]]:
     """
     token, kind = _fetch_revalidation_validator(url) or (None, None)
     key = _bulk_cache_key(url)
+
+    def download(path: Path) -> Fetched | None:
+        validator = _stream_to_file(url, {}, path)
+        return None if validator is None else Fetched(*validator)
+
     entry = CacheEntry(
         key=key,
         filename=f"{key}.xlsx",
-        fetcher=lambda path: _stream_to_file(url, {}, path),
+        fetcher=download,
         version=token,
         version_kind=kind,
         url=url,

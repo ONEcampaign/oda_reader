@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, NamedTuple
 
 from filelock import FileLock
 
@@ -33,6 +33,27 @@ ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 _TMP_MAX_AGE_SECONDS = 86_400  # 24 hours
 _SNAPSHOT_PREFIX = ".snapshot-"
 
+# Where a cached payload came from: its own host, the bulk-file mirror, or
+# a local file put in with `CacheManager.register`.
+type RecordSource = Literal["download", "mirror", "registered"]
+
+
+class Fetched(NamedTuple):
+    """What a `CacheEntry` fetcher delivered.
+
+    Attributes:
+        token: The validator the bytes came with (an ETag, else a
+            Last-Modified date), or ``None`` when the response carried none.
+        kind: The header *token* came from, ``"etag"`` or
+            ``"last_modified"``, or ``None``.
+        source: ``"download"`` for bytes from the file's own host,
+            ``"mirror"`` for bytes from the bulk-file mirror.
+    """
+
+    token: str | None
+    kind: str | None
+    source: Literal["download", "mirror"] = "download"
+
 
 @dataclass(frozen=True)
 class CacheEntry:
@@ -42,9 +63,10 @@ class CacheEntry:
         key: Unique identifier (e.g., "crs_full", "aiddata")
         filename: Storage filename (e.g., "crs_full.parquet", "aiddata.parquet")
         fetcher: Callable that downloads and writes data to a given path and
-            returns the ``(token, kind)`` validator the download delivered,
-            or ``None`` when the response carried none. The record stores
-            this validator, so its version names the bytes it describes.
+            returns a `Fetched` naming the validator the bytes came with and
+            their source, or ``None`` for a download from the file's own
+            host that carried no validator. The record stores the validator,
+            so its version names the bytes it describes.
         ttl_days: Time-to-live in days (default: 90)
         version: Optional version token read before the download, such as a
             revalidation probe's. It decides whether a cached copy is stale;
@@ -63,7 +85,7 @@ class CacheEntry:
 
     key: str
     filename: str
-    fetcher: Callable[[Path], tuple[str, str] | None]
+    fetcher: Callable[[Path], Fetched | None]
     ttl_days: int = 90
     version: str | None = None
     version_kind: str | None = None
@@ -151,9 +173,9 @@ class CacheManager:
 
         The record describes the payload at the returned path, so a cache hit
         reports the version stored with that payload, not ``entry.version``,
-        and a fetch records the version the fetcher returned for the bytes it
-        wrote. A fetch that delivers a version other than ``entry.version``
-        logs a warning.
+        and a fetch records the version and source the fetcher returned for
+        the bytes it wrote. A fetch that delivers a version other than
+        ``entry.version`` logs a warning.
         A hit fills in any of ``url``, ``flow_url`` and ``label`` the record
         lacks from ``entry``, so a record written before those were recorded
         becomes findable by ``find_entry``.
@@ -190,13 +212,18 @@ class CacheManager:
             logger.info(f"Fetching {entry.key} (refresh={refresh})")
             # Validate only on fetch - trusting the manifest on hit avoids a
             # 10-30 s CRC walk per call on cached 976 MB zips.
-            delivered = self._install(path, entry.fetcher)
-            version, version_kind = delivered or (None, None)
+            delivered = self._install(path, entry.fetcher) or Fetched(None, None)
+            version = delivered.token
             if entry.version is not None and version != entry.version:
+                origin = (
+                    "the bulk-file mirror's copy"
+                    if delivered.source == "mirror"
+                    else "the download"
+                )
                 logger.warning(
-                    f"{entry.key}: the download carried version {version!r}, not "
+                    f"{entry.key}: {origin} carried version {version!r}, not "
                     f"the {entry.version!r} the host announced before it. "
-                    "Recording the downloaded version."
+                    "Recording the version of the bytes kept."
                 )
 
             record = {
@@ -206,8 +233,8 @@ class CacheManager:
                 "downloaded_at": datetime.now(UTC).strftime(ISO_FORMAT),
                 "ttl_days": entry.ttl_days,
                 "version": version,
-                "version_kind": version_kind,
-                "source": "download",
+                "version_kind": delivered.kind,
+                "source": delivered.source,
                 "url": entry.url,
                 "flow_url": entry.flow_url,
                 "label": entry.label,

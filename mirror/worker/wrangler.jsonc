@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "oda-bulk-mirror",
+  "account_id": "8b994c58b2ba94f032bbe3bc3fd97d52",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "bulk.developmentfinance.org", "custom_domain": true }],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "developmentfinance-bulk" }],
+  // Limits are per client IP, counted separately in each Cloudflare location, and approximate.
+  // namespace_id is an integer-valued string unique within the account.
+  "ratelimits": [
+    { "name": "FILES", "namespace_id": "7201", "simple": { "limit": 30, "period": 60 } },
+    { "name": "OTHER", "namespace_id": "7202", "simple": { "limit": 120, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

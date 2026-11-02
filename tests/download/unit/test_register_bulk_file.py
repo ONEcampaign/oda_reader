@@ -29,6 +29,7 @@ from oda_reader.download.download_tools import (
     DAC2A_FLOW_URL,
     DAC2B_FLOW_URL,
     MULTI_FLOW_URL,
+    BulkProbe,
     bulk_download_parquet,
 )
 from oda_reader.exceptions import (
@@ -238,8 +239,8 @@ class TestOnlineReadOfRegisteredEntry:
     ):
         register_bulk_file(crs_parquet, dataset="crs", url=_CRS_URL, version="e1")
         probe = mocker.patch(
-            "oda_reader.download.download_tools._fetch_revalidation_token",
-            return_value=probed,
+            "oda_reader.download.download_tools._probe_bulk_file",
+            return_value=BulkProbe(None if probed is None else (probed, "etag")),
         )
 
         with freeze_time("2027-01-01"):
@@ -254,8 +255,8 @@ class TestOnlineReadOfRegisteredEntry:
     ):
         register_bulk_file(crs_parquet, dataset="crs", url=_CRS_URL, version="e1")
         mocker.patch(
-            "oda_reader.download.download_tools._fetch_revalidation_token",
-            return_value="e2",
+            "oda_reader.download.download_tools._probe_bulk_file",
+            return_value=BulkProbe(("e2", "etag")),
         )
         republished = pd.DataFrame({"donor_code": [9]})
 
@@ -387,9 +388,13 @@ class TestRegisteredEntryLifetime:
     ):
         register_bulk_file(crs_parquet, url=_CRS_URL, version="e1")
         crs_parquet.unlink()
+
+        def serve_html(url, headers, path):
+            path.write_bytes(b"<html>")
+
         mocker.patch(
             "oda_reader.download.download_tools._stream_to_file",
-            side_effect=lambda url, headers, path: path.write_bytes(b"<html>"),
+            side_effect=serve_html,
         )
 
         # A new version token triggers a refetch, which returns a bad payload.
@@ -443,8 +448,8 @@ class TestChallengeNamesRegistration:
             ],
         )
         mocker.patch(
-            "oda_reader.download.download_tools.get_bulk_file_url_with_version",
-            return_value=(new_url, '"etag-2"'),
+            "oda_reader.download.download_tools._resolve_and_probe_bulk_file",
+            return_value=(new_url, BulkProbe(('"etag-2"', "etag"))),
         )
 
         with pytest.raises(BulkDownloadChallengeError) as exc_info:
@@ -507,10 +512,10 @@ def test_offline_reader_skips_resolution(mocker, module, reader, flow_url, label
     mod = importlib.import_module(f"oda_reader.{module}")
     mocker.patch.object(
         mod,
-        "get_bulk_file_url_with_version",
+        "_resolve_and_probe_bulk_file",
         side_effect=AssertionError("URL resolution attempted offline"),
     )
-    bulk = mocker.patch.object(mod, "bulk_download_parquet", return_value=None)
+    bulk = mocker.patch.object(mod, "_bulk_download_parquet", return_value=None)
 
     getattr(mod, reader)(offline=True)
 
@@ -521,3 +526,33 @@ def test_offline_reader_skips_resolution(mocker, module, reader, flow_url, label
         label,
         True,
     )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("module", "reader", "args"),
+    [
+        ("crs", "bulk_download_crs", ()),
+        ("crs", "download_crs_file", (2022,)),
+        ("dac1", "bulk_download_dac1", ()),
+        ("dac2a", "bulk_download_dac2a", ()),
+        ("dac2b", "bulk_download_dac2b", ()),
+        ("multisystem", "bulk_download_multisystem", ()),
+    ],
+)
+def test_reader_passes_a_challenged_probe_on(mocker, module, reader, args):
+    """The mirror may refresh an older cached copy only if it hears of the challenge."""
+    import importlib
+
+    mod = importlib.import_module(f"oda_reader.{module}")
+    mocker.patch.object(
+        mod,
+        "_resolve_and_probe_bulk_file",
+        return_value=(_CRS_URL, BulkProbe(None, challenged=True)),
+    )
+    bulk = mocker.patch.object(mod, "_bulk_download_parquet", return_value=None)
+
+    getattr(mod, reader)(*args)
+
+    kwargs = bulk.call_args.kwargs
+    assert (kwargs["version"], kwargs["challenged"]) == (None, True)

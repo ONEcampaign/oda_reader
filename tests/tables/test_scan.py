@@ -4,7 +4,7 @@ import hashlib
 import json
 import shutil
 import socket
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -29,7 +29,15 @@ from oda_reader._cache.manager import (
     _payload_id,
     bulk_cache_manager,
 )
-from oda_reader.download.download_tools import _parse_ext_resource_entries
+from oda_reader.download import download_tools
+from oda_reader.download.download_tools import BulkProbe, _parse_ext_resource_entries
+from oda_reader.download.mirror import (
+    MIRROR_ENV_VAR,
+    MirrorFile,
+    MirrorManifest,
+    object_url,
+)
+from oda_reader.exceptions import BulkDownloadChallengeError
 from oda_reader.schemas.bulk_columns import (
     MULTISYSTEM_COLUMNS,
     converted_columns,
@@ -52,6 +60,7 @@ _ZIPS = {
     "multisystem": _FIXTURES / "bulk" / "MultiSystem entire dataset.zip",
 }
 _CRS_FRAME = pd.DataFrame({"donor_code": [1, 2], "usd_disbursement": [1.5, 2.5]})
+_MIRROR_BASE = "https://mirror.example.org/oecd/"
 
 # The converted columns for each dataset, in file order. oda-data builds its
 # views on these names, so a change here is a breaking change.
@@ -200,12 +209,14 @@ class FakeHost:
         self.label_release = "v20260803"
         self.urls = dict(_URLS)
         self.payloads = {**_ZIPS, "crs": crs_parquet}
+        # Datasets whose probe and download OECD challenges, and the
+        # mirror's objects.
+        self.challenged: set[str] = set()
+        self.mirror_objects: dict[str, Path] = {}
         self.resolve = mocker.patch(
             "oda_reader._tables._resolve_bulk_file", side_effect=self._resolve
         )
-        mocker.patch(
-            "oda_reader._tables._fetch_revalidation_token", side_effect=self._token
-        )
+        mocker.patch("oda_reader._tables._probe_bulk_file", side_effect=self._probe)
         self.download = mocker.patch(
             "oda_reader.download.download_tools._stream_to_file",
             side_effect=self._download,
@@ -222,11 +233,22 @@ class FakeHost:
         )
         return self.urls[dataset], (self.label_release if dataset == "crs" else None)
 
-    def _token(self, url):
-        return self.tokens[self._dataset(url)]
-
-    def _download(self, url, headers, path):
+    def _probe(self, url):
         dataset = self._dataset(url)
+        if dataset in self.challenged:
+            return BulkProbe(None, challenged=True)
+        token = self.tokens[dataset]
+        return BulkProbe(None if token is None else (token, "etag"))
+
+    def _download(self, url, headers, path, validate=None):
+        if url in self.mirror_objects:
+            shutil.copyfile(self.mirror_objects[url], path)
+            return '"r2-etag"', "etag"
+        dataset = self._dataset(url)
+        if dataset in self.challenged:
+            raise BulkDownloadChallengeError(
+                status_code=403, url=url, body="", cf_ray="ray-1"
+            )
         shutil.copyfile(self.payloads[dataset], path)
         token = self.delivered.get(dataset, self.tokens[dataset])
         return None if token is None else (token, "etag")
@@ -242,6 +264,33 @@ def crs_parquet(tmp_path):
 @pytest.fixture
 def host(mocker, crs_parquet):
     return FakeHost(mocker, crs_parquet)
+
+
+@pytest.fixture
+def mirror_copy(mocker, monkeypatch, host):
+    """The DAC1 fixture zip on a fake mirror, last confirmed on OECD a day ago."""
+    monkeypatch.setenv(MIRROR_ENV_VAR, _MIRROR_BASE)
+    payload = _ZIPS["dac1"]
+    sha = hashlib.sha256(payload.read_bytes()).hexdigest()
+    entry = MirrorFile(
+        token="etag-dac1-mirror",
+        token_kind="etag",
+        label_release=None,
+        object=f"oecd/dac1/{sha}.zip",
+        size=payload.stat().st_size,
+        sha256=sha,
+        checked_at=datetime.now(UTC) - timedelta(days=1),
+    )
+    manifest = MirrorManifest(
+        generated_at=entry.checked_at,
+        attribution="OECD",
+        files={_URLS["dac1"]: entry},
+    )
+    mocker.patch(
+        "oda_reader.download.download_tools.fetch_manifest", return_value=manifest
+    )
+    host.mirror_objects[object_url(entry, base=_MIRROR_BASE)] = payload
+    return entry
 
 
 @pytest.fixture
@@ -682,6 +731,16 @@ class TestScan:
         with refuse(winerror=None), pytest.raises(PermissionError):
             manager.clear()
 
+    def test_challenged_download_reads_the_mirror_copy(self, host, mirror_copy):
+        host.tokens["dac1"] = None
+        host.challenged.add("dac1")
+
+        table = scan("dac1")
+
+        assert table.release == mirror_copy.token
+        [info] = cache_info()
+        assert (info.release, info.source) == (mirror_copy.token, "mirror")
+
     def test_cache_dir_scopes_the_call(self, host, tmp_path):
         root = get_cache_dir()
         scoped = tmp_path / "scoped"
@@ -769,6 +828,55 @@ class TestRelease:
 
         assert release("dac1") == "etag-dac1-1"
 
+    @pytest.mark.parametrize(
+        ("cache", "expected"),
+        [
+            (None, "etag-dac1-mirror"),
+            ("downloaded-before-check", "etag-dac1-mirror"),
+            ("downloaded-after-check", "etag-dac1-1"),
+            (
+                "registered-mirror-bytes",
+                f"sha256:{hashlib.sha256(_ZIPS['dac1'].read_bytes()).hexdigest()}",
+            ),
+        ],
+        ids=[
+            "no-copy",
+            "copy-older-than-check",
+            "copy-newer-than-check",
+            "registered-mirror-bytes",
+        ],
+    )
+    def test_online_without_a_host_token_asks_the_mirror(
+        self, host, mirror_copy, mocker, cache, expected
+    ):
+        if cache == "registered-mirror-bytes":
+            mocker.patch(
+                "oda_reader.download.download_tools._fetch_revalidation_token",
+                return_value=None,
+            )
+            register_bulk_file(_ZIPS["dac1"], dataset="dac1", url=_URLS["dac1"])
+            scan("dac1", offline=True)  # records the content hash
+        elif cache is not None:
+            scan("dac1")
+            _age_records(days=2 if cache == "downloaded-before-check" else 0)
+        host.challenged.add("dac1")
+
+        token = release("dac1")
+
+        assert token == expected
+        assert scan("dac1").release == token
+
+    def test_unchallenged_probe_failure_leaves_the_mirror_alone(
+        self, host, mirror_copy
+    ):
+        scan("dac1")
+        _age_records(days=2)
+        host.tokens["dac1"] = None
+
+        assert release("dac1") == "etag-dac1-1"
+        assert scan("dac1").release == "etag-dac1-1"
+        download_tools.fetch_manifest.assert_not_called()
+
     def test_online_without_a_host_token_or_a_copy_raises(self, host):
         host.tokens["dac1"] = None
 
@@ -808,6 +916,7 @@ def test_cache_info_lists_bulk_files(host, dataset):
     # A CRS hard link shares the cached file's disk space.
     assert info.derived_bytes == (0 if dataset == "crs" else table.path.stat().st_size)
     assert info.stale is False
+    assert info.source == "download"
 
 
 @pytest.mark.unit
