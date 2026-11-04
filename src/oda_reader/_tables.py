@@ -23,7 +23,8 @@ import typing
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, date, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from types import TracebackType
 
@@ -96,6 +97,11 @@ class ScannedTable:
             it describes these bytes.
         downloaded: When the bulk file was downloaded or registered (UTC).
         columns: The Parquet file's column names, in file order.
+        published: The file host's Last-Modified date (UTC) on the response
+            that delivered these bytes. For CRS it can differ from the date
+            in `label_release`, which OECD writes into the annotation label.
+            ``None`` for a registered file, a file cached before oda_reader
+            recorded the header, or a response without one.
     """
 
     path: Path
@@ -103,6 +109,7 @@ class ScannedTable:
     label_release: str | None
     downloaded: datetime
     columns: tuple[str, ...]
+    published: date | None = None
 
 
 @dataclass(frozen=True)
@@ -127,6 +134,8 @@ class BulkFileInfo:
             moved the dataset to a new URL stays stale and is not downloaded
             again.
         path: The cached file.
+        published: The file host's Last-Modified date of the bytes held, as
+            in `ScannedTable`, or ``None``.
     """
 
     dataset: str | None
@@ -137,6 +146,7 @@ class BulkFileInfo:
     derived_bytes: int
     stale: bool
     path: Path
+    published: date | None = None
 
 
 class TableLease:
@@ -368,6 +378,7 @@ def cache_info(*, cache_dir: str | Path | None = None) -> list[BulkFileInfo]:
                 derived_bytes=_derived_bytes(path, stat),
                 stale=row["is_stale"],
                 path=path,
+                published=_published(row),
             )
         )
     return infos
@@ -399,6 +410,7 @@ def _scanned_table(
         label_release=record.get("release"),
         downloaded=_downloaded_at(record),
         columns=tuple(pq.read_schema(table_path).names),
+        published=_published(record),
     )
 
 
@@ -475,6 +487,20 @@ def _record_release(
 
 def _downloaded_at(record: Mapping[str, typing.Any]) -> datetime:
     return datetime.strptime(record["downloaded_at"], ISO_FORMAT)
+
+
+def _published(record: Mapping[str, typing.Any]) -> date | None:
+    """The UTC date of the record's Last-Modified header, or None if unreadable."""
+    header = record.get("last_modified")
+    if not header:
+        return None
+    try:
+        published = parsedate_to_datetime(header)
+    except (TypeError, ValueError):
+        return None
+    if published.tzinfo is not None:
+        published = published.astimezone(UTC)
+    return published.date()
 
 
 def _derived_bytes(payload: Path, stat: os.stat_result | None) -> int:

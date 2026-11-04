@@ -1858,10 +1858,13 @@ class TestStreamToFileRetry:
     @pytest.mark.parametrize(
         ("validator", "expected"),
         [
-            ({"ETag": '"B"', "Last-Modified": "Tue, 07 Jul 2026"}, ('"B"', "etag")),
+            (
+                {"ETag": '"B"', "Last-Modified": "Tue, 07 Jul 2026"},
+                ('"B"', "etag", "Tue, 07 Jul 2026"),
+            ),
             (
                 {"Last-Modified": "Tue, 07 Jul 2026"},
-                ("Tue, 07 Jul 2026", "last_modified"),
+                ("Tue, 07 Jul 2026", "last_modified", "Tue, 07 Jul 2026"),
             ),
             ({}, None),
         ],
